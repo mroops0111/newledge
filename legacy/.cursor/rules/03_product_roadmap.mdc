@@ -1,0 +1,41 @@
+---
+alwaysApply: true
+---
+
+# Newledge
+
+Newledge – Your Stream of Fresh Knowledge, Powered by AI Search & Smart Summaries
+
+## Introduction
+
+Newledge is an AI-driven intelligent information tracking, search, and automated summarization platform that allows you to instantly capture high-value knowledge from news, blogs, and in-depth articles through personalized settings.
+
+## Product Positioning
+
+Newledge is a SaaS tool designed for users who seek efficient and intelligent information acquisition. The system integrates AI-powered search technology to automatically retrieve relevant information from diverse content sources, condenses key points through AI-driven summarization, and combines automated notifications and subscription mechanisms to deliver real-time updates with personalized service—helping you learn faster and gain deeper insights.
+
+## Core Features
+
+* Customizable Topics & Keywords: Precisely target the knowledge areas you care about
+* AI Search Engine: Automated search across diverse content sources to discover the latest information
+* Smart Summarization & Content Comparison: AI technology condenses key points, saving you significant reading time
+* Automated Notifications & Multi-Platform Subscriptions: Real-time delivery via Email, Slack, Telegram, and more.
+* Trend & Knowledge Flow Visualization: Future expansion for topic evolution and content insight dashboards
+
+## Architecture
+
+- Newledge: The frontend of the product, which is a web application that allows users to manage their tracks and view the results.
+- Newledge Backend: The backend of the product, which is a RESTful API that provides the functionality for the frontend.
+- Newledge Pipeline: The AI pipeline of the product, which is called by the backend to process the data and generate the results.
+
+## Environment
+
+### Development
+* Newledge: http://localhost:3000
+* Newledge Backend: http://localhost:8000
+* Newledge Pipeline: http://localhost:1416
+
+### Production
+* Newledge: https://newledge.ai
+* Newledge Backend: https://newledge-backend.ai
+* Newledge Pipeline: https://newledge-pipeline.ai

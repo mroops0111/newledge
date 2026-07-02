@@ -1,0 +1,13 @@
+---
+alwaysApply: true
+---
+
+## Code Style Guidelines
+
+### Javascript Style
+### JavaScript/TypeScript Style
+* Use modern JavaScript (ES6+) features
+* Prefer TypeScript with strict typing enabled
+* Follow best practices for async/await, arrow functions, and modular structure
+* Use linting tools (e.g., ESLint with Airbnb or TypeScript configs)
+* Format code with Prettier

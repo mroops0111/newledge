@@ -1,0 +1,1889 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Newledge Backend",
+    "description": "Newledge Backend API with Google OAuth and PostgreSQL",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/auth/token": {
+      "post": {
+        "tags": [
+          "auth",
+          "auth"
+        ],
+        "summary": "Google Token",
+        "operationId": "google_token_auth_token_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/OAuthCodeModel"
+                  }
+                ],
+                "title": "Code Info",
+                "description": "App OAuth code"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthAccessTokenModel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/google/login": {
+      "get": {
+        "tags": [
+          "auth",
+          "google-auth"
+        ],
+        "summary": "Google Login",
+        "operationId": "google_login_auth_google_login_get",
+        "parameters": [
+          {
+            "name": "redirect_uri",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Redirect URI after login",
+              "title": "Redirect Uri"
+            },
+            "description": "Redirect URI after login"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/google/callback": {
+      "get": {
+        "tags": [
+          "auth",
+          "google-auth"
+        ],
+        "summary": "Google Callback",
+        "operationId": "google_callback_auth_google_callback_get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Google OAuth code",
+              "title": "Code"
+            },
+            "description": "Google OAuth code"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Google OAuth state",
+              "title": "State"
+            },
+            "description": "Google OAuth state"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "tags": [
+          "profile"
+        ],
+        "summary": "Get Profile",
+        "description": "Get current user's profile information.\n\nArgs:\n    current_user: Current authenticated user\n    \nReturns:\n    UserProfileResponse containing user profile in standard format",
+        "operationId": "get_profile_api_v1_users_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper_UserFullResponseModel_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid Token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "object",
+                      "properties": {
+                        "error_code": {
+                          "type": "string",
+                          "description": "Error code"
+                        },
+                        "error_key": {
+                          "type": "string",
+                          "description": "Error key"
+                        },
+                        "error_message": {
+                          "type": "string",
+                          "description": "Error message"
+                        }
+                      },
+                      "required": [
+                        "error_code",
+                        "error_key",
+                        "error_message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ]
+                },
+                "example": {
+                  "detail": {
+                    "error_code": "401_002",
+                    "error_key": "invalid_token",
+                    "error_message": "Invalid or expired access token"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tracks": {
+      "get": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Get Track",
+        "description": "Get a track by UUID for the authenticated user.\n\nArgs:\n    uuid: UUID of the track to retrieve\n    current_user: Current authenticated user\n    \nReturns:\n    TrackFullResponseModel containing track information",
+        "operationId": "get_track_api_v1_tracks_get",
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "UUID of the track to retrieve",
+              "title": "Uuid"
+            },
+            "description": "UUID of the track to retrieve"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper_TrackFullResponseModel_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid Token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "object",
+                      "properties": {
+                        "error_code": {
+                          "type": "string",
+                          "description": "Error code"
+                        },
+                        "error_key": {
+                          "type": "string",
+                          "description": "Error key"
+                        },
+                        "error_message": {
+                          "type": "string",
+                          "description": "Error message"
+                        }
+                      },
+                      "required": [
+                        "error_code",
+                        "error_key",
+                        "error_message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ]
+                },
+                "example": {
+                  "detail": {
+                    "error_code": "401_002",
+                    "error_key": "invalid_token",
+                    "error_message": "Invalid or expired access token"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Track Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "object",
+                      "properties": {
+                        "error_code": {
+                          "type": "string",
+                          "description": "Error code"
+                        },
+                        "error_key": {
+                          "type": "string",
+                          "description": "Error key"
+                        },
+                        "error_message": {
+                          "type": "string",
+                          "description": "Error message"
+                        }
+                      },
+                      "required": [
+                        "error_code",
+                        "error_key",
+                        "error_message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ]
+                },
+                "example": {
+                  "detail": {
+                    "error_code": "404_002",
+                    "error_key": "track_not_found",
+                    "error_message": "Track not found"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Track Not Accessible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "object",
+                      "properties": {
+                        "error_code": {
+                          "type": "string",
+                          "description": "Error code"
+                        },
+                        "error_key": {
+                          "type": "string",
+                          "description": "Error key"
+                        },
+                        "error_message": {
+                          "type": "string",
+                          "description": "Error message"
+                        }
+                      },
+                      "required": [
+                        "error_code",
+                        "error_key",
+                        "error_message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ]
+                },
+                "example": {
+                  "detail": {
+                    "error_code": "403_001",
+                    "error_key": "track_not_accessible",
+                    "error_message": "Track not accessible"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Create Track",
+        "description": "Create a new track for the authenticated user.\n\nArgs:\n    track_data: Track creation data\n    current_user: Current authenticated user\n    session: Database session\n    \nReturns:\n    TrackBasicResponseModel containing created track information",
+        "operationId": "create_track_api_v1_tracks_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrackCreateModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper_TrackBasicResponseModel_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid Token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "object",
+                      "properties": {
+                        "error_code": {
+                          "type": "string",
+                          "description": "Error code"
+                        },
+                        "error_key": {
+                          "type": "string",
+                          "description": "Error key"
+                        },
+                        "error_message": {
+                          "type": "string",
+                          "description": "Error message"
+                        }
+                      },
+                      "required": [
+                        "error_code",
+                        "error_key",
+                        "error_message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ]
+                },
+                "example": {
+                  "detail": {
+                    "error_code": "401_002",
+                    "error_key": "invalid_token",
+                    "error_message": "Invalid or expired access token"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Track Domain Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "object",
+                      "properties": {
+                        "error_code": {
+                          "type": "string",
+                          "description": "Error code"
+                        },
+                        "error_key": {
+                          "type": "string",
+                          "description": "Error key"
+                        },
+                        "error_message": {
+                          "type": "string",
+                          "description": "Error message"
+                        }
+                      },
+                      "required": [
+                        "error_code",
+                        "error_key",
+                        "error_message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ]
+                },
+                "examples": {
+                  "default": {
+                    "value": {
+                      "detail": {
+                        "error_code": "404_003",
+                        "error_key": "track_domain_not_found",
+                        "error_message": "Track domain not found"
+                      }
+                    }
+                  },
+                  "track_source_not_found": {
+                    "summary": "Track Source Not Found",
+                    "value": {
+                      "detail": {
+                        "error_code": "404_004",
+                        "error_key": "track_source_not_found",
+                        "error_message": "Track source not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Params",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "object",
+                      "properties": {
+                        "error_code": {
+                          "type": "string",
+                          "description": "Error code"
+                        },
+                        "error_key": {
+                          "type": "string",
+                          "description": "Error key"
+                        },
+                        "error_message": {
+                          "type": "string",
+                          "description": "Error message"
+                        }
+                      },
+                      "required": [
+                        "error_code",
+                        "error_key",
+                        "error_message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ]
+                },
+                "example": {
+                  "detail": {
+                    "error_code": "400_001",
+                    "error_key": "invalid_params",
+                    "error_message": "Invalid parameters"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Update Track",
+        "description": "Update a track by UUID for the authenticated user.\n\nArgs:\n    uuid: UUID of the track to update\n    track_data: Track update data\n    current_user: Current authenticated user\n    session: Database session\n    \nReturns:\n    TrackBasicResponseModel containing updated track information",
+        "operationId": "update_track_api_v1_tracks_put",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/TrackUpdateModel"
+                  }
+                ],
+                "description": "Track update data",
+                "title": "Track Data"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper_TrackBasicResponseModel_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid Token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "object",
+                      "properties": {
+                        "error_code": {
+                          "type": "string",
+                          "description": "Error code"
+                        },
+                        "error_key": {
+                          "type": "string",
+                          "description": "Error key"
+                        },
+                        "error_message": {
+                          "type": "string",
+                          "description": "Error message"
+                        }
+                      },
+                      "required": [
+                        "error_code",
+                        "error_key",
+                        "error_message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ]
+                },
+                "example": {
+                  "detail": {
+                    "error_code": "401_002",
+                    "error_key": "invalid_token",
+                    "error_message": "Invalid or expired access token"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Track Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "object",
+                      "properties": {
+                        "error_code": {
+                          "type": "string",
+                          "description": "Error code"
+                        },
+                        "error_key": {
+                          "type": "string",
+                          "description": "Error key"
+                        },
+                        "error_message": {
+                          "type": "string",
+                          "description": "Error message"
+                        }
+                      },
+                      "required": [
+                        "error_code",
+                        "error_key",
+                        "error_message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ]
+                },
+                "examples": {
+                  "default": {
+                    "value": {
+                      "detail": {
+                        "error_code": "404_002",
+                        "error_key": "track_not_found",
+                        "error_message": "Track not found"
+                      }
+                    }
+                  },
+                  "track_domain_not_found": {
+                    "summary": "Track Domain Not Found",
+                    "value": {
+                      "detail": {
+                        "error_code": "404_003",
+                        "error_key": "track_domain_not_found",
+                        "error_message": "Track domain not found"
+                      }
+                    }
+                  },
+                  "track_source_not_found": {
+                    "summary": "Track Source Not Found",
+                    "value": {
+                      "detail": {
+                        "error_code": "404_004",
+                        "error_key": "track_source_not_found",
+                        "error_message": "Track source not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Track Not Accessible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "object",
+                      "properties": {
+                        "error_code": {
+                          "type": "string",
+                          "description": "Error code"
+                        },
+                        "error_key": {
+                          "type": "string",
+                          "description": "Error key"
+                        },
+                        "error_message": {
+                          "type": "string",
+                          "description": "Error message"
+                        }
+                      },
+                      "required": [
+                        "error_code",
+                        "error_key",
+                        "error_message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ]
+                },
+                "example": {
+                  "detail": {
+                    "error_code": "403_001",
+                    "error_key": "track_not_accessible",
+                    "error_message": "Track not accessible"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "tracks"
+        ],
+        "summary": "Delete Track",
+        "description": "Delete a track by UUID for the authenticated user.\n\nArgs:\n    track_data: Track delete data\n    current_user: Current authenticated user\n    session: Database session\n    \nReturns:\n    TrackBasicResponseModel confirming deletion",
+        "operationId": "delete_track_api_v1_tracks_delete",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/TrackIdentifyModel"
+                  }
+                ],
+                "description": "Track delete data",
+                "title": "Track Data"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper_TrackBasicResponseModel_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid Token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "object",
+                      "properties": {
+                        "error_code": {
+                          "type": "string",
+                          "description": "Error code"
+                        },
+                        "error_key": {
+                          "type": "string",
+                          "description": "Error key"
+                        },
+                        "error_message": {
+                          "type": "string",
+                          "description": "Error message"
+                        }
+                      },
+                      "required": [
+                        "error_code",
+                        "error_key",
+                        "error_message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ]
+                },
+                "example": {
+                  "detail": {
+                    "error_code": "401_002",
+                    "error_key": "invalid_token",
+                    "error_message": "Invalid or expired access token"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Track Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "object",
+                      "properties": {
+                        "error_code": {
+                          "type": "string",
+                          "description": "Error code"
+                        },
+                        "error_key": {
+                          "type": "string",
+                          "description": "Error key"
+                        },
+                        "error_message": {
+                          "type": "string",
+                          "description": "Error message"
+                        }
+                      },
+                      "required": [
+                        "error_code",
+                        "error_key",
+                        "error_message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ]
+                },
+                "example": {
+                  "detail": {
+                    "error_code": "404_002",
+                    "error_key": "track_not_found",
+                    "error_message": "Track not found"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Track Not Accessible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "object",
+                      "properties": {
+                        "error_code": {
+                          "type": "string",
+                          "description": "Error code"
+                        },
+                        "error_key": {
+                          "type": "string",
+                          "description": "Error key"
+                        },
+                        "error_message": {
+                          "type": "string",
+                          "description": "Error message"
+                        }
+                      },
+                      "required": [
+                        "error_code",
+                        "error_key",
+                        "error_message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ]
+                },
+                "example": {
+                  "detail": {
+                    "error_code": "403_001",
+                    "error_key": "track_not_accessible",
+                    "error_message": "Track not accessible"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/track-domains": {
+      "get": {
+        "tags": [
+          "track-domains"
+        ],
+        "summary": "Get Track Domains",
+        "description": "Get a list of all track domains.\n\nArgs:\n    current_user: Current authenticated user\n    db: Database session\n    \nReturns:\n    TrackDomainListResponse containing list of track domains",
+        "operationId": "get_track_domains_api_v1_track_domains_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseListWrapper_TrackDomainResponseModel_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid Token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "object",
+                      "properties": {
+                        "error_code": {
+                          "type": "string",
+                          "description": "Error code"
+                        },
+                        "error_key": {
+                          "type": "string",
+                          "description": "Error key"
+                        },
+                        "error_message": {
+                          "type": "string",
+                          "description": "Error message"
+                        }
+                      },
+                      "required": [
+                        "error_code",
+                        "error_key",
+                        "error_message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ]
+                },
+                "example": {
+                  "detail": {
+                    "error_code": "401_002",
+                    "error_key": "invalid_token",
+                    "error_message": "Invalid or expired access token"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/track-sources": {
+      "get": {
+        "tags": [
+          "track-sources"
+        ],
+        "summary": "Get Track Sources",
+        "description": "Get a list of all track sources.\n\nArgs:\n    current_user: Current authenticated user\n    db: Database session\n    \nReturns:\n    TrackSourceListResponse containing list of track sources",
+        "operationId": "get_track_sources_api_v1_track_sources_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseListWrapper_TrackSourceResponseModel_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid Token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "object",
+                      "properties": {
+                        "error_code": {
+                          "type": "string",
+                          "description": "Error code"
+                        },
+                        "error_key": {
+                          "type": "string",
+                          "description": "Error key"
+                        },
+                        "error_message": {
+                          "type": "string",
+                          "description": "Error message"
+                        }
+                      },
+                      "required": [
+                        "error_code",
+                        "error_key",
+                        "error_message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ]
+                },
+                "example": {
+                  "detail": {
+                    "error_code": "401_002",
+                    "error_key": "invalid_token",
+                    "error_message": "Invalid or expired access token"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Root",
+        "description": "Health check endpoint.",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "OAuthAccessTokenModel": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token",
+            "description": "Access token"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "Expires in"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "expires_in"
+        ],
+        "title": "OAuthAccessTokenModel"
+      },
+      "OAuthCodeModel": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "OAuth code"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State",
+            "description": "OAuth state"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "OAuthCodeModel",
+        "description": "Used for callback from third-party OAuth."
+      },
+      "ResponseListWrapper_List_TrackFullResponseModel__": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TrackFullResponseModel"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "total_pages": {
+            "type": "integer",
+            "title": "Total Pages"
+          },
+          "total_count": {
+            "type": "integer",
+            "title": "Total Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "total_pages",
+          "total_count"
+        ],
+        "title": "ResponseListWrapper[List[TrackFullResponseModel]]"
+      },
+      "ResponseListWrapper_TrackDomainResponseModel_": {
+        "properties": {
+          "items": {
+            "$ref": "#/components/schemas/TrackDomainResponseModel"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "total_pages": {
+            "type": "integer",
+            "title": "Total Pages"
+          },
+          "total_count": {
+            "type": "integer",
+            "title": "Total Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "total_pages",
+          "total_count"
+        ],
+        "title": "ResponseListWrapper[TrackDomainResponseModel]"
+      },
+      "ResponseListWrapper_TrackSourceResponseModel_": {
+        "properties": {
+          "items": {
+            "$ref": "#/components/schemas/TrackSourceResponseModel"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "total_pages": {
+            "type": "integer",
+            "title": "Total Pages"
+          },
+          "total_count": {
+            "type": "integer",
+            "title": "Total Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "total_pages",
+          "total_count"
+        ],
+        "title": "ResponseListWrapper[TrackSourceResponseModel]"
+      },
+      "ResponseWrapper_ResponseListWrapper_List_TrackFullResponseModel___": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ResponseListWrapper_List_TrackFullResponseModel__"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ResponseWrapper[ResponseListWrapper[List[TrackFullResponseModel]]]"
+      },
+      "ResponseWrapper_TrackBasicResponseModel_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TrackBasicResponseModel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ResponseWrapper[TrackBasicResponseModel]"
+      },
+      "ResponseWrapper_TrackFullResponseModel_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TrackFullResponseModel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ResponseWrapper[TrackFullResponseModel]"
+      },
+      "ResponseWrapper_UserFullResponseModel_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UserFullResponseModel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ResponseWrapper[UserFullResponseModel]"
+      },
+      "TrackBasicResponseModel": {
+        "properties": {
+          "uuid": {
+            "type": "string",
+            "title": "Uuid",
+            "description": "UUID of the track"
+          }
+        },
+        "type": "object",
+        "required": [
+          "uuid"
+        ],
+        "title": "TrackBasicResponseModel",
+        "description": "Response model for a basic track."
+      },
+      "TrackCreateModel": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the track"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "Description of the track"
+          },
+          "keywords": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keywords",
+            "description": "Keywords of the track"
+          },
+          "frequency": {
+            "type": "integer",
+            "title": "Frequency",
+            "description": "Process frequency of the track",
+            "default": 1
+          },
+          "track_domain_id": {
+            "type": "integer",
+            "title": "Track Domain Id",
+            "description": "ID of the track domain"
+          },
+          "track_source_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Track Source Ids",
+            "description": "IDs of track sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "track_domain_id",
+          "track_source_ids"
+        ],
+        "title": "TrackCreateModel",
+        "description": "Request model for creating a track."
+      },
+      "TrackDomainResponseModel": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "ID of the track domain"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the track domain"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Description of the track domain"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "TrackDomainResponseModel",
+        "description": "Response model for a track domain."
+      },
+      "TrackFullResponseModel": {
+        "properties": {
+          "uuid": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Uuid",
+            "description": "UUID of the track"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the track"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Description of the track"
+          },
+          "keywords": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keywords",
+            "description": "Keywords of the track"
+          },
+          "frequency": {
+            "type": "integer",
+            "title": "Frequency",
+            "description": "Process frequency of the track"
+          },
+          "track_domain": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TrackDomainResponseModel"
+              }
+            ],
+            "description": "Domain of the track"
+          },
+          "track_sources": {
+            "items": {
+              "$ref": "#/components/schemas/TrackSourceResponseModel"
+            },
+            "type": "array",
+            "title": "Track Sources",
+            "description": "Sources of the track"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Created at"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Updated at"
+          }
+        },
+        "type": "object",
+        "required": [
+          "uuid",
+          "name",
+          "frequency",
+          "track_domain",
+          "track_sources",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "TrackFullResponseModel",
+        "description": "Response model for a track with all properties."
+      },
+      "TrackIdentifyModel": {
+        "properties": {
+          "uuid": {
+            "type": "string",
+            "title": "Uuid",
+            "description": "UUID of the track"
+          }
+        },
+        "type": "object",
+        "required": [
+          "uuid"
+        ],
+        "title": "TrackIdentifyModel",
+        "description": "Request model for finding a track."
+      },
+      "TrackSourceResponseModel": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "ID of the track source"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the track source"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Description of the track source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "TrackSourceResponseModel",
+        "description": "Response model for a track source."
+      },
+      "TrackUpdateModel": {
+        "properties": {
+          "uuid": {
+            "type": "string",
+            "title": "Uuid",
+            "description": "UUID of the track"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Name of the track"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Description of the track"
+          },
+          "keywords": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keywords",
+            "description": "Keywords for the track"
+          },
+          "frequency": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frequency",
+            "description": "Frequency of the track"
+          },
+          "track_domain_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Track Domain Id",
+            "description": "ID of the track domain"
+          },
+          "track_source_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Track Source Ids",
+            "description": "IDs of track sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "uuid"
+        ],
+        "title": "TrackUpdateModel",
+        "description": "Request model for updating a track."
+      },
+      "UserFullResponseModel": {
+        "properties": {
+          "uuid": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Uuid",
+            "description": "UUID of the user"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "description": "Email of the user"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the user"
+          },
+          "icon_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon Url",
+            "description": "Icon URL of the user"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Created at"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Updated at"
+          }
+        },
+        "type": "object",
+        "required": [
+          "uuid",
+          "email",
+          "name",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "UserFullResponseModel",
+        "description": "Response model for a full user."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

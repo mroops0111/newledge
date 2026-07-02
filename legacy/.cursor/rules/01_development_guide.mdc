@@ -1,0 +1,65 @@
+---
+alwaysApply: true
+---
+
+# Development Guide
+
+## Technical Stack
+
+MUST use the following libraries and frameworks:
+* React
+* Next.js
+* Taiwind CSS
+* Cucumber
+
+MUST use the following libraries for team standards:
+* [Cucumber-JS](https://cucumber.io/docs/installation/javascript/)
+
+Use latest libraries if possible.
+
+---
+
+## Deliverable
+
+* API only backend with tests and Dockerfile
+
+---
+
+## Development Guideline
+
+Use AI agent + BDD + TDD + Data Driven Development to develop the application automatically.
+
+* Design:
+  * User puts the backend files in `docs/backend` folder, including OpenAPI defintions
+  * User generates the feature files using Gherkin syntax, with data and UI/UX examples in `features` folder.
+* Implementation:
+  * System MUST follow the "Development Process" to develop the application.
+  * System MUST follow the design to generate the step definitions and the code to implement the feature.
+  * System MUST record the progress in `docs/implementation/progress/{yyyymm}.md` file.
+  * System MUST record the decisions made in `docs/implementation/decisions/{yyyymm}.md` file.
+  * System MUST record the issues which may be encountered in the future in `docs/implementation/issues/{yyyymm}.md` file.
+
+---
+
+## Development Process
+
+System will use TDD process to implement the application under BDD framework.
+Each feature should be developed one by one, and the feature should be developed in the order of the feature files.
+Please reference the `docs/backend` folder to understand backend APIs.
+
+1. Generate the tests. (Red)
+  * The tests should be generated in the `features` folder (as step functions).
+  * The tests must failed in the first time.
+2. Implement the code to pass the tests. (Green)
+  * The code should be implemented in the `src` folder (as components).
+  * The code must pass the tests.
+3. Refactor the code. (Refactor)
+  * The code should be refactored to be more readable and maintainable.
+  * The code should be refactored to be more efficient.
+  * The code must pass the tests after refactoring.
+4. Review the code.
+  * The code should follow the given development style.
+5. Commit the code.
+  * The commit message should be clear and concise, with
+  * The commit message should follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
+  * The commit message should use `[Cursor]` prefix, e.g. `[Cursor] feat: implement login feature`.
