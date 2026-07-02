@@ -18,7 +18,6 @@ dist/
 # Logs
 *.log
 
-# Local-only, never pushed (strategy docs + archived original app).
-# Mirrors everstory, whose docs/ is likewise gitignored.
+# Local-only
 /docs/
 /legacy/
