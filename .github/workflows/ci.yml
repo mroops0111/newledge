@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+
+# Design-stage repo: there is no package.json yet, so each job self-skips
+# (exits 0, stays green) until M0 lands the pnpm workspace. Once
+# package.json + pnpm-lock.yaml exist the guarded steps activate
+# automatically. At that point, re-enable `cache: pnpm` on setup-node and
+# drop the pinned pnpm `version`. Job names match the branch-protection
+# required checks, mirroring braid.
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Lint
+        run: |
+          if [ ! -f package.json ]; then echo "No package.json yet — skipping (activates at M0)."; exit 0; fi
+          pnpm install --frozen-lockfile
+          pnpm lint
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Typecheck
+        run: |
+          if [ ! -f package.json ]; then echo "No package.json yet — skipping (activates at M0)."; exit 0; fi
+          pnpm install --frozen-lockfile
+          pnpm typecheck
+
+  test:
+    name: Test (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '22']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Test
+        run: |
+          if [ ! -f package.json ]; then echo "No package.json yet — skipping (activates at M0)."; exit 0; fi
+          pnpm install --frozen-lockfile
+          pnpm test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build
+        run: |
+          if [ ! -f package.json ]; then echo "No package.json yet — skipping (activates at M0)."; exit 0; fi
+          pnpm install --frozen-lockfile
+          pnpm build
