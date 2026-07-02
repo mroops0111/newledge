@@ -1,0 +1,24 @@
+# OS
+.DS_Store
+
+# Node
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+.next/
+.turbo/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# Local-only, never pushed (strategy docs + archived original app).
+# Mirrors everstory, whose docs/ is likewise gitignored.
+/docs/
+/legacy/
