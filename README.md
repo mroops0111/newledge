@@ -24,14 +24,9 @@ separate repo, reached through braid's language-agnostic agent port.
 
 ## The braid Dependency
 
-Newledge builds on braid `0.2.0`. That version exists only in the braid source
-tree; the published npm packages are still `@braidhq/*@0.0.1`, an older cut
-missing the capabilities Newledge needs. braid's packages also point `main` at
-TypeScript source rather than built `dist`.
-
-The clean way to consume it, as everstory does, is to depend on published braid
-packages. Until braid `0.2.0` is published, this scaffold stays braid-free so it
-builds standalone and CI is green.
+Newledge depends on braid's published `@braidhq/*` packages (`^0.2.1`), the same
+way everstory consumes braid. `pnpm install` pulls them from npm; no submodule or
+local link is needed.
 
 ## Development
 

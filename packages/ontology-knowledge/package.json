@@ -16,5 +16,10 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests",
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@braidhq/sdk": "^0.2.1",
+    "@braidhq/core": "^0.2.1",
+    "@braidhq/schema": "^0.2.1"
   }
 }
