@@ -7,10 +7,10 @@
 
 export const ONTOLOGY_ID = 'knowledge' as const
 
-/** M0 minimal node set (see docs/03-ontology-draft.md). */
+/** Minimal node set. */
 export type PlannedNodeType = 'Concept' | 'Claim' | 'Source'
 
-/** M0 minimal edge set. */
+/** Minimal edge set. */
 export type PlannedEdgeType = 'introducedBy' | 'cites'
 
 /** Ontology-declared source roles (braid #50): feed is unit-bearing, stance is sparse. */
