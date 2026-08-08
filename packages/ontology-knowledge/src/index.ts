@@ -1,21 +1,13 @@
-// @newledge/ontology-knowledge — braid ontology plugin.
-//
-// Scaffold placeholder. The real ontology lands in issue #7:
-//   defineOntologyPlugin({ ontologyId: 'knowledge', nodeTypes, edgeTypes, sourceRoles })
-// It imports ONLY the '@braidhq/sdk' public surface, never '@braidhq/core' internals.
-
 import { defineOntologyPlugin } from '@braidhq/sdk'
 
-/** Smoke reference proving the braid dependency resolves and typechecks. Issue #7 uses it for real. */
+/**
+ * Reference to the braid entry point this plugin is built on. A scaffold
+ * placeholder that proves the dependency resolves and typechecks; the real
+ * plugin declares its node types, edge types, and source roles as data passed
+ * to `defineOntologyPlugin`, so new types are added by extending that data
+ * rather than editing a closed union.
+ */
 export type DefineOntologyPlugin = typeof defineOntologyPlugin
 
+/** The ontology id this plugin declares. */
 export const ONTOLOGY_ID = 'knowledge' as const
-
-/** Minimal node set. */
-export type PlannedNodeType = 'Concept' | 'Claim' | 'Source'
-
-/** Minimal edge set. */
-export type PlannedEdgeType = 'introducedBy' | 'cites'
-
-/** Ontology-declared source roles (braid #50): feed is unit-bearing, stance is sparse. */
-export type PlannedSourceRole = 'feed' | 'stance'
