@@ -33,7 +33,27 @@ function snapshot(nodes: Node[], edges: Edge[] = []): ModelSnapshot {
   return { nodes, edges }
 }
 
-describe('knowledge ontology', () => {
+describe('knowledge ontology configuration', () => {
+  it('declares the knowledge ontology id', () => {
+    expect(knowledgeOntology.ontologyId).toBe('knowledge')
+  })
+
+  it('declares Concept, Claim, and Source node types', () => {
+    expect(knowledgeOntology.nodeTypes.map(n => n.id)).toEqual(['Concept', 'Claim', 'Source'])
+  })
+
+  it('declares the introducedBy and cites edge types', () => {
+    expect(knowledgeOntology.edgeTypes.map(e => e.id)).toEqual(['introducedBy', 'cites'])
+  })
+
+  it('declares feed and stance, with feed as the only unit-bearing role and neither required', () => {
+    expect(knowledgeOntology.sourceRoles.map(r => r.id)).toEqual(['feed', 'stance'])
+    expect(knowledgeOntology.sourceRoles.filter(r => r.unitBearing).map(r => r.id)).toEqual(['feed'])
+    expect(knowledgeOntology.sourceRoles.filter(r => r.required)).toEqual([])
+  })
+})
+
+describe('knowledge ontology validation', () => {
   it('accepts well-typed, correctly-directed edges', async () => {
     const snap = snapshot(
       [node('c1', 'Concept'), node('cl1', 'Claim'), node('s1', 'Source')],
