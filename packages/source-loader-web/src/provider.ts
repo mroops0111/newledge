@@ -8,7 +8,7 @@ export interface WebSearchResult {
   readonly markdown: string
 }
 
-/** The query the loader hands to the retrieval agent. */
+/** The query the loader hands to the retrieval fetcher. */
 export interface WebSearchQuery {
   readonly query: string
   readonly keywords: readonly string[]
@@ -18,7 +18,7 @@ export interface WebSearchQuery {
 /**
  * The retrieval seam. The loader depends on this abstraction, not on how the
  * search runs, so the production implementation can shell out to the Python
- * web-search agent while tests inject a fake. This is what keeps the loader
+ * web-search fetcher while tests inject a fake. This is what keeps the loader
  * itself pure and offline-testable.
  */
 export interface WebSearchProvider {
@@ -33,9 +33,9 @@ const resultSchema = z.array(
   }),
 )
 
-/** How to launch the Python web-search agent. */
+/** How to launch the Python web-search fetcher. */
 export interface SubprocessProviderOptions {
-  /** The agent executable, e.g. `python` or an absolute path. */
+  /** The fetcher executable, e.g. `python` or an absolute path. */
   readonly command: string
   /** Fixed leading arguments, e.g. `['-m', 'newledge_pipeline.web_search']`. */
   readonly args?: readonly string[]
@@ -44,16 +44,17 @@ export interface SubprocessProviderOptions {
 }
 
 /**
- * A WebSearchProvider that runs the Python web-search agent as a subprocess,
- * mirroring braid's agent-as-subprocess seam. The query is written as JSON to the
- * child's stdin and a JSON array of results is read from its stdout, so the
- * agent's language and internals stay its own concern.
+ * A WebSearchProvider that runs the Python web-search fetcher as a subprocess.
+ * The query is written as JSON to the child's stdin and a JSON array of results
+ * is read from its stdout, so the fetcher's language and internals stay its own
+ * concern. This is deterministic retrieval, not an LLM agent; extraction is a
+ * separate braid skill.
  */
 export function subprocessWebSearchProvider(options: SubprocessProviderOptions): WebSearchProvider {
-  return { search: query => runAgent(options, query) }
+  return { search: query => runFetcher(options, query) }
 }
 
-function runAgent(options: SubprocessProviderOptions, query: WebSearchQuery): Promise<readonly WebSearchResult[]> {
+function runFetcher(options: SubprocessProviderOptions, query: WebSearchQuery): Promise<readonly WebSearchResult[]> {
   return new Promise((resolve, reject) => {
     const child = spawn(options.command, [...(options.args ?? [])], {
       env: { ...process.env, ...options.env },
@@ -69,7 +70,7 @@ function runAgent(options: SubprocessProviderOptions, query: WebSearchQuery): Pr
     child.on('error', reject)
     child.on('close', code => {
       if (code !== 0) {
-        reject(new Error(`web-search agent exited with code ${String(code)}: ${stderr.trim()}`))
+        reject(new Error(`web-search fetcher exited with code ${String(code)}: ${stderr.trim()}`))
         return
       }
       try {

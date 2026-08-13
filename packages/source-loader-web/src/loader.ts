@@ -42,7 +42,7 @@ function toQuery(config: WebSourceConfig): WebSearchQuery {
 
 /**
  * Build the web source loader, injecting the retrieval provider so the real
- * Python-backed agent and a test fake are interchangeable. The loader is a pure
+ * Python-backed fetcher and a test fake are interchangeable. The loader is a pure
  * provisioner: it only writes files under `destination` and never touches the
  * Knowledge Graph — turning those files into typed, deduped knowledge is the
  * extract skill's job.
