@@ -40,11 +40,18 @@ const nodeTypes: readonly NodeTypeDescriptor[] = [
   node('Concept', 'Concept', 'A durable unit of knowledge — an idea, a technique, a definition. The dominant node type.', '#7c3aed'),
   node('Claim', 'Claim', 'A specific assertion with a truth value the user can accept, reject, or contest. Carries provenance to the exact source moment.', '#ef4444'),
   node('Source', 'Source', 'An ingested artifact — a web page, article, video, or podcast — with its metadata. The anchor every claim traces back to.', '#0ea5e9'),
+  node('Topic', 'Topic', 'A named grouping or theme, a concept-map section made first-class: reusable, nestable, and many-to-many, so a node can sit under several topics.', '#f59e0b'),
 ]
 
 const edgeTypes: readonly EdgeTypeDescriptor[] = [
+  // Concept-structure family: how concepts relate (the concept-map layer).
+  edge('elaborates', 'elaborates', 'One concept expands or details another (progressive differentiation).', ['Concept'], ['Concept'], 'N:N'),
+  edge('uses', 'uses', 'One concept functionally depends on another, e.g. RAG uses Embedding.', ['Concept'], ['Concept'], 'N:N'),
+  edge('partOf', 'part of', 'One concept is a component of another — the whole/part (mereological) relation.', ['Concept'], ['Concept'], 'N:N'),
+  edge('about', 'about', 'A node is filed under a topic (membership), or a topic nests under a topic. Many-to-many, so a node can sit under several topics.', ['Concept', 'Claim', 'Topic'], ['Topic'], 'N:N'),
+
+  // Evidence and argument family: where knowledge comes from, and how claims relate.
   edge('introducedBy', 'introduced by', 'The source that first established this node. The provenance edge; nothing durable exists without one.', ['Concept', 'Claim'], ['Source'], 'N:1'),
-  edge('cites', 'cites', 'The source a claim draws its evidence from, ideally down to a media fragment.', ['Claim'], ['Source'], 'N:N'),
   edge('supports', 'supports', 'One claim corroborates another, possibly across sources. The convergence signal a large brain leans on in place of a ground truth.', ['Claim'], ['Claim'], 'N:N'),
   edge('contradicts', 'contradicts', 'One claim conflicts with another. The signal that surfaces cross-source disagreement instead of silently force-merging it.', ['Claim'], ['Claim'], 'N:N'),
 ]

@@ -38,12 +38,12 @@ describe('knowledge ontology configuration', () => {
     expect(knowledgeOntology.ontologyId).toBe('knowledge')
   })
 
-  it('declares Concept, Claim, and Source node types', () => {
-    expect(knowledgeOntology.nodeTypes.map(n => n.id)).toEqual(['Concept', 'Claim', 'Source'])
+  it('declares the Concept, Claim, Source, and Topic node types', () => {
+    expect(knowledgeOntology.nodeTypes.map(n => n.id)).toEqual(['Concept', 'Claim', 'Source', 'Topic'])
   })
 
-  it('declares the provenance and convergence edge types', () => {
-    expect(knowledgeOntology.edgeTypes.map(e => e.id)).toEqual(['introducedBy', 'cites', 'supports', 'contradicts'])
+  it('declares the concept-structure and evidence edge types', () => {
+    expect(knowledgeOntology.edgeTypes.map(e => e.id)).toEqual(['elaborates', 'uses', 'partOf', 'about', 'introducedBy', 'supports', 'contradicts'])
   })
 
   it('declares feed and stance, with feed as the only unit-bearing role and neither required', () => {
@@ -56,15 +56,19 @@ describe('knowledge ontology configuration', () => {
 describe('knowledge ontology validation', () => {
   it('accepts well-typed, correctly-directed edges', async () => {
     const snap = snapshot(
-      [node('c1', 'Concept'), node('cl1', 'Claim'), node('s1', 'Source')],
-      [edge('e1', 'introducedBy', 'c1', 's1'), edge('e2', 'cites', 'cl1', 's1')],
+      [node('c1', 'Concept'), node('c2', 'Concept'), node('s1', 'Source'), node('t1', 'Topic')],
+      [
+        edge('e1', 'introducedBy', 'c1', 's1'),
+        edge('e2', 'elaborates', 'c1', 'c2'),
+        edge('e3', 'about', 'c1', 't1'),
+      ],
     )
     expect(await typeValidator.validate(snap)).toEqual([])
     expect(await structuralValidator.validate(snap)).toEqual([])
   })
 
   it('rejects an unknown node type', async () => {
-    const issues = await typeValidator.validate(snapshot([node('n1', 'Topic')]))
+    const issues = await typeValidator.validate(snapshot([node('n1', 'Question')]))
     expect(issues[0]).toMatchObject({ code: 'ontology.unknown-node-type', severity: 'error', nodeId: 'n1' })
   })
 
@@ -90,6 +94,27 @@ describe('knowledge ontology validation', () => {
     expect((await structuralValidator.validate(bad)).map(i => i.code)).toContain('structural.endpoint-type-from')
   })
 
+  it('accepts concept-structure edges plus topic membership and nesting', async () => {
+    const snap = snapshot(
+      [node('c1', 'Concept'), node('c2', 'Concept'), node('cl1', 'Claim'), node('t1', 'Topic'), node('t2', 'Topic')],
+      [
+        edge('e1', 'uses', 'c1', 'c2'),
+        edge('e2', 'partOf', 'c2', 'c1'),
+        edge('e3', 'about', 'cl1', 't1'), // a claim filed under a topic
+        edge('e4', 'about', 't2', 't1'), // a topic nested under a topic
+      ],
+    )
+    expect(await typeValidator.validate(snap)).toEqual([])
+    expect(await structuralValidator.validate(snap)).toEqual([])
+
+    // `about` only targets a Topic — a concept as the target is rejected.
+    const bad = snapshot(
+      [node('c1', 'Concept'), node('c2', 'Concept')],
+      [edge('e1', 'about', 'c1', 'c2')],
+    )
+    expect((await structuralValidator.validate(bad)).map(i => i.code)).toContain('structural.endpoint-type-to')
+  })
+
   it('validates missing source roles against the declared set', async () => {
     expect(await typeValidator.validate(snapshot([node('n1', 'Concept', { missingRoles: ['stance' as SourceRole] })]))).toEqual([])
     const issues = await typeValidator.validate(snapshot([node('n2', 'Concept', { missingRoles: ['bogus' as SourceRole] })]))
@@ -102,7 +127,7 @@ describe('knowledge ontology validation', () => {
     expect(issues[0]).toMatchObject({ code: 'evidence.no-source-or-missing-roles', nodeId: 'n1' })
   })
 
-  it('accepts a node that cites a source, or declares a still-missing role', () => {
+  it('accepts a node that carries a source reference, or declares a still-missing role', () => {
     const cited = node('cl1', 'Claim', { sourceReferences: [{ sourceId: 's-a' as SourceId, location: { uri: 'https://example.com/a' } }] })
     expect(validateEvidence(snapshot([cited]))).toEqual([])
     const pending = node('c1', 'Concept', { missingRoles: ['stance' as SourceRole] })
