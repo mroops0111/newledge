@@ -45,6 +45,8 @@ const nodeTypes: readonly NodeTypeDescriptor[] = [
 const edgeTypes: readonly EdgeTypeDescriptor[] = [
   edge('introducedBy', 'introduced by', 'The source that first established this node. The provenance edge; nothing durable exists without one.', ['Concept', 'Claim'], ['Source'], 'N:1'),
   edge('cites', 'cites', 'The source a claim draws its evidence from, ideally down to a media fragment.', ['Claim'], ['Source'], 'N:N'),
+  edge('supports', 'supports', 'One claim corroborates another, possibly across sources. The convergence signal a large brain leans on in place of a ground truth.', ['Claim'], ['Claim'], 'N:N'),
+  edge('contradicts', 'contradicts', 'One claim conflicts with another. The signal that surfaces cross-source disagreement instead of silently force-merging it.', ['Claim'], ['Claim'], 'N:N'),
 ]
 
 // `feed` is the external content extracted from, enumerated into batch units whose

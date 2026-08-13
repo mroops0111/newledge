@@ -42,8 +42,8 @@ describe('knowledge ontology configuration', () => {
     expect(knowledgeOntology.nodeTypes.map(n => n.id)).toEqual(['Concept', 'Claim', 'Source'])
   })
 
-  it('declares the introducedBy and cites edge types', () => {
-    expect(knowledgeOntology.edgeTypes.map(e => e.id)).toEqual(['introducedBy', 'cites'])
+  it('declares the provenance and convergence edge types', () => {
+    expect(knowledgeOntology.edgeTypes.map(e => e.id)).toEqual(['introducedBy', 'cites', 'supports', 'contradicts'])
   })
 
   it('declares feed and stance, with feed as the only unit-bearing role and neither required', () => {
@@ -74,6 +74,20 @@ describe('knowledge ontology validation', () => {
       [edge('e1', 'introducedBy', 's1', 'c1')],
     ))
     expect(issues.map(i => i.code)).toEqual(['structural.endpoint-type-from', 'structural.endpoint-type-to'])
+  })
+
+  it('accepts supports and contradicts between two claims, and rejects a mistyped endpoint', async () => {
+    const good = snapshot(
+      [node('cl1', 'Claim'), node('cl2', 'Claim')],
+      [edge('e1', 'supports', 'cl1', 'cl2'), edge('e2', 'contradicts', 'cl2', 'cl1')],
+    )
+    expect(await structuralValidator.validate(good)).toEqual([])
+
+    const bad = snapshot(
+      [node('c1', 'Concept'), node('cl1', 'Claim')],
+      [edge('e1', 'contradicts', 'c1', 'cl1')],
+    )
+    expect((await structuralValidator.validate(bad)).map(i => i.code)).toContain('structural.endpoint-type-from')
   })
 
   it('validates missing source roles against the declared set', async () => {
