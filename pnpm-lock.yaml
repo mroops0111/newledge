@@ -49,7 +49,24 @@ importers:
         specifier: ^0.2.1
         version: 0.2.1
 
-  packages/source-loader-web: {}
+  packages/source-loader-web:
+    dependencies:
+      '@braidhq/core':
+        specifier: ^0.2.1
+        version: 0.2.1
+      '@braidhq/schema':
+        specifier: ^0.2.1
+        version: 0.2.1
+      '@braidhq/sdk':
+        specifier: ^0.2.1
+        version: 0.2.1
+      zod:
+        specifier: ^4.2.1
+        version: 4.4.3
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
 
 packages:
 
