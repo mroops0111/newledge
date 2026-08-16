@@ -8,12 +8,13 @@ import { describe, expect, it } from 'vitest'
 import { knowledgeOntology } from '../src/index.js'
 
 // braid's own frontmatter parser lives in @braidhq/server and is not published,
-// so this mirrors it: split the `---` block, kebab to camel the keys the zod
-// schema expects, then hand the body to the framework's structure validator.
+// so this mirrors it, splitting the `---` block,
+// lowering the kebab keys to the camel case the zod schema expects,
+// then running the body through the framework validator.
 const DELIMITER = '---'
 
 function kebabToCamel(key: string): string {
-  return key.replace(/-([a-z])/g, (_, char: string) => (char).toUpperCase())
+  return key.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase())
 }
 
 function normaliseKeys(value: unknown): unknown {
