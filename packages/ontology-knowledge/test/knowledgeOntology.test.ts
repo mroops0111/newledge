@@ -12,7 +12,8 @@ import type {
 import { describe, expect, it } from 'vitest'
 import { knowledgeOntology } from '../src/index.js'
 
-// The plugin auto-attaches these; construct fresh instances bound to it for clarity.
+// The plugin auto-attaches these.
+// Construct fresh instances bound to it for clarity.
 const typeValidator = new OntologyTypeValidator(knowledgeOntology)
 const structuralValidator = new StructuralValidator(knowledgeOntology)
 
@@ -109,7 +110,7 @@ describe('knowledge ontology validation', () => {
     expect(await typeValidator.validate(snap)).toEqual([])
     expect(await structuralValidator.validate(snap)).toEqual([])
 
-    // `belongsTo` only targets a Topic — a concept as the target is rejected.
+    // `belongsTo` only targets a Topic, so a concept as the target is rejected.
     const bad = snapshot(
       [node('c1', 'Concept'), node('c2', 'Concept')],
       [edge('e1', 'belongsTo', 'c1', 'c2')],

@@ -10,7 +10,7 @@ import type { WebSearchProvider, WebSearchQuery, WebSearchResult } from './provi
 /** The loader kind. A workspace source points its `loader.kind` here. */
 export const SOURCE_LOADER_ID = 'web' as const
 
-/** Per-source config: what to search and how much to pull. */
+/** Per-source config, what to search and how much to pull. */
 export const webSourceConfig = z.object({
   query: z.string().min(1),
   keywords: z.array(z.string()).default([]),
@@ -20,14 +20,15 @@ export type WebSourceConfig = z.infer<typeof webSourceConfig>
 
 const FILE_EXT = '.md'
 
-// Filename is a hash of the url, so the files already on disk *are* the set of
-// seen sources: a re-sync diffs fresh results against them, no manifest needed.
+// Filename is a hash of the url, so the files on disk are the seen set,
+// and a re-sync diffs fresh results against them without a manifest.
 function fileNameFor(url: string): string {
   return `${createHash('sha256').update(url).digest('hex').slice(0, 16)}${FILE_EXT}`
 }
 
-// The source url rides in an HTML comment so provenance survives into the file the
-// extract skill reads, while full-content comparison still detects an update.
+// The source url rides in an HTML comment,
+// so it survives into the file the extract skill reads.
+// Full-content comparison still detects an update.
 function render(result: WebSearchResult): string {
   return `<!-- source-url: ${result.url} -->\n# ${result.title}\n\n${result.markdown}\n`
 }
@@ -41,11 +42,12 @@ function toQuery(config: WebSourceConfig): WebSearchQuery {
 }
 
 /**
- * Build the web source loader, injecting the retrieval provider so the real
- * Python-backed fetcher and a test fake are interchangeable. The loader is a pure
- * provisioner: it only writes files under `destination` and never touches the
- * Knowledge Graph — turning those files into typed, deduped knowledge is the
- * extract skill's job.
+ * Build the web source loader.
+ * The retrieval provider is injected,
+ * so the real Python-backed fetcher and a test fake are interchangeable.
+ * The loader is a pure provisioner that only writes files under `destination`,
+ * and never touches the Knowledge Graph.
+ * Turning those files into typed, deduped knowledge is the extract skill's job.
  */
 export function createWebSourceLoaderPlugin(provider: WebSearchProvider): SourceLoaderPlugin {
   return defineSourceLoaderPlugin({
