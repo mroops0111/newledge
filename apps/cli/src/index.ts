@@ -1,11 +1,19 @@
-import { ONTOLOGY_ID } from '@newledge/ontology-knowledge'
-import { SOURCE_LOADER_ID } from '@newledge/source-loader-web'
+import type { WebSearchProvider } from '@newledge/source-loader-web'
+import { composeKnowledgeApp } from './compose.js'
 
-// Scaffold entry point. Will compose the braid server via composeApp() with both
-// plugins registered, then run one web-search sync, extract, apply, and print the
-// resulting graph.
-function main(): void {
-  console.log(`newledge cli (scaffold) — ontology=${ONTOLOGY_ID} loader=${SOURCE_LOADER_ID}`)
+// This entry only composes and introspects, so a no-op provider suffices.
+const provider: WebSearchProvider = { search: () => Promise.resolve([]) }
+
+async function main(): Promise<void> {
+  const { pluginRegistry, workspaceService, workspaceId } = await composeKnowledgeApp(provider)
+  const workspace = await workspaceService.findById(workspaceId)
+  const ontology = pluginRegistry.requireOntology(workspace.productManifest.ontologyId)
+  console.log(`newledge: composed workspace '${workspaceId}' on ontology '${ontology.ontologyId}'`)
+  console.log(`node types: ${ontology.nodeTypes.map(n => n.id).join(', ')}`)
+  console.log(`edge types: ${ontology.edgeTypes.map(e => e.id).join(', ')}`)
 }
 
-main()
+main().catch((err: unknown) => {
+  console.error(err)
+  process.exitCode = 1
+})
