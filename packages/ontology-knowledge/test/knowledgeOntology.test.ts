@@ -42,7 +42,7 @@ describe('knowledge ontology configuration', () => {
     expect(knowledgeOntology.nodeTypes.map(n => n.id)).toEqual(['Concept', 'Claim', 'Source', 'Topic'])
   })
 
-  it('declares the concept-structure and evidence edge types', () => {
+  it('declares all edge types in canonical order', () => {
     expect(knowledgeOntology.edgeTypes.map(e => e.id)).toEqual(['extends', 'instantiates', 'contains', 'uses', 'relatesTo', 'belongsTo', 'introduces', 'supports', 'contradicts'])
   })
 
