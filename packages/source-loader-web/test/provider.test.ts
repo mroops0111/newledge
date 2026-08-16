@@ -3,7 +3,7 @@ import { subprocessWebSearchProvider } from '../src/provider.js'
 
 const query = { query: 'ai', keywords: [], maxResults: 5 }
 
-// A stub fetcher: read the query JSON on stdin, echo a result derived from it.
+// A stub fetcher that reads the query on stdin and echoes a derived result.
 const echoScript = `
 let d = ''
 process.stdin.on('data', c => { d += c })
