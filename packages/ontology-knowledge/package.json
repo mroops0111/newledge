@@ -21,5 +21,9 @@
     "@braidhq/sdk": "^0.2.1",
     "@braidhq/core": "^0.2.1",
     "@braidhq/schema": "^0.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "yaml": "^2.5.0"
   }
 }
