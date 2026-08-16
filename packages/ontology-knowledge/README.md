@@ -29,10 +29,15 @@ Two families.
 
 | Edge | Direction | Meaning |
 | --- | --- | --- |
-| `elaborates` | Concept → Concept | one concept expands or details another (progressive differentiation). |
+| `extends` | Concept → Concept | extension → base: one concept builds on or specializes another, e.g. GraphRAG extends RAG. |
 | `uses` | Concept → Concept | functional dependency, e.g. RAG uses Embedding. |
-| `partOf` | Concept → Concept | whole/part (mereological) composition. |
+| `contains` | Concept → Concept | whole → part: the mereological composition, e.g. RAG contains its retriever. |
 | `about` | Concept / Claim / Topic → Topic | membership under a topic, or a topic nested under a topic. Many-to-many. |
+
+Each edge has one canonical direction, fixed by its name (`contains` runs
+whole → part; `extends` runs extension → base). How a line is drawn on a
+whiteboard is a separate view concern that the board maps onto these edges, so a
+node may be drawn hub-outward regardless of the stored direction.
 
 **Evidence and argument** — where knowledge comes from, and how claims relate (Toulmin plus conceptual change):
 

@@ -43,7 +43,7 @@ describe('knowledge ontology configuration', () => {
   })
 
   it('declares the concept-structure and evidence edge types', () => {
-    expect(knowledgeOntology.edgeTypes.map(e => e.id)).toEqual(['elaborates', 'uses', 'partOf', 'about', 'introducedBy', 'supports', 'contradicts'])
+    expect(knowledgeOntology.edgeTypes.map(e => e.id)).toEqual(['extends', 'uses', 'contains', 'about', 'introducedBy', 'supports', 'contradicts'])
   })
 
   it('declares feed and stance, with feed as the only unit-bearing role and neither required', () => {
@@ -59,7 +59,7 @@ describe('knowledge ontology validation', () => {
       [node('c1', 'Concept'), node('c2', 'Concept'), node('s1', 'Source'), node('t1', 'Topic')],
       [
         edge('e1', 'introducedBy', 'c1', 's1'),
-        edge('e2', 'elaborates', 'c1', 'c2'),
+        edge('e2', 'extends', 'c1', 'c2'),
         edge('e3', 'about', 'c1', 't1'),
       ],
     )
@@ -99,7 +99,7 @@ describe('knowledge ontology validation', () => {
       [node('c1', 'Concept'), node('c2', 'Concept'), node('cl1', 'Claim'), node('t1', 'Topic'), node('t2', 'Topic')],
       [
         edge('e1', 'uses', 'c1', 'c2'),
-        edge('e2', 'partOf', 'c2', 'c1'),
+        edge('e2', 'contains', 'c1', 'c2'),
         edge('e3', 'about', 'cl1', 't1'), // a claim filed under a topic
         edge('e4', 'about', 't2', 't1'), // a topic nested under a topic
       ],

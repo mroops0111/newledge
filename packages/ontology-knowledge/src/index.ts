@@ -44,10 +44,12 @@ const nodeTypes: readonly NodeTypeDescriptor[] = [
 ]
 
 const edgeTypes: readonly EdgeTypeDescriptor[] = [
-  // Concept-structure family: how concepts relate (the concept-map layer).
-  edge('elaborates', 'elaborates', 'One concept expands or details another (progressive differentiation).', ['Concept'], ['Concept'], 'N:N'),
+  // Concept-structure family: how concepts relate (the concept-map layer). Each
+  // edge has one canonical direction; how a line is drawn on a whiteboard is a
+  // separate view concern the board maps onto these edges.
+  edge('extends', 'extends', 'One concept builds on or specializes another, from the extension to the base, e.g. GraphRAG extends RAG.', ['Concept'], ['Concept'], 'N:N'),
   edge('uses', 'uses', 'One concept functionally depends on another, e.g. RAG uses Embedding.', ['Concept'], ['Concept'], 'N:N'),
-  edge('partOf', 'part of', 'One concept is a component of another — the whole/part (mereological) relation.', ['Concept'], ['Concept'], 'N:N'),
+  edge('contains', 'contains', 'A concept contains another as a component, from whole to part — the mereological relation, e.g. RAG contains its retriever.', ['Concept'], ['Concept'], 'N:N'),
   edge('about', 'about', 'A node is filed under a topic (membership), or a topic nests under a topic. Many-to-many, so a node can sit under several topics.', ['Concept', 'Claim', 'Topic'], ['Topic'], 'N:N'),
 
   // Evidence and argument family: where knowledge comes from, and how claims relate.
