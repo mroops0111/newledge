@@ -54,6 +54,13 @@ importers:
       '@braidhq/sdk':
         specifier: ^0.2.1
         version: 0.2.1
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
+      yaml:
+        specifier: ^2.5.0
+        version: 2.9.0
 
   packages/source-loader-web:
     dependencies:

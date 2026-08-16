@@ -1,5 +1,6 @@
 import type { EdgeTypeDescriptor, NodeTypeDescriptor } from '@braidhq/core'
 import type { EdgeTypeId, NodeTypeId, SourceRoleInput } from '@braidhq/sdk'
+import { SkillId } from '@braidhq/schema'
 import { defineOntologyPlugin } from '@braidhq/sdk'
 
 /** The ontology id this plugin declares. */
@@ -76,6 +77,16 @@ const sourceRoles: readonly SourceRoleInput[] = [
   role('stance', 'Stance', { pathSegment: 'stances' }),
 ]
 
+// SKILL.md prompts shipped with this ontology, run by the agent runtime.
+// Each id is composed as `<ontologyId>:<directory basename>`,
+// so the directory named extract becomes `knowledge:extract`.
+function skillDir(verb: string): URL {
+  return new URL(`../skills/${verb}`, import.meta.url)
+}
+function skillId(verb: string): SkillId {
+  return SkillId.parse(`${ONTOLOGY_ID}:${verb}`)
+}
+
 /**
  * The knowledge ontology, declared as a third-party braid plugin.
  * Node, edge, and source-role types are passed as data to `defineOntologyPlugin`,
@@ -88,4 +99,34 @@ export const knowledgeOntology = defineOntologyPlugin({
   nodeTypes,
   edgeTypes,
   sourceRoles,
+
+  skills: [
+    { directory: skillDir('extract') },
+    { directory: skillDir('converge') },
+    { directory: skillDir('clarify') },
+  ],
+
+  // Shared vocabulary and wiring rules every skill above consults,
+  // mounted into each skill session so the ontology contract lives in one place.
+  referenceDirs: [
+    { name: ONTOLOGY_ID, directory: new URL('../skills/shared', import.meta.url) },
+  ],
+
+  // Batch and reactor binding, the per-unit skill is `knowledge:extract`,
+  // run once per fetched page.
+  // The checkpoint `knowledge:converge` fires every five successful extracts,
+  // and once more at the end for a graph-wide pass.
+  // There is no deriveUnits, the feed loader already emits one unit per page.
+  batch: {
+    perUnit: {
+      skillId: skillId('extract'),
+      label: 'Extract',
+    },
+    checkpoint: {
+      skillId: skillId('converge'),
+      label: 'Converge',
+      chunkSize: 5,
+      runAtEnd: true,
+    },
+  },
 })
