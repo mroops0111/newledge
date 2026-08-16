@@ -12,8 +12,7 @@ import type {
 import { describe, expect, it } from 'vitest'
 import { knowledgeOntology } from '../src/index.js'
 
-// The plugin auto-attaches these.
-// Construct fresh instances bound to it for clarity.
+// The plugin auto-attaches these, construct fresh instances bound to it for clarity.
 const typeValidator = new OntologyTypeValidator(knowledgeOntology)
 const structuralValidator = new StructuralValidator(knowledgeOntology)
 

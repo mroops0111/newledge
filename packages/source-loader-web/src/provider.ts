@@ -16,11 +16,9 @@ export interface WebSearchQuery {
 }
 
 /**
- * The retrieval seam.
- * The loader depends on this abstraction, not on how the search runs,
- * so the production implementation can shell out to the Python web-search fetcher,
- * while tests inject a fake.
- * This is what keeps the loader itself pure and offline-testable.
+ * The retrieval seam the loader depends on, blind to how the search runs,
+ * so production shells out to the web-search fetcher while tests inject a fake.
+ * This keeps the loader itself pure and offline-testable.
  */
 export interface WebSearchProvider {
   readonly search: (query: WebSearchQuery) => Promise<readonly WebSearchResult[]>
@@ -46,11 +44,9 @@ export interface SubprocessProviderOptions {
 
 /**
  * A WebSearchProvider that runs the Python web-search fetcher as a subprocess.
- * The query is written as JSON to the child's stdin,
- * and a JSON array of results is read from its stdout,
+ * The query goes to the child's stdin as JSON and its stdout returns a JSON array,
  * so the fetcher's language and internals stay its own concern.
- * This is deterministic retrieval, not an LLM agent.
- * Extraction is a separate braid skill.
+ * This is deterministic retrieval, not an LLM agent, extraction is a separate skill.
  */
 export function subprocessWebSearchProvider(options: SubprocessProviderOptions): WebSearchProvider {
   return { search: query => runFetcher(options, query) }

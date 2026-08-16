@@ -26,9 +26,8 @@ function fileNameFor(url: string): string {
   return `${createHash('sha256').update(url).digest('hex').slice(0, 16)}${FILE_EXT}`
 }
 
-// The source url rides in an HTML comment,
-// so it survives into the file the extract skill reads.
-// Full-content comparison still detects an update.
+// The source url rides in an HTML comment so it reaches the extract file,
+// and full-content comparison of that file still detects an update.
 function render(result: WebSearchResult): string {
   return `<!-- source-url: ${result.url} -->\n# ${result.title}\n\n${result.markdown}\n`
 }
@@ -42,8 +41,7 @@ function toQuery(config: WebSourceConfig): WebSearchQuery {
 }
 
 /**
- * Build the web source loader.
- * The retrieval provider is injected,
+ * Build the web source loader with an injected retrieval provider,
  * so the real Python-backed fetcher and a test fake are interchangeable.
  * The loader is a pure provisioner that only writes files under `destination`,
  * and never touches the Knowledge Graph.
