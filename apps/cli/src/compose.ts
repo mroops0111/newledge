@@ -6,6 +6,10 @@ import type { WebSearchProvider } from '@newledge/source-loader-web'
 import { knowledgeOntology, ONTOLOGY_ID } from '@newledge/ontology-knowledge'
 import { createWebSourceLoaderPlugin } from '@newledge/source-loader-web'
 
+/**
+ * The composed pieces a caller works with: braid's plugin registry, its workspace
+ * service, and the id of the scaffolded knowledge workspace.
+ */
 export interface KnowledgeApp {
   readonly pluginRegistry: PluginRegistry
   readonly workspaceService: WorkspaceService

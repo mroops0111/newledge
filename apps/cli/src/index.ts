@@ -1,13 +1,9 @@
 import type { WebSearchProvider } from '@newledge/source-loader-web'
 import { composeKnowledgeApp } from './compose.js'
 
-// Retrieval is not exercised by this compose step, so a no-op provider is enough;
-// the real web-search fetcher is wired for the end-to-end flow.
+// This entry only composes and introspects, so a no-op retrieval provider suffices.
 const provider: WebSearchProvider = { search: () => Promise.resolve([]) }
 
-// CLI entry: compose the braid app with Newledge's plugins and print the active
-// ontology, proving the plugins register in braid's engine. The end-to-end
-// sync -> extract -> apply -> print flow builds on this.
 async function main(): Promise<void> {
   const { pluginRegistry, workspaceService, workspaceId } = await composeKnowledgeApp(provider)
   const workspace = await workspaceService.findById(workspaceId)
