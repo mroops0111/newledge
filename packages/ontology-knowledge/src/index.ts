@@ -44,18 +44,30 @@ const nodeTypes: readonly NodeTypeDescriptor[] = [
 ]
 
 const edgeTypes: readonly EdgeTypeDescriptor[] = [
-  // Concept-structure family: how concepts relate (the concept-map layer). Each
-  // edge has one canonical direction; how a line is drawn on a whiteboard is a
-  // separate view concern the board maps onto these edges.
-  edge('extends', 'extends', 'One concept builds on or specializes another, from the extension to the base, e.g. GraphRAG extends RAG.', ['Concept'], ['Concept'], 'N:N'),
-  edge('uses', 'uses', 'One concept functionally depends on another, e.g. RAG uses Embedding.', ['Concept'], ['Concept'], 'N:N'),
-  edge('contains', 'contains', 'A concept contains another as a component, from whole to part — the mereological relation, e.g. RAG contains its retriever.', ['Concept'], ['Concept'], 'N:N'),
-  edge('about', 'about', 'A node is filed under a topic (membership), or a topic nests under a topic. Many-to-many, so a node can sit under several topics.', ['Concept', 'Claim', 'Topic'], ['Topic'], 'N:N'),
+  // Every edge is an active, present-tense verb read "from verb to". Each has one
+  // canonical direction; how a line is drawn on a whiteboard is a separate view
+  // concern the board maps onto these edges.
 
-  // Evidence and argument family: where knowledge comes from, and how claims relate.
-  edge('introducedBy', 'introduced by', 'The source that first established this node. The provenance edge; nothing durable exists without one.', ['Concept', 'Claim'], ['Source'], 'N:1'),
-  edge('supports', 'supports', 'One claim corroborates another, possibly across sources. The convergence signal a large brain leans on in place of a ground truth.', ['Claim'], ['Claim'], 'N:N'),
-  edge('contradicts', 'contradicts', 'One claim conflicts with another. The signal that surfaces cross-source disagreement instead of silently force-merging it.', ['Claim'], ['Claim'], 'N:N'),
+  // Hierarchy: is-a, instance-of, part-of. Kept distinct (ISO 25964) because is-a
+  // chains stay transitive but mixing part-of does not.
+  edge('extends', 'extends', 'A concept is a specialization or kind of another (is-a), e.g. GraphRAG extends RAG.', ['Concept'], ['Concept'], 'N:N'),
+  edge('instantiates', 'instantiates', 'A concept is a concrete instance of a type concept, e.g. GPT-4 instantiates FoundationModel.', ['Concept'], ['Concept'], 'N:N'),
+  edge('contains', 'contains', 'A concept contains another as a component, from whole to part.', ['Concept'], ['Concept'], 'N:N'),
+
+  // Association: a named dependency plus a catch-all. Reach for uses first; fall
+  // back to relatesTo only when no more specific edge fits (the stop rule).
+  edge('uses', 'uses', 'A concept functionally depends on another, e.g. RAG uses Embedding.', ['Concept'], ['Concept'], 'N:N'),
+  edge('relatesTo', 'relates to', 'A generic association, the catch-all used only when no more specific edge fits.', ['Concept'], ['Concept'], 'N:N'),
+
+  // Categorization: membership under a topic, or a topic nested under a topic.
+  edge('belongsTo', 'belongs to', 'A node is filed under a topic, or a topic nests under a topic. Many-to-many.', ['Concept', 'Claim', 'Topic'], ['Topic'], 'N:N'),
+
+  // Provenance: the source that first established a node.
+  edge('introduces', 'introduces', 'The source that first established a node; nothing durable exists without one.', ['Source'], ['Concept', 'Claim'], '1:N'),
+
+  // Argument: how claims relate (Toulmin plus conceptual change).
+  edge('supports', 'supports', 'One claim corroborates another, possibly across sources. The convergence signal in place of a ground truth.', ['Claim'], ['Claim'], 'N:N'),
+  edge('contradicts', 'contradicts', 'One claim conflicts with another, surfaced rather than force-merged, because conflict drives learning.', ['Claim'], ['Claim'], 'N:N'),
 ]
 
 // `feed` is the external content extracted from, enumerated into batch units whose
