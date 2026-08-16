@@ -26,6 +26,12 @@ importers:
 
   apps/cli:
     dependencies:
+      '@braidhq/core':
+        specifier: ^0.2.1
+        version: 0.2.1
+      '@braidhq/schema':
+        specifier: ^0.2.1
+        version: 0.2.1
       '@newledge/ontology-knowledge':
         specifier: workspace:*
         version: link:../../packages/ontology-knowledge
