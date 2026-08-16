@@ -6,10 +6,6 @@ import type { WebSearchProvider } from '@newledge/source-loader-web'
 import { knowledgeOntology, ONTOLOGY_ID } from '@newledge/ontology-knowledge'
 import { createWebSourceLoaderPlugin } from '@newledge/source-loader-web'
 
-/**
- * The composed pieces a caller works with: braid's plugin registry, its workspace
- * service, and the id of the scaffolded knowledge workspace.
- */
 export interface KnowledgeApp {
   readonly pluginRegistry: PluginRegistry
   readonly workspaceService: WorkspaceService
@@ -17,11 +13,11 @@ export interface KnowledgeApp {
 }
 
 /**
- * Compose a braid app in memory with Newledge's plugins registered and one
- * knowledge workspace scaffolded. This mirrors `composeApp`'s in-memory path over
- * `@braidhq/core`, so the CLI stays pure-JS with no native storage. The retrieval
- * provider is injected, so the caller decides whether the loader is backed by the
- * real web-search fetcher or a fake.
+ * Compose an in-memory braid app with Newledge's plugins registered.
+ * This mirrors composeApp's in-memory path over @braidhq/core,
+ * so the CLI stays pure-JS with no native storage.
+ * The retrieval provider is injected,
+ * so the caller chooses the real web-search fetcher or a fake.
  */
 export async function composeKnowledgeApp(provider: WebSearchProvider): Promise<KnowledgeApp> {
   const pluginRegistry = new PluginRegistry()
