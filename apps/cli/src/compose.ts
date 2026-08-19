@@ -20,8 +20,8 @@ export interface KnowledgeRuntime {
 }
 
 /**
- * Compose the braid runtime over a curated registry, only the plugins Newledge
- * uses, so none of braid's coding-preset defaults load.
+ * Compose the braid runtime over a curated registry,
+ * only the plugins Newledge uses, so none of braid's coding-preset defaults load.
  * kuzu storage and the claude-code agent are reused off the shelf,
  * and the knowledge ontology is the only one registered,
  * so the workspace default ontology resolves to it.

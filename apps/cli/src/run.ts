@@ -1,5 +1,6 @@
 import type { WorkspaceId } from '@braidhq/schema'
 import type { AppDependencies } from '@braidhq/server'
+import { NotFoundError } from '@braidhq/core'
 import { SourceId, WorkspaceId as WorkspaceIdSchema } from '@braidhq/schema'
 import type { KnowledgeApp, KnowledgeRuntime } from './compose.js'
 
@@ -24,8 +25,10 @@ async function workspacePresent(deps: AppDependencies, id: WorkspaceId): Promise
     await deps.workspaceService.findById(id)
     return true
   }
-  catch {
-    return false
+  catch (error) {
+    if (error instanceof NotFoundError)
+      return false
+    throw error
   }
 }
 
