@@ -14,8 +14,12 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@braidhq/core": "^0.2.1",
-    "@braidhq/schema": "^0.2.1",
+    "@braidhq/agent-claude-code": "^0.3.0",
+    "@braidhq/core": "^0.3.0",
+    "@braidhq/schema": "^0.3.0",
+    "@braidhq/server": "^0.3.0",
+    "@braidhq/storage-kuzu": "^0.3.0",
+    "@hono/node-server": "^2.0.12",
     "@newledge/ontology-knowledge": "workspace:*",
     "@newledge/source-loader-web": "workspace:*"
   },

@@ -1,45 +1,46 @@
-import type { AbsolutePath, WorkspaceId } from '@braidhq/schema'
-import { PluginRegistry, Workspace, WorkspaceService } from '@braidhq/core'
-import { InMemoryWorkspaceRepository } from '@braidhq/core/in-memory'
-import { ProductManifest } from '@braidhq/schema'
+import type { AppDependencies } from '@braidhq/server'
+import { claudeCodeAgentPlugin } from '@braidhq/agent-claude-code'
+import { PluginRegistry } from '@braidhq/core'
+import { composeFsAppWithRegistry, createApp } from '@braidhq/server'
+import { kuzuStoragePlugin } from '@braidhq/storage-kuzu'
 import type { WebSearchProvider } from '@newledge/source-loader-web'
-import { knowledgeOntology, ONTOLOGY_ID } from '@newledge/ontology-knowledge'
+import { knowledgeOntology } from '@newledge/ontology-knowledge'
 import { createWebSourceLoaderPlugin } from '@newledge/source-loader-web'
 
-export interface KnowledgeApp {
-  readonly pluginRegistry: PluginRegistry
-  readonly workspaceService: WorkspaceService
-  readonly workspaceId: WorkspaceId
+export type KnowledgeApp = ReturnType<typeof createApp>
+
+export interface KnowledgeRuntimeOptions {
+  readonly braidHome: string
+  readonly apiUrl: string
+}
+
+export interface KnowledgeRuntime {
+  readonly deps: AppDependencies
+  readonly app: KnowledgeApp
 }
 
 /**
- * Compose an in-memory braid app with Newledge's plugins registered.
- * This mirrors composeApp's in-memory path over @braidhq/core,
- * so the CLI stays pure-JS with no native storage.
+ * Compose the braid runtime over a curated registry, only the plugins Newledge
+ * uses, so none of braid's coding-preset defaults load.
+ * kuzu storage and the claude-code agent are reused off the shelf,
+ * and the knowledge ontology is the only one registered,
+ * so the workspace default ontology resolves to it.
  * The retrieval provider is injected,
- * so the caller chooses the real web-search fetcher or a fake.
+ * so the caller chooses the real fetcher or a fake.
  */
-export async function composeKnowledgeApp(provider: WebSearchProvider): Promise<KnowledgeApp> {
-  const pluginRegistry = new PluginRegistry()
-  pluginRegistry.register(knowledgeOntology)
-  pluginRegistry.register(createWebSourceLoaderPlugin(provider))
+export async function composeKnowledgeRuntime(
+  provider: WebSearchProvider,
+  options: KnowledgeRuntimeOptions,
+): Promise<KnowledgeRuntime> {
+  const deps = await composeFsAppWithRegistry(() => {
+    const registry = new PluginRegistry()
+    registry.register(kuzuStoragePlugin)
+    registry.register(claudeCodeAgentPlugin)
+    registry.register(knowledgeOntology)
+    registry.register(createWebSourceLoaderPlugin(provider))
+    return registry
+  }, { braidHome: options.braidHome, apiUrl: options.apiUrl })
 
-  const workspaceService = new WorkspaceService({
-    workspaceRepository: new InMemoryWorkspaceRepository(),
-    pluginRegistry,
-  })
-
-  const workspaceId = 'newledge' as WorkspaceId
-  const productManifest = ProductManifest.parse({
-    name: workspaceId,
-    ontologyId: ONTOLOGY_ID,
-    storage: { kind: 'in-memory', config: {} },
-  })
-  await workspaceService.save(new Workspace({
-    id: workspaceId,
-    rootPath: '/virtual/newledge' as AbsolutePath,
-    productManifest,
-  }))
-
-  return { pluginRegistry, workspaceService, workspaceId }
+  const app = createApp(deps, { apiUrl: options.apiUrl })
+  return { deps, app }
 }

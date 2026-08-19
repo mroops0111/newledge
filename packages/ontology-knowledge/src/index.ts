@@ -108,9 +108,7 @@ export const knowledgeOntology = defineOntologyPlugin({
 
   // Shared vocabulary and wiring rules every skill above consults,
   // mounted into each skill session so the ontology contract lives in one place.
-  referenceDirs: [
-    { name: ONTOLOGY_ID, directory: new URL('../skills/shared', import.meta.url) },
-  ],
+  referenceDir: new URL('../skills/shared', import.meta.url),
 
   // Batch and reactor binding, the per-unit skill is `knowledge:extract`,
   // run once per fetched page.

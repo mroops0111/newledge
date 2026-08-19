@@ -8,9 +8,10 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
       include: ['src/**/*.ts'],
-      // index.ts is the bin entry (runs main + process side effects); its logic
-      // lives in compose.ts, which the tests cover.
-      exclude: ['src/index.ts'],
+      // index.ts is the bin entry, and ingest.ts spawns the claude-code agent,
+      // so neither runs under CI.
+      // The pipeline logic they call lives in compose.ts and run.ts, which the tests cover.
+      exclude: ['src/index.ts', 'src/ingest.ts'],
       thresholds: {
         statements: 80,
         branches: 80,
