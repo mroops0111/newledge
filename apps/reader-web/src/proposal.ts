@@ -126,27 +126,29 @@ export function toCard(proposal: Proposal): ProposalCard {
 /**
  * Hang each claim under the concept it concerns, which is how a reader meets it,
  * as an assertion about something rather than as a separate list.
- * A claim concerning nothing in this proposal is kept aside rather than dropped.
+ * Aboutness is many to many, so a claim tying several concepts together is read
+ * under each of them, and one concerning nothing here is kept aside, not dropped.
  */
 function groupByConcept(
   concepts: readonly GraphNodePayload[],
   claims: readonly GraphNodePayload[],
   edges: readonly GraphEdgePayload[],
 ): { readings: readonly ConceptReading[], looseClaims: readonly GraphNodePayload[] } {
-  const subjectOf = new Map<string, string>()
+  const subjectsOf = new Map<string, Set<string>>()
   for (const edge of edges) {
-    if (edge.type === 'concerns')
-      subjectOf.set(edge.fromNodeId, edge.toNodeId)
+    if (edge.type !== 'concerns')
+      continue
+    const subjects = subjectsOf.get(edge.fromNodeId) ?? new Set<string>()
+    subjects.add(edge.toNodeId)
+    subjectsOf.set(edge.fromNodeId, subjects)
   }
-  const grouped = new Set<string>()
+
+  const placed = new Set<string>()
   const readings = concepts.map((concept) => {
-    const held = claims.filter((claim) => {
-      const matches = subjectOf.get(claim.id) === concept.id
-      if (matches)
-        grouped.add(claim.id)
-      return matches
-    })
+    const held = claims.filter(claim => subjectsOf.get(claim.id)?.has(concept.id) === true)
+    for (const claim of held)
+      placed.add(claim.id)
     return { concept, claims: held }
   })
-  return { readings, looseClaims: claims.filter(claim => !grouped.has(claim.id)) }
+  return { readings, looseClaims: claims.filter(claim => !placed.has(claim.id)) }
 }

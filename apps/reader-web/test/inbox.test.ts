@@ -75,6 +75,36 @@ describe('toCard', () => {
     expect(card.rationale).toContain('Extracted one Source')
   })
 
+  it('reads a claim under every concept it concerns, since aboutness is many to many', () => {
+    const tying = {
+      ...proposal,
+      operations: [
+        ...proposal.operations,
+        { operation: 'addEdge', payload: { type: 'concerns', fromNodeId: 'seriesB16M', toNodeId: 'kdan' } },
+        { operation: 'addEdge', payload: { type: 'concerns', fromNodeId: 'seriesB16M', toNodeId: 'dottedSign' } },
+      ],
+    }
+    const card = toCard(tying)
+
+    expect(card.readings.map(r => r.claims.map(c => c.id))).toEqual([['seriesB16M'], ['seriesB16M']])
+    expect(card.looseClaims).toEqual([])
+    expect(card.claimCount).toBe(1)
+  })
+
+  it('sets a claim aside when it concerns a concept this proposal does not carry', () => {
+    const elsewhere = {
+      ...proposal,
+      operations: [
+        ...proposal.operations,
+        { operation: 'addEdge', payload: { type: 'concerns', fromNodeId: 'seriesB16M', toNodeId: 'someOtherConcept' } },
+      ],
+    }
+    const card = toCard(elsewhere)
+
+    expect(card.looseClaims.map(c => c.id)).toEqual(['seriesB16M'])
+    expect(card.readings.flatMap(r => r.claims)).toEqual([])
+  })
+
   it('tolerates a proposal with no operations', () => {
     expect(toCard({ ...proposal, operations: [] }).readings).toEqual([])
   })
