@@ -61,6 +61,12 @@ Nine edges in five families.
 | --- | --- | --- |
 | `introduces` | Source → Concept / Claim | the source that first established a node. |
 
+**Aboutness** (IAO `is_about`, which SKOS does not model):
+
+| Edge | Direction | Meaning |
+| --- | --- | --- |
+| `concerns` | Claim → Concept | the concept a claim asserts something about, so an assertion is a first-class node rather than a sentence buried in a description. |
+
 **Argument** (Toulmin plus conceptual change):
 
 | Edge | Direction | Meaning |
@@ -88,6 +94,7 @@ the graph is ever exported to a thesaurus, this is the mapping:
 | `contains` | `iso-thes:broaderPartitive` (BTP), inverse |
 | `relatesTo` | `skos:related` (RT) |
 | `uses`, `belongsTo`, `introduces`, `supports`, `contradicts` | none — beyond thesaurus scope (OWL-style domain relations) |
+| `concerns` | none — SKOS models concepts alone, so aboutness follows IAO `is_about` |
 
 ## Design Notes
 

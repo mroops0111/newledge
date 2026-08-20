@@ -3,7 +3,6 @@ import type { EdgeTypeId, NodeTypeId, SourceRoleInput } from '@braidhq/sdk'
 import { SkillId } from '@braidhq/schema'
 import { defineOntologyPlugin } from '@braidhq/sdk'
 
-/** The ontology id this plugin declares. */
 export const ONTOLOGY_ID = 'knowledge' as const
 
 type Cardinality = NonNullable<EdgeTypeDescriptor['cardinality']>
@@ -41,7 +40,7 @@ const nodeTypes: readonly NodeTypeDescriptor[] = [
   node('Concept', 'Concept', 'A durable unit of knowledge, an idea, a technique, or a definition. The dominant node type.', '#7c3aed'),
   node('Claim', 'Claim', 'A specific assertion with a truth value the user can accept, reject, or contest. Carries provenance to the exact source moment.', '#ef4444'),
   node('Source', 'Source', 'An ingested artifact (a web page, article, video, or podcast) with its metadata. The anchor every claim traces back to.', '#0ea5e9'),
-  node('Topic', 'Topic', 'A named grouping or theme, a concept-map section made first-class: reusable, nestable, and many-to-many, so a node can sit under several topics.', '#f59e0b'),
+  node('Topic', 'Topic', 'A named grouping or theme, a concept-map section made first-class, reusable, nestable, and many-to-many, so a node can sit under several topics.', '#f59e0b'),
 ]
 
 const edgeTypes: readonly EdgeTypeDescriptor[] = [
@@ -59,13 +58,19 @@ const edgeTypes: readonly EdgeTypeDescriptor[] = [
   edge('uses', 'uses', 'A concept functionally depends on another, e.g. RAG uses Embedding.', ['Concept'], ['Concept'], 'N:N'),
   edge('relatesTo', 'relates to', 'A generic association, the catch-all used only when no more specific edge fits.', ['Concept'], ['Concept'], 'N:N'),
 
-  // Categorization: membership under a topic, or a topic nested under a topic.
+  // Categorization, membership under a topic, or a topic nested under a topic.
   edge('belongsTo', 'belongs to', 'A node is filed under a topic, or a topic nests under a topic. Many-to-many.', ['Concept', 'Claim', 'Topic'], ['Topic'], 'N:N'),
 
-  // Provenance: the source that first established a node.
-  edge('introduces', 'introduces', 'The source that first established a node; nothing durable exists without one.', ['Source'], ['Concept', 'Claim'], '1:N'),
+  // Provenance, the source that first established a node.
+  edge('introduces', 'introduces', 'The source that first established a node. Nothing durable exists without one.', ['Source'], ['Concept', 'Claim'], '1:N'),
 
-  // Argument: how claims relate (Toulmin plus conceptual change).
+  // Aboutness, the subject a claim speaks to.
+  // SKOS has no name for it because SKOS models concepts alone,
+  // so this follows IAO's is_about, written as a verb like every other edge.
+  // Without it an assertion has nowhere to go but the concept's own definition.
+  edge('concerns', 'concerns', 'The concept a claim asserts something about, e.g. a benchmark result concerns GraphRAG. Assertions attach here rather than swelling a concept description.', ['Claim'], ['Concept'], 'N:N'),
+
+  // Argument, how claims relate (Toulmin plus conceptual change).
   edge('supports', 'supports', 'One claim corroborates another, possibly across sources. The convergence signal in place of a ground truth.', ['Claim'], ['Claim'], 'N:N'),
   edge('contradicts', 'contradicts', 'One claim conflicts with another, surfaced rather than force-merged, because conflict drives learning.', ['Claim'], ['Claim'], 'N:N'),
 ]
@@ -110,10 +115,9 @@ export const knowledgeOntology = defineOntologyPlugin({
   // mounted into each skill session so the ontology contract lives in one place.
   referenceDir: new URL('../skills/shared', import.meta.url),
 
-  // Batch and reactor binding, the per-unit skill is `knowledge:extract`,
-  // run once per fetched page.
-  // The checkpoint `knowledge:converge` fires every five successful extracts,
-  // and once more at the end for a graph-wide pass.
+  // Batch and reactor binding. `knowledge:extract` runs once per fetched page,
+  // and the checkpoint `knowledge:converge` fires every five successful extracts,
+  // then once more at the end for a graph-wide pass.
   // There is no deriveUnits, the feed loader already emits one unit per page.
   batch: {
     perUnit: {
