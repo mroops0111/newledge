@@ -11,10 +11,15 @@ export interface InboxClientOptions {
 export interface InboxClient {
   readonly pending: () => Promise<readonly Proposal[]>
   readonly absorb: (proposalId: string) => Promise<void>
-  readonly discard: (proposalId: string, reason: string) => Promise<void>
+  readonly discard: (proposalId: string) => Promise<void>
 }
 
 const DEFAULT_USER_ID = 'reader'
+
+// The rejection is kept on the proposal, so the reason is a stable code rather
+// than a sentence, which would put whichever language the reader runs the
+// interface in into the record.
+const DISCARD_REASON = 'not-absorbed'
 
 export function createInboxClient(options: InboxClientOptions): InboxClient {
   const fetcher = options.fetcher ?? globalThis.fetch
@@ -40,6 +45,6 @@ export function createInboxClient(options: InboxClientOptions): InboxClient {
       return body.items ?? []
     },
     absorb: proposalId => send(`/${proposalId}/apply`, {}),
-    discard: (proposalId, reason) => send(`/${proposalId}/reject`, { reason }),
+    discard: proposalId => send(`/${proposalId}/reject`, { reason: DISCARD_REASON }),
   }
 }

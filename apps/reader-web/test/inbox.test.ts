@@ -94,12 +94,12 @@ describe('inbox client', () => {
     expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({ userId: 'reader' })
   })
 
-  it('discards a proposal with a reason', async () => {
+  it('discards a proposal under a stable reason code, never display text', async () => {
     const { calls, fetcher } = recordingFetcher({})
-    await createInboxClient({ ...options, fetcher, userId: 'kd' }).discard('proposal-1', 'Off topic')
+    await createInboxClient({ ...options, fetcher, userId: 'kd' }).discard('proposal-1')
 
     expect(calls[0]?.url).toBe('http://localhost:4321/workspaces/knowledge/proposals/proposal-1/reject')
-    expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({ userId: 'kd', reason: 'Off topic' })
+    expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({ userId: 'kd', reason: 'not-absorbed' })
   })
 
   it('reports a failed read and a failed write', async () => {

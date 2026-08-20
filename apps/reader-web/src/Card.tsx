@@ -3,10 +3,14 @@ import type { GraphNodePayload, ProposalCard } from './proposal.js'
 import { Button } from './ui/Button.js'
 import { GroupLabel, SourceLink, Surface } from './ui/Card.js'
 
-const TYPE_ACCENTS: Record<string, string> = {
-  Concepts: 'border-l-concept',
-  Claims: 'border-l-claim',
-  Topics: 'border-l-topic',
+type NodeKind = 'concept' | 'claim' | 'topic'
+
+// Keyed by kind rather than by the heading, so translating a heading cannot
+// silently drop the colour that tells the reader what it is looking at.
+const KIND_ACCENT: Record<NodeKind, string> = {
+  concept: 'border-l-concept',
+  claim: 'border-l-claim',
+  topic: 'border-l-topic',
 }
 
 function hostOf(url: string): string {
@@ -18,7 +22,11 @@ function hostOf(url: string): string {
   }
 }
 
-function NodeList({ label, nodes }: { label: string, nodes: readonly GraphNodePayload[] }): React.JSX.Element | null {
+function NodeList({ kind, label, nodes }: {
+  kind: NodeKind
+  label: string
+  nodes: readonly GraphNodePayload[]
+}): React.JSX.Element | null {
   if (nodes.length === 0)
     return null
   return (
@@ -26,7 +34,7 @@ function NodeList({ label, nodes }: { label: string, nodes: readonly GraphNodePa
       <GroupLabel>{label}</GroupLabel>
       <ul className="mt-4 space-y-5">
         {nodes.map(node => (
-          <li key={node.id} className={`border-l-2 pl-5 ${TYPE_ACCENTS[label] ?? 'border-l-line-strong'}`}>
+          <li key={node.id} className={`border-l-2 pl-5 ${KIND_ACCENT[kind]}`}>
             <p className="font-ui text-sm font-semibold text-ink">{node.name ?? node.id}</p>
             {node.description !== undefined && (
               <p className="mt-1.5 font-reading text-prose-sm text-ink-muted">{node.description}</p>
@@ -74,9 +82,9 @@ export function Card({ card, onAbsorb, onDiscard }: {
         </div>
       </header>
 
-      <NodeList label="Concepts" nodes={card.concepts} />
-      <NodeList label="Claims" nodes={card.claims} />
-      <NodeList label="Topics" nodes={card.topics} />
+      <NodeList kind="concept" label="Concepts" nodes={card.concepts} />
+      <NodeList kind="claim" label="Claims" nodes={card.claims} />
+      <NodeList kind="topic" label="Topics" nodes={card.topics} />
 
       <div className="mt-8 border-t border-line pt-6">
         <div className="flex flex-wrap items-center gap-2">

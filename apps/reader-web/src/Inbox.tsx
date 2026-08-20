@@ -69,7 +69,7 @@ export function Inbox({ client }: { client: InboxClient }): React.JSX.Element {
             key={card.id}
             card={card}
             onAbsorb={() => act(client.absorb(card.id))}
-            onDiscard={() => act(client.discard(card.id, 'Not worth keeping'))}
+            onDiscard={() => act(client.discard(card.id))}
           />
         ))}
       </div>
