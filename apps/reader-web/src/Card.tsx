@@ -29,7 +29,7 @@ function NodeList({ label, nodes }: { label: string, nodes: readonly GraphNodePa
           <li key={node.id} className={`border-l-2 pl-4 ${TYPE_ACCENTS[label] ?? 'border-l-line-strong'}`}>
             <p className="font-ui text-sm font-semibold text-ink">{node.name ?? node.id}</p>
             {node.description !== undefined && (
-              <p className="mt-1 font-reading text-prose-sm text-ink-muted">{node.description}</p>
+              <p className="mt-1 max-w-reading font-reading text-prose-sm text-ink-muted">{node.description}</p>
             )}
           </li>
         ))}
@@ -58,7 +58,7 @@ export function Card({ card, onAbsorb, onDiscard }: {
 
   return (
     <Surface>
-      <p className="font-reading text-prose text-ink">{card.rationale}</p>
+      <p className="max-w-reading font-reading text-prose text-ink">{card.rationale}</p>
 
       <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 font-ui text-xs text-ink-subtle">
         <span className="flex items-center gap-1.5">

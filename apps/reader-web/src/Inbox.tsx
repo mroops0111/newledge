@@ -3,9 +3,14 @@ import { Card } from './Card.js'
 import type { InboxClient } from './client.js'
 import type { ProposalCard } from './proposal.js'
 import { toCard } from './proposal.js'
+import { AppShell } from './ui/AppShell.js'
 
-function Shell({ children }: { children: React.ReactNode }): React.JSX.Element {
-  return <main className="mx-auto max-w-reading px-6 py-16">{children}</main>
+function Shell({ count, children }: { count?: number, children: React.ReactNode }): React.JSX.Element {
+  return (
+    <AppShell items={[{ id: 'inbox', label: 'Reading inbox', count }]} activeId="inbox">
+      <div className="mx-auto max-w-column px-10 py-14">{children}</div>
+    </AppShell>
+  )
 }
 
 export function Inbox({ client }: { client: InboxClient }): React.JSX.Element {
@@ -42,7 +47,7 @@ export function Inbox({ client }: { client: InboxClient }): React.JSX.Element {
   }
 
   return (
-    <Shell>
+    <Shell count={cards.length}>
       <header className="mb-10">
         <h1 className="font-ui text-xl font-semibold tracking-tight text-ink">Reading inbox</h1>
         <p className="mt-2 font-reading text-prose-sm text-ink-muted">

@@ -51,8 +51,10 @@ export default {
         label: ['0.75rem', { lineHeight: '1.2', letterSpacing: '0.04em' }],
       },
       maxWidth: {
-        // A reading column caps around 70 characters.
-        reading: '42rem',
+        // A reading column caps around 75 characters, past which the eye loses
+        // the start of the next line. The card holding it can run wider.
+        reading: '46rem',
+        column: '56rem',
       },
       borderRadius: {
         card: '0.625rem',
