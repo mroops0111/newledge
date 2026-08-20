@@ -43,7 +43,7 @@ describe('knowledge ontology configuration', () => {
   })
 
   it('declares all edge types in canonical order', () => {
-    expect(knowledgeOntology.edgeTypes.map(e => e.id)).toEqual(['extends', 'instantiates', 'contains', 'uses', 'relatesTo', 'belongsTo', 'introduces', 'supports', 'contradicts'])
+    expect(knowledgeOntology.edgeTypes.map(e => e.id)).toEqual(['extends', 'instantiates', 'contains', 'uses', 'relatesTo', 'belongsTo', 'introduces', 'concerns', 'supports', 'contradicts'])
   })
 
   it('declares feed and stance, with feed as the only unit-bearing role and neither required', () => {
@@ -115,6 +115,24 @@ describe('knowledge ontology validation', () => {
       [edge('e1', 'belongsTo', 'c1', 'c2')],
     )
     expect((await structuralValidator.validate(bad)).map(i => i.code)).toContain('structural.endpoint-type-to')
+  })
+
+  it('accepts a claim that concerns a concept, and rejects the reverse', async () => {
+    const good = snapshot(
+      [node('cl1', 'Claim'), node('c1', 'Concept')],
+      [edge('e1', 'concerns', 'cl1', 'c1')],
+    )
+    expect(await structuralValidator.validate(good)).toEqual([])
+
+    // Aboutness runs from the assertion to its subject, never back.
+    const reversed = snapshot(
+      [node('cl1', 'Claim'), node('c1', 'Concept')],
+      [edge('e1', 'concerns', 'c1', 'cl1')],
+    )
+    expect((await structuralValidator.validate(reversed)).map(i => i.code)).toEqual([
+      'structural.endpoint-type-from',
+      'structural.endpoint-type-to',
+    ])
   })
 
   it('validates missing source roles against the declared set', async () => {

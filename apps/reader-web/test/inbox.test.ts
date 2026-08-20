@@ -35,10 +35,32 @@ describe('toCard', () => {
   const card = toCard(proposal)
 
   it('groups a proposal into what it asks you to absorb', () => {
-    expect(card.concepts.map(c => c.id)).toEqual(['kdan', 'dottedSign'])
-    expect(card.claims.map(c => c.id)).toEqual(['seriesB16M'])
+    expect(card.readings.map(r => r.concept.id)).toEqual(['kdan', 'dottedSign'])
     expect(card.sources.map(s => s.id)).toEqual(['kdanSeriesB2021'])
     expect(card.topics.map(t => t.id)).toEqual(['funding'])
+    expect(card.conceptCount).toBe(2)
+    expect(card.claimCount).toBe(1)
+  })
+
+  it('keeps a claim that concerns nothing rather than dropping it', () => {
+    expect(card.looseClaims.map(c => c.id)).toEqual(['seriesB16M'])
+    expect(card.readings.flatMap(r => r.claims)).toEqual([])
+  })
+
+  it('hangs a claim under the concept it concerns', () => {
+    const withSubject = {
+      ...proposal,
+      operations: [
+        ...proposal.operations,
+        { operation: 'addEdge', payload: { type: 'concerns', fromNodeId: 'seriesB16M', toNodeId: 'kdan' } },
+      ],
+    }
+    const grouped = toCard(withSubject)
+
+    expect(grouped.readings.find(r => r.concept.id === 'kdan')?.claims.map(c => c.id)).toEqual(['seriesB16M'])
+    expect(grouped.readings.find(r => r.concept.id === 'dottedSign')?.claims).toEqual([])
+    expect(grouped.looseClaims).toEqual([])
+    expect(grouped.claimCount).toBe(1)
   })
 
   it('separates edges from nodes', () => {
@@ -53,8 +75,38 @@ describe('toCard', () => {
     expect(card.rationale).toContain('Extracted one Source')
   })
 
+  it('reads a claim under every concept it concerns, since aboutness is many to many', () => {
+    const tying = {
+      ...proposal,
+      operations: [
+        ...proposal.operations,
+        { operation: 'addEdge', payload: { type: 'concerns', fromNodeId: 'seriesB16M', toNodeId: 'kdan' } },
+        { operation: 'addEdge', payload: { type: 'concerns', fromNodeId: 'seriesB16M', toNodeId: 'dottedSign' } },
+      ],
+    }
+    const card = toCard(tying)
+
+    expect(card.readings.map(r => r.claims.map(c => c.id))).toEqual([['seriesB16M'], ['seriesB16M']])
+    expect(card.looseClaims).toEqual([])
+    expect(card.claimCount).toBe(1)
+  })
+
+  it('sets a claim aside when it concerns a concept this proposal does not carry', () => {
+    const elsewhere = {
+      ...proposal,
+      operations: [
+        ...proposal.operations,
+        { operation: 'addEdge', payload: { type: 'concerns', fromNodeId: 'seriesB16M', toNodeId: 'someOtherConcept' } },
+      ],
+    }
+    const card = toCard(elsewhere)
+
+    expect(card.looseClaims.map(c => c.id)).toEqual(['seriesB16M'])
+    expect(card.readings.flatMap(r => r.claims)).toEqual([])
+  })
+
   it('tolerates a proposal with no operations', () => {
-    expect(toCard({ ...proposal, operations: [] }).concepts).toEqual([])
+    expect(toCard({ ...proposal, operations: [] }).readings).toEqual([])
   })
 
   it('ignores a payload that is neither a node nor an edge', () => {
@@ -62,7 +114,7 @@ describe('toCard', () => {
     const stray = { operation: 'addNode', payloads: [{ nothing: 'useful' }] }
     const card = toCard({ ...proposal, operations: [noise, stray] })
 
-    expect(card.concepts).toEqual([])
+    expect(card.readings).toEqual([])
     expect(card.edges).toEqual([])
   })
 })

@@ -72,6 +72,13 @@ durable Concepts from Claims per its Concept-versus-Claim rule. Wire edges using
 only the ontology's edge ids, following the direction and stop rule in that file.
 The `Source` `introduces` each new node.
 
+A concept's description says what it is, in two or three sentences of plain prose.
+No markdown, no bullet lists, no bold spans. Anything you could argue with is an
+assertion, so it becomes a `Claim` that `concerns` that concept, carrying its own
+`sourceReferences`. See the reference file's rule on what a description may hold.
+A fact left inside prose cannot be corroborated, contradicted, or traced, so
+writing an essay in a description silently drops it out of convergence.
+
 ### Step 3: Situate Against the Graph
 
 For each candidate, compare against the snapshot:
@@ -121,6 +128,7 @@ Produced N proposals + M clarifications from <source-url>:
 - [ ] Ontology fetched from `braid-core` before any operation was drafted, every `node.type` and `edge.type` matches an id in the response.
 - [ ] A `Source` node exists for the page and `introduces` every new node.
 - [ ] Every `Concept` and `Claim` carries `metadata.sourceReferences`.
+- [ ] Each concept description is plain prose that defines the concept, with every assertion split out as a `Claim` that `concerns` it.
 - [ ] A restated claim reused the existing node and kept a pruned, representative reference list, no duplicate claim was created.
 - [ ] A conflict between claims surfaced as a `contradicts` edge, not a merge.
 - [ ] Each proposal was submitted via `braid-core` proposal-create and the final response was 201.

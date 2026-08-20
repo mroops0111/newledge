@@ -54,6 +54,7 @@ canonical direction. Do not invent edge ids, use only the ids below.
 | `relatesTo` | Concept to Concept | Generic association, the catch-all used only when no more specific edge fits. |
 | `belongsTo` | Concept, Claim, or Topic to Topic | The source is filed under the target topic, or a topic nests under a topic. |
 | `introduces` | Source to Concept or Claim | The source that first established the target. Nothing durable exists without one. |
+| `concerns` | Claim to Concept | The concept the claim asserts something about. |
 | `supports` | Claim to Claim | The source corroborates the target, possibly across sources. The convergence signal. |
 | `contradicts` | Claim to Claim | The source conflicts with the target. Surfaced, never force-merged. |
 
@@ -61,6 +62,26 @@ canonical direction. Do not invent edge ids, use only the ids below.
 
 Reach for `uses` first. Fall back to `relatesTo` only when no more specific edge
 fits. A graph full of `relatesTo` carries no structure and teaches nothing.
+
+## What a description may hold
+
+A description says what the thing **is**, in plain prose, and nothing else. Two or
+three sentences, no markdown, no bullet lists, no bold spans. It is read by a
+person on a card, and by you when you situate a later extraction, so keep it a
+definition rather than an essay.
+
+Everything else you might be tempted to put there is an assertion, and an
+assertion is a `Claim` that `concerns` the concept:
+
+| Tempting to write in the description | Where it actually goes |
+|---|---|
+| "It ships inside the reader rather than standalone." | A Claim that `concerns` the concept. |
+| "Shipped: redaction and translation. Planned: chatbots." | One Claim per capability, each with its own provenance. |
+| "It achieves 99% accuracy." | A Claim, so a second source can `supports` or `contradicts` it. |
+
+This is not a style preference. A fact buried in prose cannot be corroborated,
+contradicted, or traced on its own, so it is invisible to convergence. As a Claim
+it carries its own sources and joins the topology that decides confidence.
 
 ## Evidence gate
 

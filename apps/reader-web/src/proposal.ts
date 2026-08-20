@@ -32,13 +32,22 @@ export interface Proposal {
   readonly operations: readonly GraphOperation[]
 }
 
+/** A concept together with the claims that concern it, the unit a reader absorbs. */
+export interface ConceptReading {
+  readonly concept: GraphNodePayload
+  readonly claims: readonly GraphNodePayload[]
+}
+
 /** One proposal rendered as a reading card, what a source is asking you to absorb. */
 export interface ProposalCard {
   readonly id: string
   readonly rationale: string
   readonly generatedBy: string
-  readonly concepts: readonly GraphNodePayload[]
-  readonly claims: readonly GraphNodePayload[]
+  readonly readings: readonly ConceptReading[]
+  /** Claims that concern no concept in this proposal, so they still need a home. */
+  readonly looseClaims: readonly GraphNodePayload[]
+  readonly conceptCount: number
+  readonly claimCount: number
   readonly sources: readonly GraphNodePayload[]
   readonly topics: readonly GraphNodePayload[]
   readonly edges: readonly GraphEdgePayload[]
@@ -59,8 +68,7 @@ function isNodePayload(value: unknown): value is GraphNodePayload {
   return typeof candidate.id === 'string' && typeof candidate.type === 'string'
 }
 
-// braid sends one node or edge under `payload`,
-// and a batch of them under `payloads`,
+// braid sends one node or edge under `payload`, and a batch under `payloads`,
 // so both shapes flatten to one list before the card groups them by type.
 function itemsOf(operation: GraphOperation): readonly unknown[] {
   return operation.payloads ?? (operation.payload === undefined ? [] : [operation.payload])
@@ -96,15 +104,51 @@ export function toCard(proposal: Proposal): ProposalCard {
     }
   }
   const ofType = (type: string): GraphNodePayload[] => nodes.filter(node => node.type === type)
+  const concepts = ofType('Concept')
+  const claims = ofType('Claim')
+  const { readings, looseClaims } = groupByConcept(concepts, claims, edges)
   return {
     id: proposal.id,
     rationale: proposal.rationale,
     generatedBy: proposal.generatedBy,
-    concepts: ofType('Concept'),
-    claims: ofType('Claim'),
+    readings,
+    looseClaims,
+    conceptCount: concepts.length,
+    claimCount: claims.length,
     sources: ofType('Source'),
     topics: ofType('Topic'),
     edges,
     citations: citationsOf(nodes),
   }
+}
+
+/**
+ * Hang each claim under the concept it concerns, which is how a reader meets it,
+ * as an assertion about something rather than as a separate list.
+ * A claim can tie several concepts together, since aboutness is many to many,
+ * so it is read under each concept it concerns.
+ * A claim concerning nothing here is kept aside rather than dropped.
+ */
+function groupByConcept(
+  concepts: readonly GraphNodePayload[],
+  claims: readonly GraphNodePayload[],
+  edges: readonly GraphEdgePayload[],
+): { readings: readonly ConceptReading[], looseClaims: readonly GraphNodePayload[] } {
+  const subjectsOf = new Map<string, Set<string>>()
+  for (const edge of edges) {
+    if (edge.type !== 'concerns')
+      continue
+    const subjects = subjectsOf.get(edge.fromNodeId) ?? new Set<string>()
+    subjects.add(edge.toNodeId)
+    subjectsOf.set(edge.fromNodeId, subjects)
+  }
+
+  const placed = new Set<string>()
+  const readings = concepts.map((concept) => {
+    const held = claims.filter(claim => subjectsOf.get(claim.id)?.has(concept.id) === true)
+    for (const claim of held)
+      placed.add(claim.id)
+    return { concept, claims: held }
+  })
+  return { readings, looseClaims: claims.filter(claim => !placed.has(claim.id)) }
 }
