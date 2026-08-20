@@ -115,10 +115,10 @@ export const knowledgeOntology = defineOntologyPlugin({
   // mounted into each skill session so the ontology contract lives in one place.
   referenceDir: new URL('../skills/shared', import.meta.url),
 
-  // Batch and reactor binding. `knowledge:extract` runs once per fetched page,
+  // Batch and reactor binding. `knowledge:extract` runs once per unit,
   // and the checkpoint `knowledge:converge` fires every five successful extracts,
   // then once more at the end for a graph-wide pass.
-  // There is no deriveUnits, the feed loader already emits one unit per page.
+  // There is no deriveUnits, a feed source already writes the unit it yields.
   batch: {
     perUnit: {
       skillId: skillId('extract'),

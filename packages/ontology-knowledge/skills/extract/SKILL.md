@@ -38,12 +38,13 @@ You never write to the graph directly. Braid is HITL, you propose and the human
 applies. When you cannot decide whether a concept is the same as one already in the
 graph, you produce a Clarification and let the human pick.
 
-This skill is shipped by the knowledge ontology plugin. It reads a single fetched
-page produced by the web source loader, one file per page.
+This skill is shipped by the knowledge ontology plugin. It reads one unit written
+by a source loader, which holds every page that source fetched, so you see them
+together and can weigh one against another.
 
 ## Design Principles
 
-- Small scope over big. One page per run, under 30 operations per proposal, split if needed.
+- One unit, one proposal. Splitting would put a shared concept in rival proposals, and applying the second is rejected as a duplicate id.
 - Conservative over eager. Ambiguous identity means a Clarification, never a guess.
 - Evidence required. Every node carries `metadata.sourceReferences`, a traceless node is rejected.
 - Trust-neutral. Never resolve a disagreement between two claims, record it as `contradicts`.
@@ -59,11 +60,16 @@ page produced by the web source loader, one file per page.
 
 ## Procedure
 
-### Step 1: Read the Page
+### Step 1: Read the Unit
 
-Read the fetched page. Its first line is an HTML comment `<!-- source-url: URL -->`
-carrying the origin, that url is the `Source`'s uri and the anchor for every
-`sourceReference` you emit. Ensure a `Source` node exists for it, add one if not.
+The unit holds several pages, each opening with an HTML comment
+`<!-- source-url: URL -->` that carries its origin. Split the unit on those
+markers and read every page. Each page is one `Source` node, and its url is the
+anchor for every `sourceReference` drawn from that page.
+
+Read them all before authoring anything. Pages from one search overlap, and the
+judgement you can only make here, with the pages side by side, is the reason they
+arrive together.
 
 ### Step 2: Derive Candidate Concepts and Claims
 
@@ -79,34 +85,49 @@ assertion, so it becomes a `Claim` that `concerns` that concept, carrying its ow
 A fact left inside prose cannot be corroborated, contradicted, or traced, so
 writing an essay in a description silently drops it out of convergence.
 
-### Step 3: Situate Against the Graph
+### Step 3: Reconcile Across the Pages in the Unit
+
+The pages overlap, so do this before looking at the graph at all.
+
+- **One node per subject.** Several pages naming the same concept yield one node, whose description draws on all of them rather than on whichever page you read first.
+- **A claim traces to the page it came from.** Two pages asserting the same thing give one claim carrying both pages in its `sourceReferences`, ordered most representative first.
+- **Corroboration is an edge.** Where two pages assert distinct things that reinforce each other, draw `supports`. This is the judgement a single page cannot produce.
+- **Disagreement is an edge, never a merge.** Where two pages conflict, keep both claims and draw `contradicts`. Differing figures that carry different dates are not a conflict, they are two claims about two moments.
+
+### Step 4: File Under Topics
+
+Group what you extracted under a `Topic` where a theme genuinely spans several
+nodes, and wire it with `belongsTo`. A topic earns its place by grouping, so do
+not mint one per concept, and do not force a node under a topic that adds nothing.
+
+### Step 5: Situate Against the Graph
 
 For each candidate, compare against the snapshot:
 
 - Concept already present: do not duplicate. Skip, or `updateNode` if content changed, and attach edges to the existing id.
 - Claim restated by this page: do not duplicate. Add this source to the existing claim's `metadata.sourceReferences`, keep the most representative few, and prune outdated or minor ones per the reference file. Add `supports` only for a genuinely distinct corroborating claim, not a plain restatement.
 - Claim conflicts with an existing claim: emit a `contradicts` edge. Never merge the two.
-- Ambiguous identity, you cannot tell whether a concept is the same as an existing one or a distinct one sharing a name: stop and emit a Clarification per Step 5.
+- Ambiguous identity, you cannot tell whether a concept is the same as an existing one or a distinct one sharing a name: stop and emit a Clarification per Step 8.
 
-### Step 4: Enforce the Evidence Gate
+### Step 6: Enforce the Evidence Gate
 
 Every `Concept` and `Claim` you emit must carry `metadata.sourceReferences` with the
 source uri and the location inside the page. A node without evidence is rejected by
 the server validator, so self-check before submitting.
 
-### Step 5: Submit the Proposal
+### Step 7: Submit the Proposal
 
 Submit the Proposal via the `braid-core` proposal-create capability:
 
-- `operations`: the GraphOperation array from Steps 2 and 3.
+- `operations`: the GraphOperation array from Steps 2 through 5.
 - `generatedBy`: `"knowledge:extract"`.
-- `rationale`: one paragraph stating what was extracted, from which page, and how it was situated.
+- `rationale`: one paragraph stating what was extracted, from which pages, and how they were reconciled against each other and against the graph.
 
 Outcomes: 201 means move on. 400 (`code: BRAID-VAL`) means fix the cited `issues[]`
 and resubmit, at most 3 rounds, then list what remains and stop. 409 (id collision)
 means mint a fresh id. 5xx means bail and report.
 
-### Step 6: Submit a Clarification for Ambiguous Identity
+### Step 8: Submit a Clarification for Ambiguous Identity
 
 Use the `braid-core` clarification-create capability with the question and the
 candidate list. Each candidate carries its own `proposedOperations`, the human's
@@ -126,12 +147,15 @@ Produced N proposals + M clarifications from <source-url>:
 ## Completion Checklist
 
 - [ ] Ontology fetched from `braid-core` before any operation was drafted, every `node.type` and `edge.type` matches an id in the response.
-- [ ] A `Source` node exists for the page and `introduces` every new node.
+- [ ] A `Source` node exists for every page in the unit, and `introduces` the nodes drawn from it.
+- [ ] A concept named by several pages exists once, with a description drawn from all of them.
+- [ ] Where two pages reinforce or conflict, the proposal carries `supports` or `contradicts` between their claims.
+- [ ] A theme spanning several nodes is a `Topic` they `belongsTo`.
 - [ ] Every `Concept` and `Claim` carries `metadata.sourceReferences`.
 - [ ] Each concept description is plain prose that defines the concept, with every assertion split out as a `Claim` that `concerns` it.
 - [ ] A restated claim reused the existing node and kept a pruned, representative reference list, no duplicate claim was created.
 - [ ] A conflict between claims surfaced as a `contradicts` edge, not a merge.
-- [ ] Each proposal was submitted via `braid-core` proposal-create and the final response was 201.
+- [ ] The unit produced exactly one proposal, submitted via `braid-core` proposal-create with a 201 response.
 - [ ] Each Clarification candidate carries `proposedOperations`.
 
 ## Companion Docs
