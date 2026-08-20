@@ -5,8 +5,8 @@ import { GroupLabel, SourceLink, Surface } from './ui/Card.js'
 
 type NodeKind = 'concept' | 'claim' | 'topic'
 
-// Keyed by kind rather than by the heading,
-// so translating a heading cannot silently drop the colour it is paired with.
+// The accent is keyed by kind, not by the heading text,
+// so translating a heading cannot silently drop its colour.
 const KIND_ACCENT: Record<NodeKind, string> = {
   concept: 'border-l-concept',
   claim: 'border-l-claim',
@@ -32,7 +32,6 @@ function Tally({ colour, count, label }: { colour: string, count: number, label:
   )
 }
 
-/** A claim reads as one assertion, so it stays a single line of prose. */
 function ClaimLine({ claim }: { claim: GraphNodePayload }): React.JSX.Element {
   return (
     <li className={`border-l-2 pl-4 ${KIND_ACCENT.claim}`}>

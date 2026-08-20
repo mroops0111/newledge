@@ -68,8 +68,7 @@ function isNodePayload(value: unknown): value is GraphNodePayload {
   return typeof candidate.id === 'string' && typeof candidate.type === 'string'
 }
 
-// braid sends one node or edge under `payload`,
-// and a batch of them under `payloads`,
+// braid sends one node or edge under `payload`, and a batch under `payloads`,
 // so both shapes flatten to one list before the card groups them by type.
 function itemsOf(operation: GraphOperation): readonly unknown[] {
   return operation.payloads ?? (operation.payload === undefined ? [] : [operation.payload])
@@ -126,8 +125,9 @@ export function toCard(proposal: Proposal): ProposalCard {
 /**
  * Hang each claim under the concept it concerns, which is how a reader meets it,
  * as an assertion about something rather than as a separate list.
- * Aboutness is many to many, so a claim tying several concepts together is read
- * under each of them, and one concerning nothing here is kept aside, not dropped.
+ * A claim can tie several concepts together, since aboutness is many to many,
+ * so it is read under each concept it concerns.
+ * A claim concerning nothing here is kept aside rather than dropped.
  */
 function groupByConcept(
   concepts: readonly GraphNodePayload[],
