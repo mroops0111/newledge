@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import type { GraphNodePayload, ProposalCard } from './proposal.js'
+import type { ConceptReading, GraphNodePayload, ProposalCard } from './proposal.js'
 import { Button } from './ui/Button.js'
 import { GroupLabel, SourceLink, Surface } from './ui/Card.js'
 
 type NodeKind = 'concept' | 'claim' | 'topic'
 
-// Keyed by kind rather than by the heading,
-// so translating a heading cannot silently drop the colour it is paired with.
+// The accent is keyed by kind, not by the heading text,
+// so translating a heading cannot silently drop its colour.
 const KIND_ACCENT: Record<NodeKind, string> = {
   concept: 'border-l-concept',
   claim: 'border-l-claim',
@@ -22,7 +22,45 @@ function hostOf(url: string): string {
   }
 }
 
-function NodeList({ kind, label, nodes }: {
+function Tally({ colour, count, label }: { colour: string, count: number, label: string }): React.JSX.Element {
+  return (
+    <span className="flex items-center gap-1.5 font-ui text-xs text-ink-muted">
+      <span className={`size-1.5 rounded-full ${colour}`} />
+      <span className="tabular-nums text-ink">{count}</span>
+      {label}
+    </span>
+  )
+}
+
+function ClaimLine({ claim }: { claim: GraphNodePayload }): React.JSX.Element {
+  return (
+    <li className={`border-l-2 pl-4 ${KIND_ACCENT.claim}`}>
+      <p className="font-reading text-prose-sm text-ink">{claim.name ?? claim.id}</p>
+      {claim.description !== undefined && (
+        <p className="mt-1 font-reading text-prose-sm text-ink-muted">{claim.description}</p>
+      )}
+    </li>
+  )
+}
+
+function Reading({ reading }: { reading: ConceptReading }): React.JSX.Element {
+  const { concept, claims } = reading
+  return (
+    <li className={`border-l-2 pl-5 ${KIND_ACCENT.concept}`}>
+      <p className="font-ui text-sm font-semibold text-ink">{concept.name ?? concept.id}</p>
+      {concept.description !== undefined && (
+        <p className="mt-1.5 font-reading text-prose-sm text-ink-muted">{concept.description}</p>
+      )}
+      {claims.length > 0 && (
+        <ul className="mt-3 space-y-2.5">
+          {claims.map(claim => <ClaimLine key={claim.id} claim={claim} />)}
+        </ul>
+      )}
+    </li>
+  )
+}
+
+function PlainList({ kind, label, nodes }: {
   kind: NodeKind
   label: string
   nodes: readonly GraphNodePayload[]
@@ -32,7 +70,7 @@ function NodeList({ kind, label, nodes }: {
   return (
     <section className="mt-7">
       <GroupLabel>{label}</GroupLabel>
-      <ul className="mt-4 space-y-5">
+      <ul className="mt-4 space-y-4">
         {nodes.map(node => (
           <li key={node.id} className={`border-l-2 pl-5 ${KIND_ACCENT[kind]}`}>
             <p className="font-ui text-sm font-semibold text-ink">{node.name ?? node.id}</p>
@@ -72,19 +110,30 @@ export function Card({ card, onAbsorb, onDiscard }: {
         <h2 className="font-ui text-base font-semibold leading-snug text-ink">
           {source?.name ?? 'Untitled reading'}
         </h2>
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 font-ui text-xs text-ink-subtle">
-          {card.citations.map(url => (
-            <SourceLink key={url} href={url}>{hostOf(url)}</SourceLink>
-          ))}
-          <span>
-            {card.concepts.length} concepts, {card.claims.length} claims, {card.edges.length} links
+        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+          <Tally colour="bg-concept" count={card.conceptCount} label="concepts" />
+          <Tally colour="bg-claim" count={card.claimCount} label="claims" />
+          <span className="ml-auto flex flex-wrap gap-1.5">
+            {card.citations.map(url => (
+              <SourceLink key={url} href={url}>{hostOf(url)}</SourceLink>
+            ))}
           </span>
         </div>
       </header>
 
-      <NodeList kind="concept" label="Concepts" nodes={card.concepts} />
-      <NodeList kind="claim" label="Claims" nodes={card.claims} />
-      <NodeList kind="topic" label="Topics" nodes={card.topics} />
+      {card.readings.length > 0 && (
+        <section className="mt-7">
+          <GroupLabel>Concepts</GroupLabel>
+          <ul className="mt-4 space-y-6">
+            {card.readings.map(reading => (
+              <Reading key={reading.concept.id} reading={reading} />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <PlainList kind="claim" label="Claims" nodes={card.looseClaims} />
+      <PlainList kind="topic" label="Topics" nodes={card.topics} />
 
       <div className="mt-8 border-t border-line pt-6">
         <div className="flex flex-wrap items-center gap-2">
