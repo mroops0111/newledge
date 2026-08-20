@@ -52,9 +52,13 @@ export default {
       },
       maxWidth: {
         // A reading column caps around 75 characters, past which the eye loses
-        // the start of the next line. The card holding it can run wider.
+        // the start of the next line, so the card is sized to its text.
         reading: '46rem',
-        column: '56rem',
+        // The card plus the rail that carries what the card is made of.
+        column: '62rem',
+      },
+      width: {
+        rail: '11rem',
       },
       borderRadius: {
         card: '0.625rem',
