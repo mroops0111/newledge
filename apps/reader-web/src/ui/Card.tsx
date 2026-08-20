@@ -1,13 +1,9 @@
 import type { ReactNode } from 'react'
 
-/**
- * The surface a single reading sits on.
- * It is sized to its text rather than to the window, so a line stays inside
- * the measure the eye can follow and the prose still reaches both edges.
- */
+/** The surface a single reading sits on. */
 export function Surface({ children }: { children: ReactNode }): React.JSX.Element {
   return (
-    <article className="max-w-reading rounded-card border border-line bg-surface p-7 shadow-card transition-shadow hover:shadow-lifted">
+    <article className="rounded-card border border-line bg-surface p-7 shadow-card transition-shadow hover:shadow-lifted">
       {children}
     </article>
   )
@@ -25,7 +21,7 @@ export function SourceLink({ href, children }: { href: string, children: ReactNo
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="block truncate rounded-control bg-raised px-2 py-1 font-ui text-xs text-ink-muted transition-colors hover:text-ink"
+      className="block rounded-control bg-raised px-2 py-1 font-ui text-xs text-ink-muted transition-colors hover:text-ink"
     >
       {children}
     </a>

@@ -54,11 +54,9 @@ export default {
         // A reading column caps around 75 characters, past which the eye loses
         // the start of the next line, so the card is sized to its text.
         reading: '46rem',
-        // The card plus the rail that carries what the card is made of.
-        column: '62rem',
-      },
-      width: {
-        rail: '11rem',
+        // One reading column, sized so a card's prose stays inside the measure
+        // the eye can follow.
+        column: '48rem',
       },
       borderRadius: {
         card: '0.625rem',
