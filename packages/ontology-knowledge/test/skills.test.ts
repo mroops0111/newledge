@@ -70,7 +70,8 @@ describe('knowledgeOntology plugin wiring', () => {
   })
 
   it('mounts the shared ontology reference dir', () => {
-    expect(knowledgeOntology.referenceDirs?.map(r => r.name)).toEqual(['knowledge'])
+    expect(knowledgeOntology.referenceDir).toBeDefined()
+    expect(dirBasename(knowledgeOntology.referenceDir!)).toBe('shared')
   })
 
   it('binds a per-unit extract with a chunked converge checkpoint', () => {

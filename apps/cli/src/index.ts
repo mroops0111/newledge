@@ -1,16 +1,41 @@
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 import type { WebSearchProvider } from '@newledge/source-loader-web'
-import { composeKnowledgeApp } from './compose.js'
+import { subprocessWebSearchProvider } from '@newledge/source-loader-web'
+import { composeKnowledgeRuntime } from './compose.js'
+import { ingest } from './ingest.js'
+import { directoryWebSearchProvider } from './providers.js'
+import { ensureWorkspace, report, syncFeed } from './run.js'
 
-// This entry only composes and introspects, so a no-op provider suffices.
-const provider: WebSearchProvider = { search: () => Promise.resolve([]) }
+process.env.BRAID_LOCAL_TRUST ??= 'true'
+
+const API_URL = 'http://localhost:4321'
+const PORT = 4321
+
+// A local corpus directory stands in until the real web fetcher lands,
+// otherwise a subprocess command supplies live results.
+function resolveProvider(): WebSearchProvider {
+  const corpus = process.env.NEWLEDGE_CORPUS_DIR
+  if (corpus)
+    return directoryWebSearchProvider(corpus)
+  const command = process.env.NEWLEDGE_FETCHER
+  if (!command)
+    throw new Error('Set NEWLEDGE_CORPUS_DIR to a local corpus, or NEWLEDGE_FETCHER to a web-search command')
+  return subprocessWebSearchProvider({ command })
+}
 
 async function main(): Promise<void> {
-  const { pluginRegistry, workspaceService, workspaceId } = await composeKnowledgeApp(provider)
-  const workspace = await workspaceService.findById(workspaceId)
-  const ontology = pluginRegistry.requireOntology(workspace.productManifest.ontologyId)
-  console.log(`newledge: composed workspace '${workspaceId}' on ontology '${ontology.ontologyId}'`)
-  console.log(`node types: ${ontology.nodeTypes.map(n => n.id).join(', ')}`)
-  console.log(`edge types: ${ontology.edgeTypes.map(e => e.id).join(', ')}`)
+  const braidHome = process.env.NEWLEDGE_HOME ?? join(homedir(), '.newledge')
+  const feed = { query: process.env.NEWLEDGE_QUERY ?? 'knowledge', maxResults: 10 }
+
+  const runtime = await composeKnowledgeRuntime(resolveProvider(), { braidHome, apiUrl: API_URL })
+  const workspaceId = await ensureWorkspace(runtime, feed)
+  await syncFeed(runtime.deps, workspaceId)
+  await ingest(runtime, workspaceId, PORT)
+
+  const counts = await report(runtime.deps, workspaceId)
+  console.log(`newledge: ${counts.proposals} proposals and ${counts.clarifications} clarifications await your review`)
+  console.log(`graph holds ${counts.nodes} absorbed nodes under '${braidHome}'`)
 }
 
 main().catch((err: unknown) => {
