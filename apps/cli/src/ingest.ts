@@ -1,6 +1,6 @@
 import type { WorkspaceId } from '@braidhq/schema'
-import { serve } from '@hono/node-server'
 import type { KnowledgeRuntime } from './compose.js'
+import { listen } from './server.js'
 
 const TERMINAL_STATUSES = ['completed', 'failed', 'stopped', 'archived']
 const POLL_INTERVAL_MS = 5000
@@ -16,7 +16,7 @@ export async function ingest(runtime: KnowledgeRuntime, id: WorkspaceId, port: n
   if (!batchService)
     throw new Error('The runtime did not wire a batch service')
 
-  const server = serve({ fetch: runtime.app.fetch, port })
+  const server = listen(runtime, port)
   try {
     await batchService.start(id, { autoApply: false })
     for (;;) {
