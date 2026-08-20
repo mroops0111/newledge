@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Card } from './Card.js'
 import type { InboxClient } from './client.js'
 import type { ProposalCard } from './proposal.js'
 import { toCard } from './proposal.js'
-import { Card } from './Card.js'
+
+function Shell({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return <main className="mx-auto max-w-reading px-6 py-16">{children}</main>
+}
 
 export function Inbox({ client }: { client: InboxClient }): React.JSX.Element {
   const [cards, setCards] = useState<readonly ProposalCard[]>([])
@@ -29,14 +33,19 @@ export function Inbox({ client }: { client: InboxClient }): React.JSX.Element {
     await refresh()
   }
 
-  if (loading)
-    return <p className="p-8 text-slate-500">Opening your inbox</p>
+  if (loading) {
+    return (
+      <Shell>
+        <p className="font-ui text-sm text-ink-subtle">Opening your inbox</p>
+      </Shell>
+    )
+  }
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <header className="mb-8">
-        <h1 className="text-2xl font-semibold text-slate-900">Reading inbox</h1>
-        <p className="mt-1 text-slate-600">
+    <Shell>
+      <header className="mb-10">
+        <h1 className="font-ui text-xl font-semibold tracking-tight text-ink">Reading inbox</h1>
+        <p className="mt-2 font-reading text-prose-sm text-ink-muted">
           {cards.length === 0
             ? 'Nothing waiting. Your graph holds only what you have absorbed.'
             : `${cards.length} ${cards.length === 1 ? 'reading' : 'readings'} waiting. Absorb one to let it into your graph.`}
@@ -44,10 +53,12 @@ export function Inbox({ client }: { client: InboxClient }): React.JSX.Element {
       </header>
 
       {error !== undefined && (
-        <p className="mb-6 rounded border border-red-200 bg-red-50 p-4 text-red-700">{error}</p>
+        <p className="mb-8 rounded-card border border-claim/20 bg-claim/5 px-4 py-3 font-ui text-sm text-claim">
+          {error}
+        </p>
       )}
 
-      <div className="space-y-6">
+      <div className="space-y-5">
         {cards.map(card => (
           <Card
             key={card.id}
@@ -57,6 +68,6 @@ export function Inbox({ client }: { client: InboxClient }): React.JSX.Element {
           />
         ))}
       </div>
-    </main>
+    </Shell>
   )
 }

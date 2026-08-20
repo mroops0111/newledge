@@ -1,5 +1,13 @@
 import { useState } from 'react'
 import type { GraphNodePayload, ProposalCard } from './proposal.js'
+import { Button } from './ui/Button.js'
+import { GroupLabel, SourceLink, Surface } from './ui/Card.js'
+
+const TYPE_ACCENTS: Record<string, string> = {
+  Concepts: 'border-l-concept',
+  Claims: 'border-l-claim',
+  Topics: 'border-l-topic',
+}
 
 function hostOf(url: string): string {
   try {
@@ -14,14 +22,14 @@ function NodeList({ label, nodes }: { label: string, nodes: readonly GraphNodePa
   if (nodes.length === 0)
     return null
   return (
-    <section className="mt-4">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</h3>
-      <ul className="mt-2 space-y-2">
+    <section className="mt-6">
+      <GroupLabel>{label}</GroupLabel>
+      <ul className="mt-3 space-y-3">
         {nodes.map(node => (
-          <li key={node.id} className="rounded border border-slate-200 p-3">
-            <p className="font-medium text-slate-900">{node.name ?? node.id}</p>
+          <li key={node.id} className={`border-l-2 pl-4 ${TYPE_ACCENTS[label] ?? 'border-l-line-strong'}`}>
+            <p className="font-ui text-sm font-semibold text-ink">{node.name ?? node.id}</p>
             {node.description !== undefined && (
-              <p className="mt-1 text-sm leading-relaxed text-slate-600">{node.description}</p>
+              <p className="mt-1 font-reading text-prose-sm text-ink-muted">{node.description}</p>
             )}
           </li>
         ))}
@@ -49,33 +57,28 @@ export function Card({ card, onAbsorb, onDiscard }: {
   }
 
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-      <p className="text-slate-800">{card.rationale}</p>
+    <Surface>
+      <p className="font-reading text-prose text-ink">{card.rationale}</p>
 
-      <p className="mt-3 text-sm text-slate-500">
-        {card.concepts.length} concepts, {card.claims.length} claims, {card.edges.length} links
-      </p>
-
-      {card.citations.length > 0 && (
-        <p className="mt-2 flex flex-wrap gap-2 text-sm">
-          {card.citations.map(url => (
-            <a
-              key={url}
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-              className="text-blue-700 underline underline-offset-2"
-            >
-              {hostOf(url)}
-            </a>
-          ))}
-        </p>
-      )}
+      <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 font-ui text-xs text-ink-subtle">
+        <span className="flex items-center gap-1.5">
+          <span className="size-1.5 rounded-full bg-concept" />
+          {card.concepts.length} concepts
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-1.5 rounded-full bg-claim" />
+          {card.claims.length} claims
+        </span>
+        <span>{card.edges.length} links</span>
+        {card.citations.map(url => (
+          <SourceLink key={url} href={url}>{hostOf(url)}</SourceLink>
+        ))}
+      </div>
 
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="mt-4 text-sm font-medium text-slate-700 underline underline-offset-2"
+        className="mt-5 font-ui text-sm font-medium text-ink-muted underline decoration-line-strong underline-offset-4 transition-colors hover:text-ink"
       >
         {open ? 'Hide what it holds' : 'Read what it holds'}
       </button>
@@ -88,24 +91,10 @@ export function Card({ card, onAbsorb, onDiscard }: {
         </div>
       )}
 
-      <footer className="mt-6 flex gap-3">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={run(onAbsorb)}
-          className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-        >
-          Absorb into my graph
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={run(onDiscard)}
-          className="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
-        >
-          Discard
-        </button>
+      <footer className="mt-7 flex gap-2 border-t border-line pt-5">
+        <Button tone="primary" disabled={busy} onClick={run(onAbsorb)}>Absorb into my graph</Button>
+        <Button tone="quiet" disabled={busy} onClick={run(onDiscard)}>Discard</Button>
       </footer>
-    </article>
+    </Surface>
   )
 }
