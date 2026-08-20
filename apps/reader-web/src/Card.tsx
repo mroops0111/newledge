@@ -5,8 +5,8 @@ import { GroupLabel, SourceLink, Surface } from './ui/Card.js'
 
 type NodeKind = 'concept' | 'claim' | 'topic'
 
-// Keyed by kind rather than by the heading, so translating a heading cannot
-// silently drop the colour that tells the reader what it is looking at.
+// Keyed by kind rather than by the heading,
+// so translating a heading cannot silently drop the colour it is paired with.
 const KIND_ACCENT: Record<NodeKind, string> = {
   concept: 'border-l-concept',
   claim: 'border-l-claim',

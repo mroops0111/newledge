@@ -16,9 +16,8 @@ export interface InboxClient {
 
 const DEFAULT_USER_ID = 'reader'
 
-// The rejection is kept on the proposal, so the reason is a stable code rather
-// than a sentence, which would put whichever language the reader runs the
-// interface in into the record.
+// The rejection is kept on the proposal, so the reason is a stable code.
+// A sentence would put the reader's interface language into the record.
 const DISCARD_REASON = 'not-absorbed'
 
 export function createInboxClient(options: InboxClientOptions): InboxClient {

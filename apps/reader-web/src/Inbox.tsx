@@ -13,6 +13,10 @@ function Shell({ count, children }: { count?: number, children: React.ReactNode 
   )
 }
 
+function messageOf(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause)
+}
+
 export function Inbox({ client }: { client: InboxClient }): React.JSX.Element {
   const [cards, setCards] = useState<readonly ProposalCard[]>([])
   const [error, setError] = useState<string | undefined>(undefined)
@@ -24,7 +28,7 @@ export function Inbox({ client }: { client: InboxClient }): React.JSX.Element {
       setError(undefined)
     }
     catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      setError(messageOf(cause))
     }
     finally {
       setLoading(false)
@@ -33,8 +37,16 @@ export function Inbox({ client }: { client: InboxClient }): React.JSX.Element {
 
   useEffect(() => { void refresh() }, [refresh])
 
+  // A failed absorb leaves the reading where it is,
+  // so the queue is only reread once the action landed.
   const act = async (action: Promise<void>): Promise<void> => {
-    await action
+    try {
+      await action
+    }
+    catch (cause) {
+      setError(messageOf(cause))
+      return
+    }
     await refresh()
   }
 

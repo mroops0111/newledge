@@ -56,6 +56,15 @@ describe('toCard', () => {
   it('tolerates a proposal with no operations', () => {
     expect(toCard({ ...proposal, operations: [] }).concepts).toEqual([])
   })
+
+  it('ignores a payload that is neither a node nor an edge', () => {
+    const noise = { operation: 'addNode', payload: null }
+    const stray = { operation: 'addNode', payloads: [{ nothing: 'useful' }] }
+    const card = toCard({ ...proposal, operations: [noise, stray] })
+
+    expect(card.concepts).toEqual([])
+    expect(card.edges).toEqual([])
+  })
 })
 
 interface Call { url: string, init?: RequestInit }

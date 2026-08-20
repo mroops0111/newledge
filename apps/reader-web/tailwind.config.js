@@ -1,7 +1,8 @@
 /**
  * Newledge design tokens.
- * The palette is warm and low contrast where you read, and precise where you
- * operate, so one system carries both the reading inbox and the board.
+ * The palette is warm and low contrast where you read,
+ * and precise where you operate,
+ * so one system carries both the reading inbox and the board.
  * Components name tokens by role, never by a raw scale value.
  */
 
@@ -32,8 +33,8 @@ export default {
           hover: '#3b3734',
         },
 
-        // Ontology colours, shared with the graph so a concept reads the same
-        // on a card and on the board.
+        // Ontology colours, shared with the graph,
+        // so a concept reads the same on a card and on the board.
         concept: '#7c3aed',
         claim: '#dc2626',
         source: '#0284c7',
@@ -51,11 +52,8 @@ export default {
         label: ['0.75rem', { lineHeight: '1.2', letterSpacing: '0.04em' }],
       },
       maxWidth: {
-        // A reading column caps around 75 characters, past which the eye loses
-        // the start of the next line, so the card is sized to its text.
-        reading: '46rem',
-        // One reading column, sized so a card's prose stays inside the measure
-        // the eye can follow.
+        // One reading column, capped near 75 characters,
+        // past which the eye loses the start of the next line.
         column: '48rem',
       },
       borderRadius: {

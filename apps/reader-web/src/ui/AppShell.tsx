@@ -19,9 +19,9 @@ function NavLink({ item, active }: { item: NavItem, active: boolean }): React.JS
 }
 
 /**
- * The frame every surface sits in, a narrow rail beside a full-width main area.
- * Reading keeps its own column width inside main, while the board can use the
- * whole area, so one frame carries both without a second layout.
+ * The frame every surface sits in, a navigation column beside the main area.
+ * Main is left full width, and each surface takes the measure it needs inside it,
+ * so a dense surface and a reading one share this frame without a second layout.
  */
 export function AppShell({ items, activeId, children }: {
   items: readonly NavItem[]
