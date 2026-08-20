@@ -32,13 +32,22 @@ export interface Proposal {
   readonly operations: readonly GraphOperation[]
 }
 
+/** A concept together with the claims that concern it, the unit a reader absorbs. */
+export interface ConceptReading {
+  readonly concept: GraphNodePayload
+  readonly claims: readonly GraphNodePayload[]
+}
+
 /** One proposal rendered as a reading card, what a source is asking you to absorb. */
 export interface ProposalCard {
   readonly id: string
   readonly rationale: string
   readonly generatedBy: string
-  readonly concepts: readonly GraphNodePayload[]
-  readonly claims: readonly GraphNodePayload[]
+  readonly readings: readonly ConceptReading[]
+  /** Claims that concern no concept in this proposal, so they still need a home. */
+  readonly looseClaims: readonly GraphNodePayload[]
+  readonly conceptCount: number
+  readonly claimCount: number
   readonly sources: readonly GraphNodePayload[]
   readonly topics: readonly GraphNodePayload[]
   readonly edges: readonly GraphEdgePayload[]
@@ -96,15 +105,48 @@ export function toCard(proposal: Proposal): ProposalCard {
     }
   }
   const ofType = (type: string): GraphNodePayload[] => nodes.filter(node => node.type === type)
+  const concepts = ofType('Concept')
+  const claims = ofType('Claim')
+  const { readings, looseClaims } = groupByConcept(concepts, claims, edges)
   return {
     id: proposal.id,
     rationale: proposal.rationale,
     generatedBy: proposal.generatedBy,
-    concepts: ofType('Concept'),
-    claims: ofType('Claim'),
+    readings,
+    looseClaims,
+    conceptCount: concepts.length,
+    claimCount: claims.length,
     sources: ofType('Source'),
     topics: ofType('Topic'),
     edges,
     citations: citationsOf(nodes),
   }
+}
+
+/**
+ * Hang each claim under the concept it concerns, which is how a reader meets it,
+ * as an assertion about something rather than as a separate list.
+ * A claim concerning nothing in this proposal is kept aside rather than dropped.
+ */
+function groupByConcept(
+  concepts: readonly GraphNodePayload[],
+  claims: readonly GraphNodePayload[],
+  edges: readonly GraphEdgePayload[],
+): { readings: readonly ConceptReading[], looseClaims: readonly GraphNodePayload[] } {
+  const subjectOf = new Map<string, string>()
+  for (const edge of edges) {
+    if (edge.type === 'concerns')
+      subjectOf.set(edge.fromNodeId, edge.toNodeId)
+  }
+  const grouped = new Set<string>()
+  const readings = concepts.map((concept) => {
+    const held = claims.filter((claim) => {
+      const matches = subjectOf.get(claim.id) === concept.id
+      if (matches)
+        grouped.add(claim.id)
+      return matches
+    })
+    return { concept, claims: held }
+  })
+  return { readings, looseClaims: claims.filter(claim => !grouped.has(claim.id)) }
 }

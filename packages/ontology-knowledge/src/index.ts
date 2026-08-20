@@ -63,7 +63,13 @@ const edgeTypes: readonly EdgeTypeDescriptor[] = [
   edge('belongsTo', 'belongs to', 'A node is filed under a topic, or a topic nests under a topic. Many-to-many.', ['Concept', 'Claim', 'Topic'], ['Topic'], 'N:N'),
 
   // Provenance: the source that first established a node.
-  edge('introduces', 'introduces', 'The source that first established a node; nothing durable exists without one.', ['Source'], ['Concept', 'Claim'], '1:N'),
+  edge('introduces', 'introduces', 'The source that first established a node. Nothing durable exists without one.', ['Source'], ['Concept', 'Claim'], '1:N'),
+
+  // Aboutness, the subject a claim speaks to.
+  // SKOS has no name for it because SKOS models concepts alone,
+  // so this follows IAO's is_about, written as a verb like every other edge.
+  // Without it an assertion has nowhere to go but the concept's own definition.
+  edge('concerns', 'concerns', 'The concept a claim asserts something about, e.g. a benchmark result concerns GraphRAG. Assertions attach here rather than swelling a concept description.', ['Claim'], ['Concept'], 'N:N'),
 
   // Argument: how claims relate (Toulmin plus conceptual change).
   edge('supports', 'supports', 'One claim corroborates another, possibly across sources. The convergence signal in place of a ground truth.', ['Claim'], ['Claim'], 'N:N'),
