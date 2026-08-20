@@ -23,14 +23,15 @@ const BUNDLE_FILE = `results${FILE_EXT}`
 // A unit is one file, so a query's results are bundled into one.
 // The extract skill then reads the pages together,
 // which is what lets it dedupe across them and weigh one against another.
-// Splitting a query across files would put the same concept in rival
-// proposals, and applying the second one is rejected as a duplicate id.
+// Splitting a query across files would put the same concept in rival proposals,
+// and applying the second one is rejected as a duplicate id.
 function renderBundle(results: readonly WebSearchResult[]): string {
   return results.map(renderResult).join('\n')
 }
 
-// The source url rides in an HTML comment so each page inside the bundle
-// stays attributable, and full-content comparison still detects an update.
+// The source url rides in an HTML comment,
+// so each page inside the bundle stays attributable.
+// Full-content comparison still detects an update.
 function renderResult(result: WebSearchResult): string {
   return `<!-- source-url: ${result.url} -->\n# ${result.title}\n\n${result.markdown}\n`
 }
@@ -79,8 +80,8 @@ export function createWebSourceLoaderPlugin(provider: WebSearchProvider): Source
       const path = join(destination, BUNDLE_FILE)
       const previous = await readIfPresent(path)
 
-      // A file left by the earlier one-per-result layout would enumerate as
-      // its own unit, so the bundle stays the only unit this source yields.
+      // A file left by the earlier one-per-result layout enumerates as its own unit,
+      // so the bundle stays the only unit this source yields.
       const stale = (await readdir(destination)).filter(name => name.endsWith(FILE_EXT) && name !== BUNDLE_FILE)
       for (const name of stale)
         await rm(join(destination, name))

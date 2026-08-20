@@ -38,20 +38,33 @@ export interface ConceptReading {
   readonly claims: readonly GraphNodePayload[]
 }
 
+/** A theme and what sits under it, the outline a reader navigates by. */
+export interface TopicGroup {
+  readonly id: string
+  readonly title: string
+  readonly readings: readonly ConceptReading[]
+}
+
+/** One page a reading came from, named rather than reduced to its host. */
+export interface SourceLink {
+  readonly id: string
+  readonly title: string
+  readonly url?: string
+}
+
 /** One proposal rendered as a reading card, what a source is asking you to absorb. */
 export interface ProposalCard {
   readonly id: string
   readonly rationale: string
   readonly generatedBy: string
-  readonly readings: readonly ConceptReading[]
+  /** Themes in order, with whatever belongs to none of them coming last. */
+  readonly groups: readonly TopicGroup[]
   /** Claims that concern no concept in this proposal, so they still need a home. */
   readonly looseClaims: readonly GraphNodePayload[]
   readonly conceptCount: number
   readonly claimCount: number
-  readonly sources: readonly GraphNodePayload[]
-  readonly topics: readonly GraphNodePayload[]
+  readonly sources: readonly SourceLink[]
   readonly edges: readonly GraphEdgePayload[]
-  readonly citations: readonly string[]
 }
 
 function isEdgePayload(value: unknown): value is GraphEdgePayload {
@@ -74,17 +87,18 @@ function itemsOf(operation: GraphOperation): readonly unknown[] {
   return operation.payloads ?? (operation.payload === undefined ? [] : [operation.payload])
 }
 
-/** Collect the urls a card's claims and concepts trace back to, deduped, order kept. */
-function citationsOf(nodes: readonly GraphNodePayload[]): readonly string[] {
-  const seen = new Set<string>()
-  for (const node of nodes) {
-    for (const reference of node.metadata?.sourceReferences ?? []) {
-      const uri = reference.location?.uri
-      if (uri)
-        seen.add(uri)
-    }
-  }
-  return [...seen]
+// A source is named by its title, since several pages of one search can share a
+// host, and two identical hosts tell a reader nothing about which page is which.
+function toSourceLinks(sources: readonly GraphNodePayload[]): readonly SourceLink[] {
+  return sources.map(source => ({
+    id: source.id,
+    title: source.name ?? source.id,
+    ...(uriOf(source) === undefined ? {} : { url: uriOf(source) }),
+  }))
+}
+
+function uriOf(node: GraphNodePayload): string | undefined {
+  return node.metadata?.sourceReferences?.[0]?.location?.uri
 }
 
 /**
@@ -111,15 +125,48 @@ export function toCard(proposal: Proposal): ProposalCard {
     id: proposal.id,
     rationale: proposal.rationale,
     generatedBy: proposal.generatedBy,
-    readings,
+    groups: groupByTopic(readings, ofType('Topic'), edges),
     looseClaims,
     conceptCount: concepts.length,
     claimCount: claims.length,
-    sources: ofType('Source'),
-    topics: ofType('Topic'),
+    sources: toSourceLinks(ofType('Source')),
     edges,
-    citations: citationsOf(nodes),
   }
+}
+
+const UNGROUPED = 'ungrouped'
+
+/**
+ * Sort the concepts under the themes they belong to, which is the outline a
+ * reader navigates by, and the only place topics are visible at all.
+ * A concept under no theme still has to be read, so it lands in a final group.
+ */
+function groupByTopic(
+  readings: readonly ConceptReading[],
+  topics: readonly GraphNodePayload[],
+  edges: readonly GraphEdgePayload[],
+): readonly TopicGroup[] {
+  const themesOf = new Map<string, Set<string>>()
+  for (const edge of edges) {
+    if (edge.type !== 'belongsTo')
+      continue
+    const themes = themesOf.get(edge.fromNodeId) ?? new Set<string>()
+    themes.add(edge.toNodeId)
+    themesOf.set(edge.fromNodeId, themes)
+  }
+
+  const filed = new Set<string>()
+  const groups = topics.map((topic) => {
+    const held = readings.filter(reading => themesOf.get(reading.concept.id)?.has(topic.id) === true)
+    for (const reading of held)
+      filed.add(reading.concept.id)
+    return { id: topic.id, title: topic.name ?? topic.id, readings: held }
+  }).filter(group => group.readings.length > 0)
+
+  const rest = readings.filter(reading => !filed.has(reading.concept.id))
+  if (rest.length === 0)
+    return groups
+  return [...groups, { id: UNGROUPED, title: 'Not filed under a theme', readings: rest }]
 }
 
 /**

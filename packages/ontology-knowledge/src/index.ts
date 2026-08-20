@@ -92,6 +92,19 @@ function skillId(verb: string): SkillId {
   return SkillId.parse(`${ONTOLOGY_ID}:${verb}`)
 }
 
+const DEFAULT_CLAIMS_PER_CONCEPT = 7
+
+/**
+ * How many claims a concept keeps once convergence has weighed them.
+ * Sources repeat each other, so claims accrue faster than understanding does,
+ * and a concept buried under its own evidence is harder to learn from.
+ * Extraction stays free to propose, and the trimming happens at the checkpoint.
+ * Read at call time rather than at import, so a deployment can set it.
+ */
+function claimsPerConcept(): string {
+  return process.env.NEWLEDGE_CLAIMS_PER_CONCEPT ?? String(DEFAULT_CLAIMS_PER_CONCEPT)
+}
+
 /**
  * The knowledge ontology, declared as a third-party braid plugin.
  * Node, edge, and source-role types are passed as data to `defineOntologyPlugin`,
@@ -129,6 +142,7 @@ export const knowledgeOntology = defineOntologyPlugin({
       label: 'Converge',
       chunkSize: 5,
       runAtEnd: true,
+      extraEnv: () => ({ NEWLEDGE_CLAIMS_PER_CONCEPT: claimsPerConcept() }),
     },
   },
 })

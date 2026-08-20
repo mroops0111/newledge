@@ -1,45 +1,70 @@
 import type { ReactNode } from 'react'
 
-export interface NavItem {
-  readonly id: string
+export interface OutlineEntry {
+  readonly anchor: string
   readonly label: string
-  readonly count?: number
 }
 
-function NavLink({ item, active }: { item: NavItem, active: boolean }): React.JSX.Element {
-  const tone = active ? 'bg-raised text-ink' : 'text-ink-muted hover:bg-raised/60 hover:text-ink'
+export interface OutlineSection {
+  readonly id: string
+  readonly title: string
+  readonly entries: readonly OutlineEntry[]
+}
+
+// Both columns hold their own scroll and stay put,
+// since a reader steering by them loses the map the moment it scrolls away.
+const COLUMN = 'sticky top-0 h-screen shrink-0 overflow-y-auto border-r border-line'
+
+function Outline({ sections }: { sections: readonly OutlineSection[] }): React.JSX.Element {
   return (
-    <span className={`flex items-center justify-between rounded-control px-3 py-2 font-ui text-sm ${tone}`}>
-      {item.label}
-      {item.count !== undefined && item.count > 0 && (
-        <span className="font-ui text-xs tabular-nums text-ink-subtle">{item.count}</span>
-      )}
-    </span>
+    <aside className={`${COLUMN} hidden w-60 px-3 py-6 lg:block`}>
+      {sections.map(section => (
+        <section key={section.id} className="mb-5">
+          <h2 className="px-3 font-ui text-label font-semibold uppercase text-ink-subtle">{section.title}</h2>
+          <ul className="mt-1.5">
+            {section.entries.map(entry => (
+              <li key={entry.anchor}>
+                <a
+                  href={`#${entry.anchor}`}
+                  className="block truncate rounded-control px-3 py-1 font-ui text-xs text-ink-muted transition-colors hover:bg-raised hover:text-ink"
+                >
+                  {entry.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </aside>
   )
 }
 
 /**
- * The frame every surface sits in, a navigation column beside the main area.
- * Main is left full width, and each surface takes the measure it needs inside it,
- * so a dense surface and a reading one share this frame without a second layout.
+ * The frame every surface sits in.
+ * A narrow column names the surfaces, an outline column steers within the one
+ * on screen, and main is left full width for each surface to take the measure
+ * it needs, so a dense surface and a reading one share this frame.
  */
-export function AppShell({ items, activeId, children }: {
-  items: readonly NavItem[]
-  activeId: string
+export function AppShell({ title, count, outline, children }: {
+  title: string
+  count?: number
+  outline: readonly OutlineSection[]
   children: ReactNode
 }): React.JSX.Element {
   return (
     <div className="flex min-h-screen">
-      <nav className="hidden w-60 shrink-0 border-r border-line bg-raised/40 p-4 md:block">
+      <nav className={`${COLUMN} hidden w-52 bg-raised/40 p-4 md:block`}>
         <p className="px-3 py-2 font-ui text-sm font-semibold tracking-tight text-ink">Newledge</p>
-        <ul className="mt-4 space-y-1">
-          {items.map(item => (
-            <li key={item.id}>
-              <NavLink item={item} active={item.id === activeId} />
-            </li>
-          ))}
-        </ul>
+        <span className="mt-4 flex items-center justify-between rounded-control bg-raised px-3 py-2 font-ui text-sm text-ink">
+          {title}
+          {count !== undefined && count > 0 && (
+            <span className="font-ui text-xs tabular-nums text-ink-subtle">{count}</span>
+          )}
+        </span>
       </nav>
+
+      {outline.length > 0 && <Outline sections={outline} />}
+
       <main className="min-w-0 flex-1">{children}</main>
     </div>
   )

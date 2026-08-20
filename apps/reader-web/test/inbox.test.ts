@@ -31,20 +31,21 @@ const proposal: Proposal = {
   ],
 }
 
+const readingsOf = (card: ReturnType<typeof toCard>) => card.groups.flatMap(g => g.readings)
+
 describe('toCard', () => {
   const card = toCard(proposal)
 
   it('groups a proposal into what it asks you to absorb', () => {
-    expect(card.readings.map(r => r.concept.id)).toEqual(['kdan', 'dottedSign'])
+    expect(readingsOf(card).map(r => r.concept.id)).toEqual(['kdan', 'dottedSign'])
     expect(card.sources.map(s => s.id)).toEqual(['kdanSeriesB2021'])
-    expect(card.topics.map(t => t.id)).toEqual(['funding'])
     expect(card.conceptCount).toBe(2)
     expect(card.claimCount).toBe(1)
   })
 
   it('keeps a claim that concerns nothing rather than dropping it', () => {
     expect(card.looseClaims.map(c => c.id)).toEqual(['seriesB16M'])
-    expect(card.readings.flatMap(r => r.claims)).toEqual([])
+    expect(readingsOf(card).flatMap(r => r.claims)).toEqual([])
   })
 
   it('hangs a claim under the concept it concerns', () => {
@@ -57,8 +58,8 @@ describe('toCard', () => {
     }
     const grouped = toCard(withSubject)
 
-    expect(grouped.readings.find(r => r.concept.id === 'kdan')?.claims.map(c => c.id)).toEqual(['seriesB16M'])
-    expect(grouped.readings.find(r => r.concept.id === 'dottedSign')?.claims).toEqual([])
+    expect(readingsOf(grouped).find(r => r.concept.id === 'kdan')?.claims.map(c => c.id)).toEqual(['seriesB16M'])
+    expect(readingsOf(grouped).find(r => r.concept.id === 'dottedSign')?.claims).toEqual([])
     expect(grouped.looseClaims).toEqual([])
     expect(grouped.claimCount).toBe(1)
   })
@@ -67,8 +68,28 @@ describe('toCard', () => {
     expect(card.edges).toEqual([{ type: 'introduces', fromNodeId: 'kdanSeriesB2021', toNodeId: 'kdan' }])
   })
 
-  it('surfaces provenance so a claim can be traced back', () => {
-    expect(card.citations).toEqual(['https://techcrunch.com/a'])
+  it('names each source rather than reducing it to a host', () => {
+    expect(card.sources).toEqual([{ id: 'kdanSeriesB2021', title: 'TechCrunch report' }])
+  })
+
+  it('files concepts under the themes they belong to, and the rest last', () => {
+    const themed = {
+      ...proposal,
+      operations: [
+        ...proposal.operations,
+        { operation: 'addEdge', payload: { type: 'belongsTo', fromNodeId: 'kdan', toNodeId: 'funding' } },
+      ],
+    }
+    const card = toCard(themed)
+
+    expect(card.groups.map(g => [g.title, g.readings.map(r => r.concept.id)])).toEqual([
+      ['Funding', ['kdan']],
+      ['Not filed under a theme', ['dottedSign']],
+    ])
+  })
+
+  it('drops a theme that nothing belongs to', () => {
+    expect(card.groups.map(g => g.title)).toEqual(['Not filed under a theme'])
   })
 
   it('keeps the rationale as the opening line of the card', () => {
@@ -86,7 +107,7 @@ describe('toCard', () => {
     }
     const card = toCard(tying)
 
-    expect(card.readings.map(r => r.claims.map(c => c.id))).toEqual([['seriesB16M'], ['seriesB16M']])
+    expect(readingsOf(card).map(r => r.claims.map(c => c.id))).toEqual([['seriesB16M'], ['seriesB16M']])
     expect(card.looseClaims).toEqual([])
     expect(card.claimCount).toBe(1)
   })
@@ -102,11 +123,11 @@ describe('toCard', () => {
     const card = toCard(elsewhere)
 
     expect(card.looseClaims.map(c => c.id)).toEqual(['seriesB16M'])
-    expect(card.readings.flatMap(r => r.claims)).toEqual([])
+    expect(readingsOf(card).flatMap(r => r.claims)).toEqual([])
   })
 
   it('tolerates a proposal with no operations', () => {
-    expect(toCard({ ...proposal, operations: [] }).readings).toEqual([])
+    expect(toCard({ ...proposal, operations: [] }).groups).toEqual([])
   })
 
   it('ignores a payload that is neither a node nor an edge', () => {
@@ -114,7 +135,7 @@ describe('toCard', () => {
     const stray = { operation: 'addNode', payloads: [{ nothing: 'useful' }] }
     const card = toCard({ ...proposal, operations: [noise, stray] })
 
-    expect(card.readings).toEqual([])
+    expect(card.groups).toEqual([])
     expect(card.edges).toEqual([])
   })
 })
