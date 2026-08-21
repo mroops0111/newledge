@@ -27,7 +27,7 @@ function Shell({ count, outline, children }: {
 }): React.JSX.Element {
   return (
     <AppShell title="Reading inbox" count={count} outline={outline ?? []}>
-      <div className="mx-auto max-w-column px-10 py-14">{children}</div>
+      {children}
     </AppShell>
   )
 }

@@ -35,7 +35,8 @@ export interface Proposal {
 /** A concept together with the claims that concern it, the unit a reader absorbs. */
 export interface ConceptReading {
   readonly concept: GraphNodePayload
-  readonly claims: readonly GraphNodePayload[]
+  readonly cites: readonly SourceLink[]
+  readonly claims: readonly CitedNode[]
 }
 
 /** A theme and what sits under it, the outline a reader navigates by. */
@@ -48,8 +49,16 @@ export interface TopicGroup {
 /** One page a reading came from, named rather than reduced to its host. */
 export interface SourceLink {
   readonly id: string
+  /** Position in the card's source list, so a citation can point at it. */
+  readonly index: number
   readonly title: string
   readonly url?: string
+}
+
+/** A node with the sources it traces back to, which is what makes it checkable. */
+export interface CitedNode {
+  readonly node: GraphNodePayload
+  readonly cites: readonly SourceLink[]
 }
 
 /** One proposal rendered as a reading card, what a source is asking you to absorb. */
@@ -60,7 +69,7 @@ export interface ProposalCard {
   /** Themes in order, with whatever belongs to none of them coming last. */
   readonly groups: readonly TopicGroup[]
   /** Claims that concern no concept in this proposal, so they still need a home. */
-  readonly looseClaims: readonly GraphNodePayload[]
+  readonly looseClaims: readonly CitedNode[]
   readonly conceptCount: number
   readonly claimCount: number
   readonly sources: readonly SourceLink[]
@@ -87,14 +96,31 @@ function itemsOf(operation: GraphOperation): readonly unknown[] {
   return operation.payloads ?? (operation.payload === undefined ? [] : [operation.payload])
 }
 
-// A source is named by its title, since several pages of one search can share a
-// host, and two identical hosts tell a reader nothing about which page is which.
+// A source is named by its title,
+// since several pages of one search can share a host,
+// and two identical hosts say nothing about which page is which.
 function toSourceLinks(sources: readonly GraphNodePayload[]): readonly SourceLink[] {
-  return sources.map(source => ({
+  return sources.map((source, position) => ({
     id: source.id,
+    index: position + 1,
     title: source.name ?? source.id,
     ...(uriOf(source) === undefined ? {} : { url: uriOf(source) }),
   }))
+}
+
+// A node names its sources by url,
+// so the card keys its own list by url to recover the number shown beside the text.
+// A node orders its references by how well each represents it,
+// and that order is kept, while the markers themselves run in reading order,
+// since a citation that counts down looks like a mistake.
+function citedBy(node: GraphNodePayload, byUrl: ReadonlyMap<string, SourceLink>): readonly SourceLink[] {
+  const cites: SourceLink[] = []
+  for (const reference of node.metadata?.sourceReferences ?? []) {
+    const link = reference.location?.uri === undefined ? undefined : byUrl.get(reference.location.uri)
+    if (link !== undefined && !cites.includes(link))
+      cites.push(link)
+  }
+  return [...cites].sort((a, b) => a.index - b.index)
 }
 
 function uriOf(node: GraphNodePayload): string | undefined {
@@ -120,7 +146,10 @@ export function toCard(proposal: Proposal): ProposalCard {
   const ofType = (type: string): GraphNodePayload[] => nodes.filter(node => node.type === type)
   const concepts = ofType('Concept')
   const claims = ofType('Claim')
-  const { readings, looseClaims } = groupByConcept(concepts, claims, edges)
+  const sources = toSourceLinks(ofType('Source'))
+  const byUrl = new Map(sources.filter(s => s.url !== undefined).map(s => [s.url!, s]))
+  const cite = (node: GraphNodePayload): CitedNode => ({ node, cites: citedBy(node, byUrl) })
+  const { readings, looseClaims } = groupByConcept(concepts, claims, edges, cite, byUrl)
   return {
     id: proposal.id,
     rationale: proposal.rationale,
@@ -129,7 +158,7 @@ export function toCard(proposal: Proposal): ProposalCard {
     looseClaims,
     conceptCount: concepts.length,
     claimCount: claims.length,
-    sources: toSourceLinks(ofType('Source')),
+    sources,
     edges,
   }
 }
@@ -137,8 +166,9 @@ export function toCard(proposal: Proposal): ProposalCard {
 const UNGROUPED = 'ungrouped'
 
 /**
- * Sort the concepts under the themes they belong to, which is the outline a
- * reader navigates by, and the only place topics are visible at all.
+ * Sort the concepts under the themes they belong to.
+ * That grouping is the outline a reader navigates by,
+ * and the only place topics are visible at all.
  * A concept under no theme still has to be read, so it lands in a final group.
  */
 function groupByTopic(
@@ -180,7 +210,9 @@ function groupByConcept(
   concepts: readonly GraphNodePayload[],
   claims: readonly GraphNodePayload[],
   edges: readonly GraphEdgePayload[],
-): { readings: readonly ConceptReading[], looseClaims: readonly GraphNodePayload[] } {
+  cite: (node: GraphNodePayload) => CitedNode,
+  byUrl: ReadonlyMap<string, SourceLink>,
+): { readings: readonly ConceptReading[], looseClaims: readonly CitedNode[] } {
   const subjectsOf = new Map<string, Set<string>>()
   for (const edge of edges) {
     if (edge.type !== 'concerns')
@@ -195,7 +227,7 @@ function groupByConcept(
     const held = claims.filter(claim => subjectsOf.get(claim.id)?.has(concept.id) === true)
     for (const claim of held)
       placed.add(claim.id)
-    return { concept, claims: held }
+    return { concept, cites: citedBy(concept, byUrl), claims: held.map(cite) }
   })
-  return { readings, looseClaims: claims.filter(claim => !placed.has(claim.id)) }
+  return { readings, looseClaims: claims.filter(claim => !placed.has(claim.id)).map(cite) }
 }

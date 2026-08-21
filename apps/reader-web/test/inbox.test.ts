@@ -11,7 +11,12 @@ const proposal: Proposal = {
   operations: [
     {
       operation: 'addNode',
-      payload: { id: 'kdanSeriesB2021', type: 'Source', name: 'TechCrunch report' },
+      payload: {
+        id: 'kdanSeriesB2021',
+        type: 'Source',
+        name: 'TechCrunch report',
+        metadata: { sourceReferences: [{ location: { uri: 'https://techcrunch.com/a' } }] },
+      },
     },
     {
       operation: 'addNodes',
@@ -44,7 +49,7 @@ describe('toCard', () => {
   })
 
   it('keeps a claim that concerns nothing rather than dropping it', () => {
-    expect(card.looseClaims.map(c => c.id)).toEqual(['seriesB16M'])
+    expect(card.looseClaims.map(c => c.node.id)).toEqual(['seriesB16M'])
     expect(readingsOf(card).flatMap(r => r.claims)).toEqual([])
   })
 
@@ -58,7 +63,7 @@ describe('toCard', () => {
     }
     const grouped = toCard(withSubject)
 
-    expect(readingsOf(grouped).find(r => r.concept.id === 'kdan')?.claims.map(c => c.id)).toEqual(['seriesB16M'])
+    expect(readingsOf(grouped).find(r => r.concept.id === 'kdan')?.claims.map(c => c.node.id)).toEqual(['seriesB16M'])
     expect(readingsOf(grouped).find(r => r.concept.id === 'dottedSign')?.claims).toEqual([])
     expect(grouped.looseClaims).toEqual([])
     expect(grouped.claimCount).toBe(1)
@@ -69,7 +74,7 @@ describe('toCard', () => {
   })
 
   it('names each source rather than reducing it to a host', () => {
-    expect(card.sources).toEqual([{ id: 'kdanSeriesB2021', title: 'TechCrunch report' }])
+    expect(card.sources).toEqual([{ id: 'kdanSeriesB2021', index: 1, title: 'TechCrunch report', url: 'https://techcrunch.com/a' }])
   })
 
   it('files concepts under the themes they belong to, and the rest last', () => {
@@ -107,7 +112,7 @@ describe('toCard', () => {
     }
     const card = toCard(tying)
 
-    expect(readingsOf(card).map(r => r.claims.map(c => c.id))).toEqual([['seriesB16M'], ['seriesB16M']])
+    expect(readingsOf(card).map(r => r.claims.map(c => c.node.id))).toEqual([['seriesB16M'], ['seriesB16M']])
     expect(card.looseClaims).toEqual([])
     expect(card.claimCount).toBe(1)
   })
@@ -122,8 +127,45 @@ describe('toCard', () => {
     }
     const card = toCard(elsewhere)
 
-    expect(card.looseClaims.map(c => c.id)).toEqual(['seriesB16M'])
+    expect(card.looseClaims.map(c => c.node.id)).toEqual(['seriesB16M'])
     expect(readingsOf(card).flatMap(r => r.claims)).toEqual([])
+  })
+
+  it('numbers the source a claim traces to, so provenance rides beside the text', () => {
+    expect(card.sources.map(s => s.index)).toEqual([1])
+    expect(card.looseClaims[0]?.cites.map(c => c.index)).toEqual([1])
+    expect(card.looseClaims[0]?.cites[0]?.title).toBe('TechCrunch report')
+  })
+
+  it('runs citation markers in reading order, whatever order the node lists them', () => {
+    const twoSourced = {
+      ...proposal,
+      operations: [
+        { operation: 'addNodes', payloads: [
+          { id: 'first', type: 'Source', name: 'First', metadata: { sourceReferences: [{ location: { uri: 'https://a.example' } }] } },
+          { id: 'second', type: 'Source', name: 'Second', metadata: { sourceReferences: [{ location: { uri: 'https://b.example' } }] } },
+          // The node names its most representative source first,
+          // which is the second entry in the card's list.
+          { id: 'cl', type: 'Claim', name: 'A claim', metadata: { sourceReferences: [
+            { location: { uri: 'https://b.example' } },
+            { location: { uri: 'https://a.example' } },
+          ] } },
+        ] },
+      ],
+    }
+    expect(toCard(twoSourced).looseClaims[0]?.cites.map(c => c.index)).toEqual([1, 2])
+  })
+
+  it('cites nothing for a node whose sources are not in this proposal', () => {
+    const orphan = {
+      ...proposal,
+      operations: [
+        { operation: 'addNodes', payloads: [
+          { id: 'lonely', type: 'Claim', name: 'A claim from elsewhere', metadata: { sourceReferences: [{ location: { uri: 'https://absent.example/x' } }] } },
+        ] },
+      ],
+    }
+    expect(toCard(orphan).looseClaims[0]?.cites).toEqual([])
   })
 
   it('tolerates a proposal with no operations', () => {

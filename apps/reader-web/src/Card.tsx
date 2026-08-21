@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import type { ConceptReading, GraphNodePayload, ProposalCard, TopicGroup } from './proposal.js'
+import type { CitedNode, ConceptReading, ProposalCard, SourceLink, TopicGroup } from './proposal.js'
 import { Button } from './ui/Button.js'
-import { GroupLabel, SourceLink, Surface } from './ui/Card.js'
+import { GroupLabel, Surface } from './ui/Card.js'
 
 type NodeKind = 'concept' | 'claim' | 'topic'
 
@@ -28,12 +28,41 @@ function Tally({ colour, count, label }: { colour: string, count: number, label:
   )
 }
 
-function ClaimLine({ claim }: { claim: GraphNodePayload }): React.JSX.Element {
+/**
+ * The sources a node traces to, numbered against the card's own list.
+ * Provenance is what makes a claim checkable rather than merely stated,
+ * so it rides beside the text instead of collecting at the top of the card.
+ */
+function Cites({ cites }: { cites: readonly SourceLink[] }): React.JSX.Element | null {
+  if (cites.length === 0)
+    return null
+  return (
+    <span className="ml-1.5 inline-flex gap-1 align-super">
+      {cites.map(source => (
+        <a
+          key={source.id}
+          href={source.url}
+          target="_blank"
+          rel="noreferrer"
+          title={source.title}
+          className="font-ui text-[0.625rem] tabular-nums text-ink-subtle transition-colors hover:text-concept"
+        >
+          {source.index}
+        </a>
+      ))}
+    </span>
+  )
+}
+
+function ClaimLine({ claim }: { claim: CitedNode }): React.JSX.Element {
   return (
     <li className={`border-l-2 pl-4 ${KIND_ACCENT.claim}`}>
-      <p className="font-reading text-prose-sm text-ink">{claim.name ?? claim.id}</p>
-      {claim.description !== undefined && (
-        <p className="mt-1 font-reading text-prose-sm text-ink-muted">{claim.description}</p>
+      <p className="font-reading text-prose-sm text-ink">
+        {claim.node.name ?? claim.node.id}
+        <Cites cites={claim.cites} />
+      </p>
+      {claim.node.description !== undefined && (
+        <p className="mt-1 font-reading text-prose-sm text-ink-muted">{claim.node.description}</p>
       )}
     </li>
   )
@@ -49,7 +78,10 @@ function Reading({ anchor, reading }: { anchor: string, reading: ConceptReading 
   const { concept, claims } = reading
   return (
     <li id={anchor} className={`scroll-mt-6 border-l-2 pl-5 ${KIND_ACCENT.concept}`}>
-      <p className="font-ui text-sm font-semibold text-ink">{concept.name ?? concept.id}</p>
+      <p className="font-ui text-sm font-semibold text-ink">
+        {concept.name ?? concept.id}
+        <Cites cites={reading.cites} />
+      </p>
       {concept.description !== undefined && (
         <p className="mt-1.5 font-reading text-prose-sm text-ink-muted">{concept.description}</p>
       )}
@@ -65,7 +97,7 @@ function Reading({ anchor, reading }: { anchor: string, reading: ConceptReading 
           </button>
           {open && (
             <ul className="mt-3 space-y-2.5">
-              {claims.map(claim => <ClaimLine key={claim.id} claim={claim} />)}
+              {claims.map(claim => <ClaimLine key={claim.node.id} claim={claim} />)}
             </ul>
           )}
         </>
@@ -91,14 +123,43 @@ function Theme({ cardId, group }: { cardId: string, group: TopicGroup }): React.
   )
 }
 
-function LooseClaims({ claims }: { claims: readonly GraphNodePayload[] }): React.JSX.Element | null {
+/**
+ * The pages a reading came from, listed the way a paper lists its references.
+ * A filled row reads as a control rather than a citation,
+ * so the number carries the structure and the title stays a plain link.
+ */
+function Sources({ sources }: { sources: readonly SourceLink[] }): React.JSX.Element {
+  return (
+    <ol className="mt-4 space-y-1.5">
+      {sources.map((source, index) => (
+        <li key={source.id} className="flex gap-3 font-ui text-xs leading-relaxed">
+          <span className="w-4 shrink-0 text-right tabular-nums text-ink-subtle">{index + 1}</span>
+          {source.url === undefined
+            ? <span className="text-ink-muted">{source.title}</span>
+            : (
+                <a
+                  href={source.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-ink-muted underline decoration-line-strong underline-offset-4 transition-colors hover:text-ink"
+                >
+                  {source.title}
+                </a>
+              )}
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+function LooseClaims({ claims }: { claims: readonly CitedNode[] }): React.JSX.Element | null {
   if (claims.length === 0)
     return null
   return (
     <section className="mt-7">
       <GroupLabel>Claims about nothing here</GroupLabel>
       <ul className="mt-4 space-y-4">
-        {claims.map(claim => <ClaimLine key={claim.id} claim={claim} />)}
+        {claims.map(claim => <ClaimLine key={claim.node.id} claim={claim} />)}
       </ul>
     </section>
   )
@@ -110,6 +171,7 @@ export function Card({ card, onAbsorb, onDiscard }: {
   onDiscard: () => Promise<void>
 }): React.JSX.Element {
   const [showReasoning, setShowReasoning] = useState(false)
+  const [showSources, setShowSources] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const run = (action: () => Promise<void>) => async (): Promise<void> => {
@@ -133,16 +195,17 @@ export function Card({ card, onAbsorb, onDiscard }: {
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
           <Tally colour="bg-concept" count={card.conceptCount} label="concepts" />
           <Tally colour="bg-claim" count={card.claimCount} label="claims" />
+          {card.sources.length > 1 && (
+            <button
+              type="button"
+              onClick={() => setShowSources(!showSources)}
+              className="font-ui text-xs text-ink-subtle underline decoration-line-strong underline-offset-4 transition-colors hover:text-ink-muted"
+            >
+              {showSources ? 'Hide sources' : `${card.sources.length} sources`}
+            </button>
+          )}
         </div>
-        {card.sources.length > 1 && (
-          <ul className="mt-3 space-y-1">
-            {card.sources.map(source => (
-              <li key={source.id}>
-                <SourceLink href={source.url}>{source.title}</SourceLink>
-              </li>
-            ))}
-          </ul>
-        )}
+        {showSources && <Sources sources={card.sources} />}
       </header>
 
       {card.groups.map(group => <Theme key={group.id} cardId={card.id} group={group} />)}
