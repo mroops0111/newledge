@@ -57,7 +57,11 @@ export type BoardState = z.infer<typeof BoardState>
 
 export const EMPTY_BOARD_STATE: BoardState = { boards: [] }
 
-/** A card sits in the first section whose bounds hold it. */
+/**
+ * A card sits in the first section whose bounds hold it.
+ * Membership is asked rather than stored, so dropping a card into a section is
+ * the whole gesture and nothing has to be kept in step with the arrangement.
+ */
 export function sectionHolding(card: Placement, sections: readonly Section[]): Section | undefined {
   return sections.find(section =>
     card.x >= section.x
@@ -65,31 +69,4 @@ export function sectionHolding(card: Placement, sections: readonly Section[]): S
     && card.x <= section.x + section.width
     && card.y <= section.y + section.height,
   )
-}
-
-/**
- * Move a section, taking whatever sits inside it along.
- * A section is the shape of a thought, so moving one moves the thought,
- * and the cards keep their arrangement within it rather than being relaid out.
- */
-export function moveSection(board: Board, sectionId: string, to: Placement): Board {
-  const section = board.sections.find(candidate => candidate.id === sectionId)
-  if (section === undefined)
-    return board
-
-  const dx = to.x - section.x
-  const dy = to.y - section.y
-  const held = new Set(
-    board.cards.filter(card => sectionHolding(card, [section]) !== undefined).map(card => card.nodeId),
-  )
-
-  return {
-    ...board,
-    sections: board.sections.map(candidate =>
-      candidate.id === sectionId ? { ...candidate, ...to } : candidate,
-    ),
-    cards: board.cards.map(card =>
-      held.has(card.nodeId) ? { ...card, x: card.x + dx, y: card.y + dy } : card,
-    ),
-  }
 }

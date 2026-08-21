@@ -7,8 +7,8 @@ function node(id: string, type: string, name = id): GraphNode {
   return { id, type, name }
 }
 
-function filedUnder(from: string, to: string): GraphEdge {
-  return { id: `${from}-${to}`, type: 'belongsTo', fromNodeId: from, toNodeId: to }
+function edge(type: string, from: string, to: string): GraphEdge {
+  return { id: `${type}-${from}-${to}`, type, fromNodeId: from, toNodeId: to }
 }
 
 const graph = {
@@ -22,53 +22,57 @@ const graph = {
     node('embedding', 'Concept', 'Embedding'),
     node('faster', 'Claim', 'GraphRAG answers faster'),
     node('paper', 'Source', 'A paper'),
+    node('stray', 'Source', 'Nobody cites this'),
   ],
   edges: [
-    filedUnder('rag', 'retrieval'),
-    filedUnder('graphRag', 'retrieval'),
-    filedUnder('planner', 'agents'),
-    filedUnder('faster', 'retrieval'),
-    { id: 'concerns', type: 'concerns', fromNodeId: 'faster', toNodeId: 'graphRag' },
-  ] as GraphEdge[],
+    edge('belongsTo', 'rag', 'retrieval'),
+    edge('belongsTo', 'graphRag', 'retrieval'),
+    edge('belongsTo', 'planner', 'agents'),
+    edge('concerns', 'faster', 'graphRag'),
+    edge('introduces', 'paper', 'faster'),
+  ],
 }
 
 describe('what a board opens on', () => {
   const board = firstArrangement(graph)
 
-  it('lays out the concepts, since those are what a reader thinks with', () => {
-    expect(board.cards.map(card => card.nodeId).sort()).toEqual(['embedding', 'graphRag', 'planner', 'rag'])
+  it('places every node the graph holds, so nothing is hiding off the board', () => {
+    expect(board.cards.map(card => card.nodeId).sort())
+      .toEqual(['embedding', 'faster', 'graphRag', 'paper', 'planner', 'rag', 'stray'])
   })
 
-  it('leaves the evidence off, for a reader to pull in when they want it', () => {
-    const placed = new Set(board.cards.map(card => card.nodeId))
-    expect(placed.has('faster')).toBe(false)
-    expect(placed.has('paper')).toBe(false)
-  })
-
-  it('draws a section for each topic that has something filed under it', () => {
+  it('draws a topic as its section rather than as a card among its members', () => {
+    expect(board.cards.some(card => card.nodeId === 'retrieval')).toBe(false)
     expect(board.sections.map(section => section.name).sort()).toEqual(['Agents', 'Retrieval'])
   })
 
-  it('drops a concept inside the section standing for the topic it is filed under', () => {
+  it('drops a node inside the section standing for the topic it is filed under', () => {
     const retrieval = board.sections.find(section => section.name === 'Retrieval')!
     const rag = board.cards.find(card => card.nodeId === 'rag')!
     expect(sectionHolding(rag, [retrieval])).toBeDefined()
   })
 
-  it('leaves an unfiled concept out in the open rather than inside a section', () => {
-    const embedding = board.cards.find(card => card.nodeId === 'embedding')!
-    expect(sectionHolding(embedding, board.sections)).toBeUndefined()
+  it('sits a claim nobody filed with the concept it is about', () => {
+    const retrieval = board.sections.find(section => section.name === 'Retrieval')!
+    const faster = board.cards.find(card => card.nodeId === 'faster')!
+    expect(sectionHolding(faster, [retrieval])).toBeDefined()
   })
 
-  it('draws no two sections over each other', () => {
-    for (const section of board.sections) {
-      const others = board.sections.filter(candidate => candidate.id !== section.id)
-      expect(others.some(other => overlaps(section, other))).toBe(false)
+  it('sits a source with what it introduced, one step further out', () => {
+    const retrieval = board.sections.find(section => section.name === 'Retrieval')!
+    const paper = board.cards.find(card => card.nodeId === 'paper')!
+    expect(sectionHolding(paper, [retrieval])).toBeDefined()
+  })
+
+  it('leaves a node with nothing to sit beside out in the open', () => {
+    for (const id of ['embedding', 'stray']) {
+      const loose = board.cards.find(card => card.nodeId === id)!
+      expect(sectionHolding(loose, board.sections)).toBeUndefined()
     }
   })
 
-  it('arranges the same graph the same way every time', () => {
-    expect(firstArrangement(graph)).toEqual(board)
+  it('draws no two sections over each other', () => {
+    expectNoOverlap(board.sections)
   })
 
   it('wraps onto another row instead of running off to the side forever', () => {
@@ -76,16 +80,17 @@ describe('what a board opens on', () => {
     const wide = firstArrangement({
       nodes: [
         ...many.map(index => node(`topic${index}`, 'Topic', `Topic ${index}`)),
-        ...many.map(index => node(`concept${index}`, 'Concept', `Concept ${index}`)),
+        ...many.flatMap(index => [0, 1, 2].map(seat => node(`concept${index}-${seat}`, 'Concept'))),
       ],
-      edges: many.map(index => filedUnder(`concept${index}`, `topic${index}`)),
+      edges: many.flatMap(index =>
+        [0, 1, 2].map(seat => edge('belongsTo', `concept${index}-${seat}`, `topic${index}`))),
     })
-    const rows = new Set(wide.sections.map(section => section.y))
-    expect(rows.size).toBeGreaterThan(1)
-    for (const section of wide.sections) {
-      const others = wide.sections.filter(candidate => candidate.id !== section.id)
-      expect(others.some(other => overlaps(section, other))).toBe(false)
-    }
+    expect(new Set(wide.sections.map(section => section.y)).size).toBeGreaterThan(1)
+    expectNoOverlap(wide.sections)
+  })
+
+  it('arranges the same graph the same way every time', () => {
+    expect(firstArrangement(graph)).toEqual(board)
   })
 
   it('opens on an empty board when nothing has been absorbed yet', () => {
@@ -96,6 +101,13 @@ describe('what a board opens on', () => {
 })
 
 interface Box { x: number, y: number, width: number, height: number }
+
+function expectNoOverlap(boxes: readonly Box[]): void {
+  for (const box of boxes) {
+    const others = boxes.filter(candidate => candidate !== box)
+    expect(others.some(other => overlaps(box, other))).toBe(false)
+  }
+}
 
 function overlaps(one: Box, other: Box): boolean {
   return one.x < other.x + other.width

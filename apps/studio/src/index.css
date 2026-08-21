@@ -20,6 +20,11 @@
     --claim: #dc2626;
     --source: #0284c7;
     --topic: #d97706;
+
+    /* Agreement and conflict are the two things a line has to say at a glance,
+       so they are the only relations that carry a colour of their own. */
+    --supports: #15803d;
+    --contradicts: #dc2626;
   }
 
   body {

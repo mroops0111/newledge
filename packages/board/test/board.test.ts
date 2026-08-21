@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { Board as BoardShape, Section } from '../src/index.js'
-import { Board, BoardState, moveSection, sectionHolding } from '../src/index.js'
+import type { Section } from '../src/index.js'
+import { Board, BoardState, sectionHolding } from '../src/index.js'
 
 function section(id: string, x: number, y: number): Section {
   return { id, name: id, x, y, width: 200, height: 200 }
@@ -52,38 +52,5 @@ describe('sectionHolding', () => {
 
   it('leaves a card outside every section unheld', () => {
     expect(sectionHolding({ x: 300, y: 300 }, sections)).toBeUndefined()
-  })
-})
-
-describe('moveSection', () => {
-  const board: BoardShape = {
-    id: 'b1',
-    name: 'Retrieval',
-    sections: [section('s1', 0, 0)],
-    cards: [
-      { nodeId: 'inside', x: 50, y: 50 },
-      { nodeId: 'outside', x: 400, y: 400 },
-    ],
-  }
-
-  it('carries what sits inside, and leaves the rest', () => {
-    const moved = moveSection(board, 's1', { x: 100, y: 20 })
-
-    expect(moved.sections[0]).toMatchObject({ x: 100, y: 20 })
-    expect(moved.cards.find(card => card.nodeId === 'inside')).toEqual({ nodeId: 'inside', x: 150, y: 70 })
-    expect(moved.cards.find(card => card.nodeId === 'outside')).toEqual({ nodeId: 'outside', x: 400, y: 400 })
-  })
-
-  it('keeps the arrangement within a section rather than relaying it out', () => {
-    const two = { ...board, cards: [{ nodeId: 'a', x: 10, y: 10 }, { nodeId: 'b', x: 60, y: 90 }] }
-    const moved = moveSection(two, 's1', { x: 1000, y: 1000 })
-    const [a, b] = moved.cards
-
-    expect(b!.x - a!.x).toBe(50)
-    expect(b!.y - a!.y).toBe(80)
-  })
-
-  it('leaves a board untouched when the section is not on it', () => {
-    expect(moveSection(board, 'gone', { x: 1, y: 1 })).toBe(board)
   })
 })

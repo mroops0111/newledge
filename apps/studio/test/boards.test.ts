@@ -2,7 +2,6 @@ import type { Board, BoardState } from '@newledge/board'
 import { describe, expect, it } from 'vitest'
 import {
   createBoardClient,
-  moved,
   renameSection,
   withBoard,
   withCard,
@@ -74,31 +73,6 @@ describe('drawing a section', () => {
     const renamed = renameSection(two, two.sections[0]!.id, 'Basics')
     expect(renamed.sections[0]!.name).toBe('Basics')
     expect(renamed.sections[1]!.name).toBe(two.sections[1]!.name)
-  })
-})
-
-describe('putting something where it was dropped', () => {
-  const arranged = board({
-    cards: [{ nodeId: 'rag', x: 20, y: 20 }, { nodeId: 'agents', x: 900, y: 900 }],
-    sections: [{ id: 's1', name: 'Basics', x: 0, y: 0, width: 200, height: 200 }],
-  })
-
-  it('moves a card and nothing else', () => {
-    const next = moved(arranged, 'rag', { x: 50, y: 60 })
-    expect(next.cards[0]).toEqual({ nodeId: 'rag', x: 50, y: 60 })
-    expect(next.cards[1]).toEqual(arranged.cards[1])
-  })
-
-  it('takes what sits inside a section along with it', () => {
-    const next = moved(arranged, 's1', { x: 100, y: 0 })
-    expect(next.cards[0]).toEqual({ nodeId: 'rag', x: 120, y: 20 })
-    expect(next.cards[1]).toEqual(arranged.cards[1])
-  })
-
-  it('leaves the board as it was when it was handed an id it does not hold', () => {
-    const next = moved(arranged, 'nothing', { x: 5, y: 5 })
-    expect(next.cards).toEqual(arranged.cards)
-    expect(next.sections).toEqual(arranged.sections)
   })
 })
 

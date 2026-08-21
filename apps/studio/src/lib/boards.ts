@@ -1,5 +1,4 @@
-import type { Board, BoardState, Placement } from '@newledge/board'
-import { moveSection } from '@newledge/board'
+import type { Board, BoardState } from '@newledge/board'
 
 export interface BoardClientOptions {
   readonly apiUrl: string
@@ -106,19 +105,5 @@ export function renameSection(board: Board, sectionId: string, name: string): Bo
   return {
     ...board,
     sections: board.sections.map(section => (section.id === sectionId ? { ...section, name } : section)),
-  }
-}
-
-/**
- * Put whatever was dragged where it was dropped.
- * A section carries what sits inside it, a card carries only itself, and an id
- * belonging to neither leaves the board as it was.
- */
-export function moved(board: Board, id: string, to: Placement): Board {
-  if (board.sections.some(section => section.id === id))
-    return moveSection(board, id, to)
-  return {
-    ...board,
-    cards: board.cards.map(card => (card.nodeId === id ? { ...card, ...to } : card)),
   }
 }
