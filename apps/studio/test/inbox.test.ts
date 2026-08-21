@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createInboxClient } from '../src/lib/client.js'
+import { createGraphClient, createInboxClient } from '../src/lib/client.js'
 import type { Proposal } from '../src/lib/proposal.js'
 import { toCard } from '../src/lib/proposal.js'
 
@@ -192,6 +192,44 @@ function recordingFetcher(response: unknown, ok = true): { calls: Call[], fetche
   }) as unknown as typeof fetch
   return { calls, fetcher }
 }
+
+describe('graph client', () => {
+  const options = { apiUrl: 'http://localhost:4321', workspaceId: 'knowledge' }
+
+  it('reads the ontology the board draws itself from', async () => {
+    const { calls, fetcher } = recordingFetcher({ nodeTypes: [{ id: 'Concept', color: '#7c3aed' }], edgeTypes: [] })
+    const ontology = await createGraphClient({ ...options, fetcher }).ontology()
+
+    expect(calls[0]?.url).toBe('http://localhost:4321/workspaces/knowledge/ontology')
+    expect(ontology.nodeTypes[0]?.color).toBe('#7c3aed')
+  })
+
+  it('reads nodes and edges as one graph', async () => {
+    const calls: string[] = []
+    const fetcher = (async (url: string) => {
+      calls.push(String(url))
+      const body = String(url).endsWith('/nodes') ? { items: [{ id: 'a' }] } : { items: [{ id: 'e' }] }
+      return { ok: true, status: 200, json: async () => body } as Response
+    }) as unknown as typeof fetch
+
+    const graph = await createGraphClient({ ...options, fetcher }).graph()
+
+    expect(calls.some(url => url.endsWith('/nodes'))).toBe(true)
+    expect(calls.some(url => url.endsWith('/edges'))).toBe(true)
+    expect(graph.nodes).toHaveLength(1)
+    expect(graph.edges).toHaveLength(1)
+  })
+
+  it('reports a failed read', async () => {
+    const { fetcher } = recordingFetcher({}, false)
+    await expect(createGraphClient({ ...options, fetcher }).ontology()).rejects.toThrow(/failed with 500/)
+  })
+
+  it('treats a graph response with neither list as empty', async () => {
+    const { fetcher } = recordingFetcher({})
+    expect(await createGraphClient({ ...options, fetcher }).graph()).toEqual({ nodes: [], edges: [] })
+  })
+})
 
 describe('inbox client', () => {
   const options = { apiUrl: 'http://localhost:4321', workspaceId: 'knowledge' }
