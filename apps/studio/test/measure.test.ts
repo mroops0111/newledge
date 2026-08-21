@@ -19,8 +19,8 @@ describe('how tall a card will be', () => {
   })
 
   it('costs a concept no more for a long definition than for one that fills the clamp', () => {
-    const wordy = cardExtent(node('Concept', 'RAG', 'Retrieval augmented generation. '.repeat(9)))
-    const endless = cardExtent(node('Concept', 'RAG', 'Retrieval augmented generation. '.repeat(60)))
+    const wordy = cardExtent(node('Concept', 'RAG', 'Retrieval augmented generation. '.repeat(14)))
+    const endless = cardExtent(node('Concept', 'RAG', 'Retrieval augmented generation. '.repeat(90)))
     expect(endless.height).toBe(wordy.height)
   })
 
@@ -32,7 +32,7 @@ describe('how tall a card will be', () => {
 
   it('keeps provenance small, so it never competes with a thought', () => {
     expect(cardExtent(node('Source', 'A paper')).height)
-      .toBeLessThan(cardExtent(node('Concept', 'RAG', 'A method. '.repeat(9))).height)
+      .toBeLessThan(cardExtent(node('Concept', 'RAG', 'A method. '.repeat(40))).height)
   })
 
   it('gives a type the ontology adds a size rather than none', () => {

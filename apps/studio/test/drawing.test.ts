@@ -19,9 +19,16 @@ const edges: GraphEdge[] = [
 const onBoard = new Set(['faster', 'cheaper', 'rag', 'embedding', 'graphRag'])
 
 describe('which relations the board draws', () => {
-  it('draws the relations between the things a reader thinks with', () => {
+  // A hierarchy is said by colour and by enclosure, which a reader takes in at
+  // a glance, so only the network of dependencies is drawn unasked.
+  it('draws only what a glance at the cards themselves cannot say', () => {
     const drawn = drawnEdges(edges, onBoard, new Set())
-    expect(drawn.map(one => one.id).sort()).toEqual(['e2', 'e3', 'e6'])
+    expect(drawn.map(one => one.id).sort()).toEqual(['e3', 'e6'])
+  })
+
+  it('brings a hierarchy out as lines once a reader asks about one of its ends', () => {
+    const asked = drawnEdges(edges, onBoard, new Set(['rag']))
+    expect(asked.map(one => one.id).sort()).toContain('e2')
   })
 
   it('never draws what is read inside a card instead of beside it', () => {

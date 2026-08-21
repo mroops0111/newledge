@@ -7,9 +7,9 @@ const TITLE_ROW = 36
 const PADDING = 22
 const DEFINITION_LINES = 6
 const CLAIM_LINES = { least: 2, most: 10 }
-// A card 320 wide with 14px of padding either side fits about this many
+// A card 400 wide with 14px of padding either side fits about this many
 // characters of reading text per line, which is close enough to lay out with.
-const PER_LINE = 46
+const PER_LINE = 58
 
 /**
  * How tall a card will be before it has been drawn.

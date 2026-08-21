@@ -1,6 +1,7 @@
 export interface BroodBoxData {
   readonly width: number
   readonly height: number
+  readonly colour: string
   [key: string]: unknown
 }
 
@@ -14,7 +15,7 @@ export function BroodBox({ data }: { data: BroodBoxData }): React.JSX.Element {
   return (
     <div
       className="rounded-card border-2 border-dashed bg-transparent"
-      style={{ width: data.width, height: data.height, borderColor: 'var(--edge)' }}
+      style={{ width: data.width, height: data.height, borderColor: data.colour }}
     />
   )
 }

@@ -64,6 +64,13 @@ export type EdgeKin = 'family' | 'brood' | 'curve'
  */
 export type EdgeTone = 'structure' | 'quiet' | 'supports' | 'contradicts'
 
+/**
+ * How thick every line is drawn.
+ * Weight is a weak signal and three of them were being used alongside dash,
+ * end, and shape, which is noise rather than another distinction.
+ */
+export const STROKE = 1.5
+
 /** UML says what these mean, so a reader who knows a diagram knows these. */
 export type MarkerKind = 'triangleHollow' | 'diamond' | 'arrow' | 'dot' | 'none'
 
@@ -91,10 +98,10 @@ export const TONE_COLOURS: Readonly<Record<EdgeTone, string>> = {
 
 /**
  * The width of every card, whatever it holds.
- * Wide enough to be worth looking at without opening it, and shared by every
- * kind so that a column of cards begins and ends on the same two lines.
+ * Set to a reading measure, about 58 characters to the line, and shared by
+ * every kind so that a column of cards begins and ends on the same two lines.
  */
-const CARD_WIDTH = 320
+const CARD_WIDTH = 400
 
 export const NODE_STYLES: Readonly<Record<string, NodeStyle>> = {
   Concept: { form: 'concept', cardWidth: CARD_WIDTH, ground: false, band: 0, placed: true },
@@ -111,40 +118,40 @@ export function nodeStyle(typeId: string): NodeStyle {
 }
 
 export const EDGE_STYLES: Readonly<Record<string, EdgeStyle>> = {
-  // Kinds of a thing, drawn as a family tree, one trunk shared by the siblings.
-  // A hollow triangle points at the parent, the way a class diagram points at
-  // what a subclass generalizes.
-  extends: { shapes: 'layout', kin: 'family', tone: 'structure', strokeWidth: 1.75, marker: 'triangleHollow', shown: 'always' },
-  instantiates: { shapes: 'layout', kin: 'family', tone: 'structure', strokeWidth: 1.75, dash: '6 4', marker: 'triangleHollow', shown: 'always' },
+  // A hierarchy is said by what a card wears and by what encloses it, which a
+  // reader takes in at a glance, so its lines wait until one is asked about.
+  // Kinds of a thing share a colour and nothing encloses them.
+  extends: { shapes: 'layout', kin: 'family', tone: 'structure', strokeWidth: STROKE, marker: 'triangleHollow', shown: 'onSelect' },
+  instantiates: { shapes: 'layout', kin: 'family', tone: 'structure', strokeWidth: STROKE, dash: '6 4', marker: 'triangleHollow', shown: 'onSelect' },
 
-  // Parts of a thing. A part is inside the whole rather than a kind of it, so
-  // the parts are bracketed under it instead of hanging off a tree, which is
-  // what tells this apart from a kind at a glance.
-  contains: { shapes: 'layout', kin: 'brood', tone: 'structure', strokeWidth: 1.75, marker: 'diamond', shown: 'always' },
+  // Parts of a thing share that colour and are enclosed as well, which is the
+  // whole difference between a part and a kind, said in a different channel
+  // rather than in a different arrow head.
+  contains: { shapes: 'layout', kin: 'brood', tone: 'structure', strokeWidth: STROKE, marker: 'diamond', shown: 'onSelect' },
 
   // How much a curve claims is how solid it is drawn. A named dependency
   // asserts that one thing needs another, so it is solid and points.
-  uses: { shapes: 'layout', kin: 'curve', tone: 'structure', strokeWidth: 1.5, marker: 'arrow', shown: 'always' },
+  uses: { shapes: 'layout', kin: 'curve', tone: 'structure', strokeWidth: STROKE, marker: 'arrow', shown: 'always' },
   // The catch-all asserts only that something is there, so it is faint and
   // says nothing about which way it runs.
-  relatesTo: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: 1, dash: '1 4', marker: 'none', shown: 'always' },
+  relatesTo: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, dash: '1 4', marker: 'none', shown: 'always' },
 
   // Filing is the section a card sits in, so drawing it would repeat the board.
-  belongsTo: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: 1, dash: '2 4', marker: 'none', shown: 'never' },
+  belongsTo: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, dash: '2 4', marker: 'none', shown: 'never' },
 
   // Provenance, aboutness, and argument are all about a concept rather than
   // between two, so they are read inside the concept and never drawn out here.
-  introduces: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: 1, marker: 'none', shown: 'never' },
-  concerns: { shapes: 'drawn', kin: 'curve', tone: 'structure', strokeWidth: 1, marker: 'dot', shown: 'never' },
-  supports: { shapes: 'drawn', kin: 'curve', tone: 'supports', strokeWidth: 1.5, marker: 'arrow', shown: 'never' },
-  contradicts: { shapes: 'drawn', kin: 'curve', tone: 'contradicts', strokeWidth: 1.5, dash: '5 3', marker: 'arrow', shown: 'never' },
+  introduces: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, marker: 'none', shown: 'never' },
+  concerns: { shapes: 'drawn', kin: 'curve', tone: 'structure', strokeWidth: STROKE, marker: 'dot', shown: 'never' },
+  supports: { shapes: 'drawn', kin: 'curve', tone: 'supports', strokeWidth: STROKE, marker: 'arrow', shown: 'never' },
+  contradicts: { shapes: 'drawn', kin: 'curve', tone: 'contradicts', strokeWidth: STROKE, dash: '5 3', marker: 'arrow', shown: 'never' },
 }
 
 const UNKNOWN_EDGE: EdgeStyle = {
   shapes: 'drawn',
   kin: 'curve',
   tone: 'quiet',
-  strokeWidth: 1,
+  strokeWidth: STROKE,
   marker: 'arrow',
   shown: 'always',
 }

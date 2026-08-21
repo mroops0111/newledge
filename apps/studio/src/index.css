@@ -27,6 +27,16 @@
     --section: #f0eae0;
     --section-line: #ddd2c0;
 
+    /* What a card belongs to, worn as a stripe down its side. Low saturation,
+       because a card wears this rather than shouting it, and clear of the
+       green and red that agreement and conflict own. */
+    --kin-1: #8b5cf6;
+    --kin-2: #0891b2;
+    --kin-3: #c2410c;
+    --kin-4: #4d7c0f;
+    --kin-5: #a21caf;
+    --kin-6: #b45309;
+
     /* A guide is not part of the board, it is a reading of it while a reader
        is moving something, so it is the one thing drawn in a colour nothing
        else uses. */
