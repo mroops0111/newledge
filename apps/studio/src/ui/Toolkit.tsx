@@ -62,4 +62,5 @@ export const GLYPHS = {
   section: <Glyph><rect x="3" y="4" width="14" height="12" rx="2" /><path d="M3 8h14" /></Glyph>,
   card: <Glyph><rect x="4" y="3" width="12" height="14" rx="2" /><path d="M7 7h6M7 10h6M7 13h3" /></Glyph>,
   focus: <Glyph><circle cx="10" cy="10" r="3" /><path d="M10 2v2M10 16v2M2 10h2M16 10h2" /></Glyph>,
+  rearrange: <Glyph><path d="M4 6h5a3 3 0 0 1 3 3v5M16 6h-2M16 6l-2-2M16 6l-2 2M12 14l-2-2M12 14l2-2" /></Glyph>,
 }

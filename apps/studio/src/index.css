@@ -27,6 +27,11 @@
     --section: #f0eae0;
     --section-line: #ddd2c0;
 
+    /* A guide is not part of the board, it is a reading of it while a reader
+       is moving something, so it is the one thing drawn in a colour nothing
+       else uses. */
+    --guide: #e11d74;
+
     /* A relation has to be followed across a board, so it is drawn darker than
        the rules and borders that only need to separate things. */
     --edge: #8c857a;

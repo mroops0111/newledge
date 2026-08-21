@@ -1,9 +1,11 @@
 import type { Board } from '@newledge/board'
 import { sectionHolding } from '@newledge/board'
-import type { Edge, Node, NodeTypes, XYPosition } from '@xyflow/react'
-import { Background, ReactFlow, useNodesState } from '@xyflow/react'
+import type { Edge, Node, NodeChange, NodeTypes, XYPosition } from '@xyflow/react'
+import { Background, ReactFlow, ReactFlowProvider, useNodesState } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { firstArrangement } from '../lib/arrange.js'
+import { align, TOLERANCE } from '../lib/aligning.js'
+import type { Guide } from '../lib/aligning.js'
 import { emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { elkPlacement } from '../lib/elkPlacement.js'
 import type { BoardClient } from '../lib/boards.js'
@@ -12,6 +14,7 @@ import { nodeStyle, TONE_COLOURS } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import type { DrawnEdge } from '../lib/drawing.js'
 import { drawnCards, drawnEdges } from '../lib/drawing.js'
+import { cardExtent } from '../lib/measure.js'
 import { kinship } from '../lib/family.js'
 import { borderRun } from '../lib/path.js'
 import type { GraphEdge, GraphNode, Ontology } from '../lib/graph.js'
@@ -27,6 +30,7 @@ import type { RoutedEdgeData } from '../ui/RoutedEdge.js'
 import { RoutedEdge } from '../ui/RoutedEdge.js'
 import { NodePicker } from '../ui/NodePicker.js'
 import { BoardTools } from '../ui/BoardTools.js'
+import { Guides } from '../ui/Guides.js'
 import type { SectionBoxData } from '../ui/SectionBox.js'
 import { SectionBox } from '../ui/SectionBox.js'
 import '@xyflow/react/dist/style.css'
@@ -38,8 +42,10 @@ const PLACEMENT = elkPlacement()
 const MIN_NAME_WIDTH = 10
 const DIMMED = 0.22
 const GRID = 24
+const NOTHING: readonly Guide[] = []
 
 interface SectionDrag {
+  readonly id: string
   readonly held: ReadonlySet<string>
   at: XYPosition
 }
@@ -58,14 +64,19 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   // until a router runs again.
   const [routes, setRoutes] = useState<ReadonlyMap<string, readonly { x: number, y: number }[]>>(new Map())
   const [focused, setFocused] = useState(false)
+  const [guides, setGuides] = useState<readonly Guide[]>([])
+  // Laying a board out again gives back the same cards in new places, so what
+  // is drawn has to be rebuilt from a fact other than which cards are on it.
+  const [generation, setGeneration] = useState(0)
   const [error, setError] = useState<string | undefined>(undefined)
 
   // React Flow owns where things are while a reader is moving them, and the
   // board is written from it once they let go. Feeding the model back in on
   // every frame throws away the measurements and the drag flickers.
-  const [drawn, setDrawn, onNodesChange] = useNodesState<Node>([])
+  const [drawn, setDrawn, applyChanges] = useNodesState<Node>([])
   const latestBoard = useRef<Board | undefined>(undefined)
   const sectionDrag = useRef<SectionDrag | undefined>(undefined)
+  const zoom = useRef(1)
   latestBoard.current = board
 
   useEffect(() => {
@@ -116,6 +127,20 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     return graph.nodes.filter(node => !chosen.has(node.id))
   }, [graph, board])
 
+  const rearrange = useCallback(() => {
+    void (async () => {
+      try {
+        const again = await firstArrangement(graph, PLACEMENT)
+        setRoutes(again.routes)
+        setGeneration(count => count + 1)
+        persist({ ...again.board, name: latestBoard.current?.name ?? again.board.name })
+      }
+      catch (cause) {
+        setError(cause instanceof Error ? cause.message : String(cause))
+      }
+    })()
+  }, [graph, persist])
+
   const keepLatest = useCallback(() => {
     const current = latestBoard.current
     if (current !== undefined)
@@ -138,8 +163,8 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   const membership = useMemo(
     () => (board === undefined
       ? ''
-      : [...board.cards.map(card => card.nodeId), ...board.sections.map(section => section.id)].join('|')),
-    [board],
+      : [generation, ...board.cards.map(card => card.nodeId), ...board.sections.map(section => section.id)].join('|')),
+    [board, generation],
   )
 
   useEffect(() => {
@@ -183,14 +208,18 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
 
   // Where the cards actually are right now, which is what a family tree has to
   // be drawn from, since a reader may have moved any of them since it opened.
+  // Where each card is, and how big. The position is live, since a reader may
+  // be moving it, and the size is the one the arrangement was built from
+  // rather than one measured by the browser, which arrives too late to lay a
+  // board out with and never reaches this state at all.
   const boxes = useMemo(() => new Map(drawn
     .filter(node => node.type === 'card')
-    .map(node => [node.id, {
-      x: node.position.x,
-      y: node.position.y,
-      width: node.measured?.width ?? 0,
-      height: node.measured?.height ?? 0,
-    }])), [drawn])
+    .flatMap((node) => {
+      const graphNode = byId.get(node.id)
+      return graphNode === undefined
+        ? []
+        : [[node.id, { x: node.position.x, y: node.position.y, ...cardExtent(graphNode) }] as const]
+    })), [drawn, byId])
 
   const kin = useMemo(() => {
     const at = boxes
@@ -220,10 +249,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     [boxes, board],
   )
 
-  const laidOut = board !== undefined
-    && board.cards.length > 0
-    && boxes.size === board.cards.length
-    && [...boxes.values()].every(box => box.width > 0 && box.height > 0)
+  const laidOut = board !== undefined && boxes.size > 0
 
   const broods: Node<BroodBoxData>[] = useMemo(() => kin.broods.map(brood => ({
     id: brood.id,
@@ -283,6 +309,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     sectionDrag.current = section === undefined
       ? undefined
       : {
+          id: node.id,
           at: node.position,
           held: new Set(drawn
             .filter(other => other.type === 'card'
@@ -291,20 +318,59 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
         }
   }, [drawn])
 
-  const onNodeDrag = useCallback((_event: unknown, node: Node) => {
-    const drag = sectionDrag.current
-    if (drag === undefined || drag.held.size === 0)
-      return
-    const dx = node.position.x - drag.at.x
-    const dy = node.position.y - drag.at.y
-    drag.at = node.position
-    setDrawn(nodes => nodes.map(other => (drag.held.has(other.id)
-      ? { ...other, position: { x: other.position.x + dx, y: other.position.y + dy } }
-      : other)))
-  }, [setDrawn])
+  /**
+   * Where a drag actually puts things.
+   * The canvas works a position out from the pointer and applies it through
+   * this, so correcting it anywhere else is overwritten in the same frame.
+   * A section moving carries what sits inside it, which is emitted here too so
+   * the whole gesture lands together.
+   */
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    const board = latestBoard.current
+    const sections = (board?.sections ?? []).map(section => ({
+      id: section.id,
+      x: section.x,
+      y: section.y,
+      width: section.width,
+      height: section.height,
+    }))
+    const carried: NodeChange[] = []
+    let lines: readonly Guide[] = NOTHING
+
+    const settled = changes.map((change) => {
+      if (change.type !== 'position' || change.position === undefined || change.dragging !== true)
+        return change
+      const moving = extentOf(change.id, boxes, board)
+      if (moving === undefined)
+        return change
+
+      const others = [
+        ...[...boxes].filter(([id]) => id !== change.id).map(([, box]) => box),
+        ...sections.filter(section => section.id !== change.id),
+      ]
+      const lined = align({ ...moving, ...change.position }, others, TOLERANCE / zoom.current)
+      lines = lined.guides
+
+      const drag = sectionDrag.current
+      if (drag !== undefined && drag.id === change.id) {
+        const shift = { x: lined.at.x - drag.at.x, y: lined.at.y - drag.at.y }
+        drag.at = lined.at
+        for (const heldId of drag.held) {
+          const at = boxes.get(heldId)
+          if (at !== undefined)
+            carried.push({ id: heldId, type: 'position', position: { x: at.x + shift.x, y: at.y + shift.y }, dragging: true })
+        }
+      }
+      return { ...change, position: lined.at }
+    })
+
+    setGuides(lines)
+    applyChanges([...settled, ...carried])
+  }, [applyChanges, boxes])
 
   const onNodeDragStop = useCallback(() => {
     sectionDrag.current = undefined
+    setGuides(NOTHING)
     setRoutes(new Map())
     const current = latestBoard.current
     if (current === undefined)
@@ -346,38 +412,59 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
           />
         </header>
 
-        <div className="relative min-h-0 flex-1">
-          <BoardMarkers />
-          <ReactFlow
-            nodes={[...attended, ...broods]}
-            edges={edges}
-            nodeTypes={NODE_TYPES}
-            edgeTypes={EDGE_TYPES}
-            onNodesChange={onNodesChange}
-            onNodeDragStart={onNodeDragStart}
-            onNodeDrag={onNodeDrag}
-            onNodeDragStop={onNodeDragStop}
-            nodesConnectable={false}
-            minZoom={0.1}
-            maxZoom={2}
-            // A card lands on the same grid the canvas draws, so two a reader
-            // dropped near each other line up rather than nearly lining up.
-            snapToGrid
-            snapGrid={[GRID, GRID]}
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background color="var(--line-strong)" gap={GRID} size={1} />
+        {/*
+          The instruments sit beside the canvas rather than inside it, under a
+          provider that both share, since a child of the canvas is given the
+          store too late to drive it.
+        */}
+        <ReactFlowProvider>
+          <div className="relative min-h-0 flex-1">
+            <BoardMarkers />
+            <ReactFlow
+              nodes={[...attended, ...broods]}
+              edges={edges}
+              nodeTypes={NODE_TYPES}
+              edgeTypes={EDGE_TYPES}
+              onNodesChange={onNodesChange}
+              onNodeDragStart={onNodeDragStart}
+              onNodeDragStop={onNodeDragStop}
+              nodesConnectable={false}
+              minZoom={0.1}
+              maxZoom={2}
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background color="var(--line-strong)" gap={GRID} size={1} />
+              <Guides guides={guides} />
+            </ReactFlow>
             <BoardTools
               extent={extent}
               laidOut={laidOut}
               onAddSection={() => persist(withSection(board))}
+              onRearrange={rearrange}
               onFocus={() => setFocused(now => !now)}
               focused={focused}
               canFocus={pickedId !== undefined}
+              zoom={zoom}
             />
-          </ReactFlow>
-        </div>
+          </div>
+        </ReactFlowProvider>
       </div>
     </AppShell>
   )
+}
+
+/**
+ * How big the thing being dragged is, whether it is a card or a section.
+ * A card's size is taken from what the board already measured rather than from
+ * the node the drag hands over, which does not carry one.
+ */
+function extentOf(
+  id: string,
+  boxes: ReadonlyMap<string, { width: number, height: number }>,
+  board: Board | undefined,
+): { width: number, height: number } | undefined {
+  const section = board?.sections.find(one => one.id === id)
+  if (section !== undefined)
+    return { width: section.width, height: section.height }
+  return boxes.get(id)
 }

@@ -17,9 +17,17 @@ export interface BoardToolsProps {
    */
   readonly laidOut: boolean
   readonly onAddSection: () => void
+  /** Throw the reader's arrangement away and lay the board out again. */
+  readonly onRearrange: () => void
   readonly onFocus: () => void
   readonly focused: boolean
   readonly canFocus: boolean
+  /**
+   * Kept in step with how far the board is zoomed.
+   * Snapping is judged in screen pixels, and only something inside the canvas
+   * can say what a screen pixel is worth in board units.
+   */
+  readonly zoom: { current: number }
 }
 
 /**
@@ -28,9 +36,10 @@ export interface BoardToolsProps {
  * has managed to measure, so it takes the whole board in whether or not every
  * card has been laid out by the browser yet.
  */
-export function BoardTools({ extent, laidOut, onAddSection, onFocus, focused, canFocus }: BoardToolsProps): React.JSX.Element {
+export function BoardTools({ extent, laidOut, onAddSection, onRearrange, onFocus, focused, canFocus, zoom }: BoardToolsProps): React.JSX.Element {
   const flow = useReactFlow()
   const fitted = useRef(false)
+  zoom.current = flow.getZoom()
 
   const fit = useCallback((duration: number) => {
     const bounds = enclosing(extent)
@@ -58,6 +67,12 @@ export function BoardTools({ extent, laidOut, onAddSection, onFocus, focused, ca
         ],
         [
           { id: 'section', label: 'Add a section', icon: GLYPHS.section, onUse: onAddSection },
+          {
+            id: 'rearrange',
+            label: 'Lay the board out again, losing how you have arranged it',
+            icon: GLYPHS.rearrange,
+            onUse: onRearrange,
+          },
         ],
         [
           {

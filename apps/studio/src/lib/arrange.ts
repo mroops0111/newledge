@@ -6,6 +6,17 @@ import { cardExtent } from './measure.js'
 
 const FIRST_BOARD = { id: 'board-1', name: 'My board' }
 
+/**
+ * The grid the canvas draws, which the first arrangement lands on.
+ * A layout answers in whatever coordinates suit it, and a board that opens
+ * half a pixel off the grid can never be tidied by eye afterwards.
+ */
+const GRID = 24
+
+function onGrid(value: number): number {
+  return Math.round(value / GRID) * GRID
+}
+
 // A node nobody filed sits with whatever it is about, so a claim lands beside
 // its concept and a source beside what it introduced.
 const STANDS_IN_FOR = ['concerns', 'introduces', 'belongsTo']
@@ -87,17 +98,17 @@ export async function firstArrangement(
 
   const cards: Card[] = nodes.flatMap((node) => {
     const at = placed.nodes.get(node.id)
-    return at === undefined ? [] : [{ nodeId: node.id, x: at.x, y: at.y }]
+    return at === undefined ? [] : [{ nodeId: node.id, x: onGrid(at.x), y: onGrid(at.y) }]
   })
   const sections: Section[] = [...placed.groups]
     .filter(([id]) => !isBrood(id))
     .map(([id, box]) => ({
       id,
       name: named.get(id) ?? id,
-      x: box.x,
-      y: box.y,
-      width: box.width,
-      height: box.height,
+      x: onGrid(box.x),
+      y: onGrid(box.y),
+      width: onGrid(box.width),
+      height: onGrid(box.height),
     }))
 
   return { board: { ...FIRST_BOARD, cards, sections }, routes: placed.edges ?? new Map() }

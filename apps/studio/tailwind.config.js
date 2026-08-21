@@ -17,6 +17,7 @@ export default {
         canvas: 'var(--canvas)',
         surface: 'var(--surface)',
         raised: 'var(--raised)',
+        guide: 'var(--guide)',
         section: 'var(--section)',
         'section-line': 'var(--section-line)',
 
