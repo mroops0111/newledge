@@ -68,12 +68,6 @@ export interface EdgeStyle {
    * scatters what is free to fill the room the rest of the graph needs.
    */
   readonly shapes: 'layout' | 'drawn'
-  /**
-   * Which way this relation runs when it is deciding where things go.
-   * A claim concerns a concept and a source introduces one, so both point up
-   * the way a reader reads down, and both are turned round to place them.
-   */
-  readonly flow?: 'reverse'
   readonly kin: EdgeKin
   readonly tone: EdgeTone
   readonly strokeWidth: number

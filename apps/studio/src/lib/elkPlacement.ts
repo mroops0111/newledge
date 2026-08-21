@@ -107,9 +107,8 @@ function write(request: PlacementRequest): ElkNode {
       continue
     const from = seatOf.get(edge.from)
     const owner = from !== undefined && from === seatOf.get(edge.to) ? from : ROOT
-    const [source, target] = style.flow === 'reverse' ? [edge.to, edge.from] : [edge.from, edge.to]
     const kept = within.get(owner) ?? []
-    kept.push({ id: edge.id, sources: [source], targets: [target] })
+    kept.push({ id: edge.id, sources: [edge.from], targets: [edge.to] })
     within.set(owner, kept)
   }
 
