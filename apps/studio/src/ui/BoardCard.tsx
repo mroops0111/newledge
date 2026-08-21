@@ -62,11 +62,12 @@ function body(node: GraphNode, form: NodeForm, colour: string): React.JSX.Elemen
       )
     }
     // An assertion is a sentence, so it is set as one rather than being split
-    // into a heading and a body that would only repeat each other.
+    // into a heading and a body that would only repeat each other. Clipping it
+    // would destroy the thing itself, so the card is as tall as saying it takes.
     case 'claim': {
       return (
         <div className="border-l-2 px-3 py-2.5" style={{ borderLeftColor: colour }}>
-          <p className="line-clamp-4 font-reading text-[0.8125rem] leading-snug text-ink">
+          <p className="font-reading text-[0.8125rem] leading-snug text-ink">
             {node.name}
           </p>
         </div>

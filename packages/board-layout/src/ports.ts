@@ -1,0 +1,79 @@
+export interface Point {
+  readonly x: number
+  readonly y: number
+}
+
+export interface Extent {
+  readonly width: number
+  readonly height: number
+}
+
+export type Box = Point & Extent
+
+/** A card as a layout sees it, which is a size, a kind, and where it is filed. */
+export interface LayoutNode extends Extent {
+  readonly id: string
+  readonly type: string
+  readonly groupId?: string
+}
+
+export interface LayoutEdge {
+  readonly id: string
+  readonly type: string
+  readonly from: string
+  readonly to: string
+}
+
+/** A section, which is drawn from what it holds rather than given a size. */
+export interface LayoutGroup {
+  readonly id: string
+  /** Room at the top of a group that its contents must not be placed in. */
+  readonly inset?: Extent
+}
+
+export interface PlacementRequest {
+  readonly nodes: readonly LayoutNode[]
+  readonly edges: readonly LayoutEdge[]
+  readonly groups: readonly LayoutGroup[]
+}
+
+export interface Placed {
+  readonly nodes: ReadonlyMap<string, Point>
+  readonly groups: ReadonlyMap<string, Box>
+  /**
+   * Some placements work out the lines while they work out the positions,
+   * and throwing that away only to ask a router for it again would be waste.
+   */
+  readonly edges?: ReadonlyMap<string, readonly Point[]>
+}
+
+/**
+ * Where things go on a board.
+ * A reader owns where their cards are, so this runs once to open a board and
+ * then only when a reader asks for it again, never behind their back.
+ */
+export interface Placement {
+  readonly id: string
+  readonly place: (request: PlacementRequest) => Promise<Placed>
+}
+
+export interface RoutingRequest {
+  /** Everything a line has to get around, which is every card and every group. */
+  readonly obstacles: readonly (Box & { readonly id: string })[]
+  readonly edges: readonly LayoutEdge[]
+}
+
+/** Where each line bends, from the edge of one card to the edge of another. */
+export interface Routed {
+  readonly edges: ReadonlyMap<string, readonly Point[]>
+}
+
+/**
+ * How lines get from one card to another without crossing a third.
+ * This runs every time a reader moves something, which is why it is separate
+ * from placement, a gesture must not relay out the board around it.
+ */
+export interface Routing {
+  readonly id: string
+  readonly route: (request: RoutingRequest) => Promise<Routed>
+}

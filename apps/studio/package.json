@@ -13,10 +13,12 @@
   },
   "dependencies": {
     "@dagrejs/dagre": "^3.1.1",
+    "@newledge/board": "workspace:*",
     "@xyflow/react": "^12.11.3",
+    "elkjs": "^0.12.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@newledge/board": "workspace:*"
+    "@newledge/board-layout": "workspace:*"
   },
   "devDependencies": {
     "@types/dagre": "^0.7.54",

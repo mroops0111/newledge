@@ -4,6 +4,7 @@ import type { Edge, Node, NodeTypes, XYPosition } from '@xyflow/react'
 import { Background, Controls, ReactFlow, useNodesState } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { firstArrangement } from '../lib/arrange.js'
+import { elkPlacement } from '../lib/elkPlacement.js'
 import type { BoardClient } from '../lib/boards.js'
 import { renameSection, withBoard, withCard, withSection } from '../lib/boards.js'
 import { nodeStyle, TONE_COLOURS } from '../lib/boardStyle.js'
@@ -15,6 +16,8 @@ import { AppShell } from '../ui/AppShell.js'
 import type { BoardCardData } from '../ui/BoardCard.js'
 import { BoardCard } from '../ui/BoardCard.js'
 import { BoardMarkers, markerId } from '../ui/BoardMarkers.js'
+import type { RoutedEdgeData } from '../ui/RoutedEdge.js'
+import { RoutedEdge } from '../ui/RoutedEdge.js'
 import { Button } from '../ui/Button.js'
 import { NodePicker } from '../ui/NodePicker.js'
 import type { SectionBoxData } from '../ui/SectionBox.js'
@@ -23,6 +26,8 @@ import '@xyflow/react/dist/style.css'
 
 const UNTYPED = 'var(--ink-subtle)'
 const NODE_TYPES: NodeTypes = { card: BoardCard, section: SectionBox }
+const EDGE_TYPES = { routed: RoutedEdge }
+const PLACEMENT = elkPlacement()
 const MIN_NAME_WIDTH = 10
 
 interface SectionDrag {
@@ -39,6 +44,10 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   const [graph, setGraph] = useState<{ nodes: readonly GraphNode[], edges: readonly GraphEdge[] }>({ nodes: [], edges: [] })
   const [board, setBoard] = useState<Board | undefined>(undefined)
   const [others, setOthers] = useState<readonly Board[]>([])
+  // Where each line runs, worked out when the board was arranged. A reader who
+  // moves a card leaves its lines behind, so those fall back to a plain curve
+  // until a router runs again.
+  const [routes, setRoutes] = useState<ReadonlyMap<string, readonly { x: number, y: number }[]>>(new Map())
   const [error, setError] = useState<string | undefined>(undefined)
 
   // React Flow owns where things are while a reader is moving them, and the
@@ -68,9 +77,10 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
         // A workspace nobody has arranged opens on a first arrangement rather
         // than on an empty canvas, written down at once so a reader is editing
         // their own board from then on and is never laid out again.
-        const opening = firstArrangement(loaded)
-        setBoard(opening)
-        await boardClient.keep({ boards: [opening] })
+        const opening = await firstArrangement(loaded, PLACEMENT)
+        setBoard(opening.board)
+        setRoutes(opening.routes)
+        await boardClient.keep({ boards: [opening.board] })
       }
       catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause))
@@ -157,10 +167,12 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       id: edge.id,
       source: edge.source,
       target: edge.target,
-      type: edge.type,
+      type: 'routed',
       ...(edge.label === undefined ? {} : { label: edge.label }),
-      labelStyle: { fill: 'var(--ink-subtle)', fontSize: 10 },
-      labelBgStyle: { fill: 'var(--canvas)' },
+      data: {
+        ...(routes.get(edge.id) === undefined ? {} : { points: routes.get(edge.id) }),
+        curved: edge.style.routing === 'curve',
+      } satisfies RoutedEdgeData,
       style: {
         stroke: TONE_COLOURS[edge.style.tone],
         strokeWidth: edge.style.strokeWidth,
@@ -170,7 +182,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       // Above the ground a section paints, below the cards it holds.
       zIndex: 1,
     }))
-  }, [graph, drawn, selected])
+  }, [graph, drawn, selected, routes])
 
   // A section is the shape of a thought, so moving one moves the thought,
   // and what sits inside keeps its arrangement rather than being relaid out.
@@ -202,6 +214,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
 
   const onNodeDragStop = useCallback(() => {
     sectionDrag.current = undefined
+    setRoutes(new Map())
     const current = latestBoard.current
     if (current === undefined)
       return
@@ -241,6 +254,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
             nodes={drawn}
             edges={edges}
             nodeTypes={NODE_TYPES}
+            edgeTypes={EDGE_TYPES}
             onNodesChange={onNodesChange}
             onNodeDragStart={onNodeDragStart}
             onNodeDrag={onNodeDrag}
