@@ -4,6 +4,7 @@ import type { InboxClient } from '../lib/client.js'
 import type { ProposalCard } from '../lib/proposal.js'
 import { toCard } from '../lib/proposal.js'
 import { conceptAnchor } from '../components/ReadingCard.js'
+import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
 import type { OutlineSection } from '../ui/Outline.js'
 import { Outline } from '../ui/Outline.js'
@@ -21,7 +22,8 @@ function outlineOf(cards: readonly ProposalCard[]): readonly OutlineSection[] {
   })))
 }
 
-function Shell({ count, outline, children }: {
+function Shell({ nav, count, outline, children }: {
+  nav: Nav
   count?: number
   outline?: readonly OutlineSection[]
   children: React.ReactNode
@@ -29,9 +31,14 @@ function Shell({ count, outline, children }: {
   const panel = outline === undefined || outline.length === 0
     ? undefined
     : <Outline sections={outline} />
+  // The inbox owns its own count, so it is merged into the surfaces it is given.
+  const surfaces = nav.surfaces.map(surface =>
+    surface.id === nav.activeId && count !== undefined ? { ...surface, count } : surface,
+  )
   return (
-    <AppShell title="Reading inbox" count={count} panel={panel}>
-      {children}
+    <AppShell {...nav} surfaces={surfaces} panel={panel}>
+      {/* Reading holds itself to a column the eye can follow. */}
+      <div className="mx-auto max-w-column px-10 py-14">{children}</div>
     </AppShell>
   )
 }
@@ -40,7 +47,7 @@ function messageOf(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause)
 }
 
-export function Inbox({ client }: { client: InboxClient }): React.JSX.Element {
+export function Inbox({ client, nav }: { client: InboxClient, nav: Nav }): React.JSX.Element {
   const [cards, setCards] = useState<readonly ProposalCard[]>([])
   const [error, setError] = useState<string | undefined>(undefined)
   const [loading, setLoading] = useState(true)
@@ -75,14 +82,14 @@ export function Inbox({ client }: { client: InboxClient }): React.JSX.Element {
 
   if (loading) {
     return (
-      <Shell>
+      <Shell nav={nav}>
         <p className="font-ui text-sm text-ink-subtle">Opening your inbox</p>
       </Shell>
     )
   }
 
   return (
-    <Shell count={cards.length} outline={outlineOf(cards)}>
+    <Shell nav={nav} count={cards.length} outline={outlineOf(cards)}>
       <header className="mb-10">
         <h1 className="font-ui text-xl font-semibold tracking-tight text-ink">Reading inbox</h1>
         <p className="mt-2 font-reading text-prose-sm text-ink-muted">

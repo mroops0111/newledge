@@ -3,6 +3,25 @@
 @tailwind utilities;
 
 @layer base {
+  /* The palette lives here so a canvas drawing its own strokes and a component
+     styled by a utility class read the same value. */
+  :root {
+    --canvas: #faf9f7;
+    --surface: #ffffff;
+    --raised: #f5f3f0;
+    --ink: #1c1917;
+    --ink-muted: #57534e;
+    --ink-subtle: #8a8378;
+    --line: #e7e3dd;
+    --line-strong: #d3cec5;
+    --accent: #1c1917;
+    --accent-hover: #3b3734;
+    --concept: #7c3aed;
+    --claim: #dc2626;
+    --source: #0284c7;
+    --topic: #d97706;
+  }
+
   body {
     @apply bg-canvas font-ui text-ink antialiased;
   }
