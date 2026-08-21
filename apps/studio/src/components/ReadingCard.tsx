@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import type { CitedNode, ConceptReading, ProposalCard, SourceLink, TopicGroup } from './proposal.js'
-import { Button } from './ui/Button.js'
-import { GroupLabel, Surface } from './ui/Card.js'
-import { Cites, References } from './ui/Citation.js'
+import type { CitedNode, ConceptReading, ProposalCard, SourceLink, TopicGroup } from '../lib/proposal.js'
+import { Button } from '../ui/Button.js'
+import { GroupLabel, Surface } from '../ui/Surface.js'
+import { Cites, References } from '../ui/Citation.js'
 
 type NodeKind = 'concept' | 'claim' | 'topic'
 

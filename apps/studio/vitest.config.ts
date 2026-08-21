@@ -8,8 +8,8 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
       include: ['src/**/*.ts'],
-      // The React entry and components render in a browser,
-      // so CI drives the client and the summariser they call instead.
+      // The React entry and every component render in a browser,
+      // so CI drives the modules under them instead.
       exclude: ['src/main.tsx', 'src/**/*.tsx'],
       thresholds: { statements: 80, branches: 80, functions: 80, lines: 80 },
     },

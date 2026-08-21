@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { createInboxClient } from '../src/client.js'
-import type { Proposal } from '../src/proposal.js'
-import { toCard } from '../src/proposal.js'
+import { createInboxClient } from '../src/lib/client.js'
+import type { Proposal } from '../src/lib/proposal.js'
+import { toCard } from '../src/lib/proposal.js'
 
 const proposal: Proposal = {
   id: 'proposal-1',
