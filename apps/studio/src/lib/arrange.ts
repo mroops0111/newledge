@@ -1,10 +1,11 @@
 import type { Board, Card, Section } from '@newledge/board'
 import type { GraphEdge, GraphNode } from './graph.js'
 
-const CARD = { width: 240, height: 120 }
+const CARD = { width: 240, height: 104 }
 const GAP = 24
 const PAD = 20
-const HEADER = 40
+// A section's name is drawn above its ground, so a row leaves room for it.
+const TITLE = 28
 const COLUMNS = 2
 const LOOSE_COLUMNS = 4
 const ROW_WIDTH = 2200
@@ -26,7 +27,7 @@ export function firstArrangement(graph: {
 
   const sections: Section[] = []
   const cards: Card[] = []
-  const cursor = { x: PAD, y: PAD }
+  const cursor = { x: PAD, y: PAD + TITLE }
   let tallest = 0
 
   for (const topic of topics) {
@@ -37,13 +38,13 @@ export function firstArrangement(graph: {
     const extent = extentFor(held.length)
     if (cursor.x > PAD && cursor.x + extent.width > ROW_WIDTH) {
       cursor.x = PAD
-      cursor.y += tallest + GAP
+      cursor.y += tallest + GAP + TITLE
       tallest = 0
     }
     sections.push({ id: `topic-${topic.id}`, name: topic.name, x: cursor.x, y: cursor.y, ...extent })
     cards.push(...held.map((concept, index) => ({
       nodeId: concept.id,
-      ...gridded(index, { x: cursor.x + PAD, y: cursor.y + HEADER }, columnsFor(held.length)),
+      ...gridded(index, { x: cursor.x + PAD, y: cursor.y + PAD }, columnsFor(held.length)),
     })))
     cursor.x += extent.width + GAP
     tallest = Math.max(tallest, extent.height)
@@ -92,7 +93,7 @@ function extentFor(count: number): { width: number, height: number } {
   const rows = Math.ceil(count / columns)
   return {
     width: PAD * 2 + columns * CARD.width + (columns - 1) * GAP,
-    height: HEADER + PAD + rows * CARD.height + (rows - 1) * GAP,
+    height: PAD * 2 + rows * CARD.height + (rows - 1) * GAP,
   }
 }
 

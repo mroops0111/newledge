@@ -27,11 +27,19 @@ describe('keeping one board among several', () => {
 })
 
 describe('putting something on a board', () => {
-  it('lands an arrival beside the last one, not on top of it', () => {
+  it('lands an arrival clear of everything already arranged', () => {
+    const arranged = board({
+      cards: [{ nodeId: 'rag', x: 0, y: 0 }],
+      sections: [{ id: 's1', name: 'Basics', x: 0, y: 0, width: 600, height: 200 }],
+    })
+    const [arrival] = withCard(arranged, 'graphRag').cards.slice(-1)
+    expect(arrival!.x).toBeGreaterThan(600)
+  })
+
+  it('lands a second arrival beside the first, not on top of it', () => {
     const two = withCard(withCard(board(), 'rag'), 'graphRag')
     const [first, second] = two.cards
     expect(second!.x).toBeGreaterThan(first!.x)
-    expect(second!.y).toBeGreaterThan(first!.y)
   })
 
   it('leaves a board alone when what was chosen is already on it', () => {

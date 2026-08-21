@@ -47,24 +47,37 @@ export function withBoard(state: BoardState, board: Board): BoardState {
 }
 
 const ARRIVAL = { x: 80, y: 120 }
-const ARRIVAL_STEP = 28
 const SECTION_EXTENT = { width: 420, height: 300 }
 const NEW_SECTION_NAME = 'New section'
+const CARD_EXTENT = { width: 240, height: 120 }
+const CLEAR_OF_EVERYTHING = 60
+
+/**
+ * Where something new can land without covering what is already arranged.
+ * A reader put the rest of the board where they meant it to be, so an arrival
+ * goes to the side rather than on top of any of it.
+ */
+function clearOfEverything(board: Board): number {
+  const rightEdges = [
+    ...board.cards.map(card => card.x + CARD_EXTENT.width),
+    ...board.sections.map(section => section.x + section.width),
+  ]
+  return Math.max(ARRIVAL.x, ...rightEdges.map(edge => edge + CLEAR_OF_EVERYTHING))
+}
 
 /**
  * Put something a reader chose onto the board.
- * An arrival lands beside the last one rather than on top of it, so a reader
- * can see what they just added and move it where they think it belongs.
+ * Each arrival widens the board, so the next one lands beside it rather than
+ * on top of it, and a reader can see what they just added.
  */
 export function withCard(board: Board, nodeId: string): Board {
   if (board.cards.some(card => card.nodeId === nodeId))
     return board
-  const step = board.cards.length * ARRIVAL_STEP
-  return { ...board, cards: [...board.cards, { nodeId, x: ARRIVAL.x + step, y: ARRIVAL.y + step }] }
+  return {
+    ...board,
+    cards: [...board.cards, { nodeId, x: clearOfEverything(board), y: ARRIVAL.y }],
+  }
 }
-
-const CARD_EXTENT = { width: 240, height: 120 }
-const CLEAR_OF_EVERYTHING = 60
 
 /**
  * Draw a section, named later by whoever drew it.
@@ -76,16 +89,12 @@ export function withSection(board: Board): Board {
   let ordinal = board.sections.length + 1
   while (taken.has(`section-${ordinal}`)) ordinal += 1
 
-  const rightEdges = [
-    ...board.cards.map(card => card.x + CARD_EXTENT.width),
-    ...board.sections.map(section => section.x + section.width),
-  ]
   return {
     ...board,
     sections: [...board.sections, {
       id: `section-${ordinal}`,
       name: NEW_SECTION_NAME,
-      x: Math.max(ARRIVAL.x, ...rightEdges.map(edge => edge + CLEAR_OF_EVERYTHING)),
+      x: clearOfEverything(board),
       y: ARRIVAL.y,
       ...SECTION_EXTENT,
     }],

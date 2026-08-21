@@ -19,6 +19,7 @@ import '@xyflow/react/dist/style.css'
 
 const UNTYPED = 'var(--ink-subtle)'
 const NODE_TYPES: NodeTypes = { card: NodeCard, section: SectionBox }
+const MIN_NAME_WIDTH = 10
 
 export function Whiteboard({ graphClient, boardClient, nav }: {
   graphClient: GraphClient
@@ -151,6 +152,9 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
             onChange={event => show({ ...board, name: event.target.value })}
             onBlur={() => keep(board)}
             aria-label="Board name"
+            // A board is named for a thought, which is longer than a word,
+            // so the field is as wide as what a reader wrote in it.
+            style={{ width: `${Math.max(board.name.length, MIN_NAME_WIDTH)}ch` }}
             className="rounded-control bg-transparent px-2 py-1 font-ui text-sm font-semibold text-ink outline-none focus:bg-raised"
           />
           <Button onClick={() => keep(withSection(board))}>Add a section</Button>
