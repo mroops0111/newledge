@@ -83,7 +83,7 @@ const sourceRoles: readonly SourceRoleInput[] = [
 ]
 
 // SKILL.md prompts shipped with this ontology, run by the agent runtime.
-// Each id is composed as `<ontologyId>:<directory basename>`,
+// Each id composes as `<ontologyId>:<directory basename>`,
 // so the directory named extract becomes `knowledge:extract`.
 function skillDir(verb: string): URL {
   return new URL(`../skills/${verb}`, import.meta.url)

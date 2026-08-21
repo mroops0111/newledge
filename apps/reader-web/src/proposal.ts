@@ -96,8 +96,7 @@ function itemsOf(operation: GraphOperation): readonly unknown[] {
   return operation.payloads ?? (operation.payload === undefined ? [] : [operation.payload])
 }
 
-// A source is named by its title,
-// since several pages of one search can share a host,
+// A source is named by its title, since pages of one search can share a host,
 // and two identical hosts say nothing about which page is which.
 function toSourceLinks(sources: readonly GraphNodePayload[]): readonly SourceLink[] {
   return sources.map((source, position) => ({
@@ -108,8 +107,8 @@ function toSourceLinks(sources: readonly GraphNodePayload[]): readonly SourceLin
   }))
 }
 
-// A node names its sources by url,
-// so the card keys its own list by url to recover the number shown beside the text.
+// A node names its sources by url, so the card keys its own list the same way,
+// which recovers the number shown beside the text.
 // A node orders its references by how well each represents it,
 // and that order is kept, while the markers themselves run in reading order,
 // since a citation that counts down looks like a mistake.

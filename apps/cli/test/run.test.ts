@@ -42,8 +42,7 @@ describe('knowledge run pipeline', () => {
     const workspace = await runtime.deps.workspaceService.findById(id)
     expect(workspace.productManifest.ontologyId).toBe('knowledge')
 
-    // Every page lands in one file,
-    // so the batch runs a single extraction over them together.
+    // Every page lands in one file, so the batch runs one extraction over them.
     const feedDir = join(braidHome, 'workspaces', WORKSPACE_NAME, 'feeds', 'web')
     const files = readdirSync(feedDir).filter(name => name.endsWith('.md'))
     expect(files).toHaveLength(1)

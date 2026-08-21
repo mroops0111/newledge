@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { CitedNode, ConceptReading, ProposalCard, SourceLink, TopicGroup } from './proposal.js'
 import { Button } from './ui/Button.js'
 import { GroupLabel, Surface } from './ui/Card.js'
+import { Cites, References } from './ui/Citation.js'
 
 type NodeKind = 'concept' | 'claim' | 'topic'
 
@@ -11,6 +12,15 @@ const KIND_ACCENT: Record<NodeKind, string> = {
   concept: 'border-l-concept',
   claim: 'border-l-claim',
   topic: 'border-l-topic',
+}
+
+// A bundle is titled by its one page when it holds one, and counted otherwise,
+// since seven titles cannot all lead.
+function headline(sources: readonly SourceLink[]): string {
+  const [only] = sources
+  if (sources.length === 1 && only !== undefined)
+    return only.title
+  return `${sources.length} readings on this search`
 }
 
 /** The anchor an outline entry jumps to. */
@@ -24,32 +34,6 @@ function Tally({ colour, count, label }: { colour: string, count: number, label:
       <span className={`size-1.5 rounded-full ${colour}`} />
       <span className="tabular-nums text-ink">{count}</span>
       {label}
-    </span>
-  )
-}
-
-/**
- * The sources a node traces to, numbered against the card's own list.
- * Provenance is what makes a claim checkable rather than merely stated,
- * so it rides beside the text instead of collecting at the top of the card.
- */
-function Cites({ cites }: { cites: readonly SourceLink[] }): React.JSX.Element | null {
-  if (cites.length === 0)
-    return null
-  return (
-    <span className="ml-1.5 inline-flex gap-1 align-super">
-      {cites.map(source => (
-        <a
-          key={source.id}
-          href={source.url}
-          target="_blank"
-          rel="noreferrer"
-          title={source.title}
-          className="font-ui text-[0.625rem] tabular-nums text-ink-subtle transition-colors hover:text-concept"
-        >
-          {source.index}
-        </a>
-      ))}
     </span>
   )
 }
@@ -123,35 +107,6 @@ function Theme({ cardId, group }: { cardId: string, group: TopicGroup }): React.
   )
 }
 
-/**
- * The pages a reading came from, listed the way a paper lists its references.
- * A filled row reads as a control rather than a citation,
- * so the number carries the structure and the title stays a plain link.
- */
-function Sources({ sources }: { sources: readonly SourceLink[] }): React.JSX.Element {
-  return (
-    <ol className="mt-4 space-y-1.5">
-      {sources.map((source, index) => (
-        <li key={source.id} className="flex gap-3 font-ui text-xs leading-relaxed">
-          <span className="w-4 shrink-0 text-right tabular-nums text-ink-subtle">{index + 1}</span>
-          {source.url === undefined
-            ? <span className="text-ink-muted">{source.title}</span>
-            : (
-                <a
-                  href={source.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-ink-muted underline decoration-line-strong underline-offset-4 transition-colors hover:text-ink"
-                >
-                  {source.title}
-                </a>
-              )}
-        </li>
-      ))}
-    </ol>
-  )
-}
-
 function LooseClaims({ claims }: { claims: readonly CitedNode[] }): React.JSX.Element | null {
   if (claims.length === 0)
     return null
@@ -187,11 +142,7 @@ export function Card({ card, onAbsorb, onDiscard }: {
   return (
     <Surface>
       <header className="border-b border-line pb-5">
-        <h2 className="font-ui text-base font-semibold leading-snug text-ink">
-          {card.sources.length === 1
-            ? card.sources[0]!.title
-            : `${card.sources.length} readings on this search`}
-        </h2>
+        <h2 className="font-ui text-base font-semibold leading-snug text-ink">{headline(card.sources)}</h2>
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
           <Tally colour="bg-concept" count={card.conceptCount} label="concepts" />
           <Tally colour="bg-claim" count={card.claimCount} label="claims" />
@@ -205,7 +156,7 @@ export function Card({ card, onAbsorb, onDiscard }: {
             </button>
           )}
         </div>
-        {showSources && <Sources sources={card.sources} />}
+        {showSources && <References sources={card.sources} />}
       </header>
 
       {card.groups.map(group => <Theme key={group.id} cardId={card.id} group={group} />)}

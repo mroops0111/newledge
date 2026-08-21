@@ -4,8 +4,9 @@ import type { InboxClient } from './client.js'
 import type { ProposalCard } from './proposal.js'
 import { toCard } from './proposal.js'
 import { conceptAnchor } from './Card.js'
-import type { OutlineSection } from './ui/AppShell.js'
 import { AppShell } from './ui/AppShell.js'
+import type { OutlineSection } from './ui/Outline.js'
+import { Outline } from './ui/Outline.js'
 
 // The outline mirrors the cards, so a theme is where a reader steers from,
 // which is the only place topics surface at all.
@@ -25,8 +26,11 @@ function Shell({ count, outline, children }: {
   outline?: readonly OutlineSection[]
   children: React.ReactNode
 }): React.JSX.Element {
+  const panel = outline === undefined || outline.length === 0
+    ? undefined
+    : <Outline sections={outline} />
   return (
-    <AppShell title="Reading inbox" count={count} outline={outline ?? []}>
+    <AppShell title="Reading inbox" count={count} panel={panel}>
       {children}
     </AppShell>
   )
