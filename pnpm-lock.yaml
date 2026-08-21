@@ -44,6 +44,12 @@ importers:
       '@hono/node-server':
         specifier: ^2.0.12
         version: 2.1.1(hono@4.13.3)
+      '@hono/zod-openapi':
+        specifier: ^1.5.1
+        version: 1.6.0(hono@4.13.3)(zod@4.4.3)
+      '@newledge/board':
+        specifier: workspace:*
+        version: link:../../packages/board
       '@newledge/ontology-knowledge':
         specifier: workspace:*
         version: link:../../packages/ontology-knowledge
@@ -60,6 +66,9 @@ importers:
       '@dagrejs/dagre':
         specifier: ^3.1.1
         version: 3.1.1
+      '@newledge/board':
+        specifier: workspace:*
+        version: link:../../packages/board
       '@xyflow/react':
         specifier: ^12.11.3
         version: 12.11.3(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -94,6 +103,12 @@ importers:
       vite:
         specifier: ^7.0.0
         version: 7.3.6(@types/node@22.20.1)(jiti@1.21.7)(lightningcss@1.33.0)(yaml@2.9.0)
+
+  packages/board:
+    dependencies:
+      zod:
+        specifier: ^4.2.1
+        version: 4.4.3
 
   packages/ontology-knowledge:
     dependencies:

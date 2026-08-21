@@ -1,0 +1,135 @@
+import type { Board, BoardState } from '@newledge/board'
+import { describe, expect, it } from 'vitest'
+import {
+  createBoardClient,
+  moved,
+  renameSection,
+  withBoard,
+  withCard,
+  withSection,
+} from '../src/lib/boards.js'
+
+function board(over: Partial<Board> = {}): Board {
+  return { id: 'b1', name: 'Retrieval', cards: [], sections: [], ...over }
+}
+
+describe('keeping one board among several', () => {
+  it('replaces the one it names, leaving the others alone', () => {
+    const state: BoardState = { boards: [board(), board({ id: 'b2', name: 'Agents' })] }
+    const next = withBoard(state, board({ name: 'Retrieval augmented' }))
+    expect(next.boards.map(one => one.name)).toEqual(['Retrieval augmented', 'Agents'])
+  })
+
+  it('adds a board the state has never seen', () => {
+    const next = withBoard({ boards: [board()] }, board({ id: 'b2', name: 'Agents' }))
+    expect(next.boards).toHaveLength(2)
+  })
+})
+
+describe('putting something on a board', () => {
+  it('lands an arrival beside the last one, not on top of it', () => {
+    const two = withCard(withCard(board(), 'rag'), 'graphRag')
+    const [first, second] = two.cards
+    expect(second!.x).toBeGreaterThan(first!.x)
+    expect(second!.y).toBeGreaterThan(first!.y)
+  })
+
+  it('leaves a board alone when what was chosen is already on it', () => {
+    const once = withCard(board(), 'rag')
+    expect(withCard(once, 'rag')).toBe(once)
+  })
+})
+
+describe('drawing a section', () => {
+  it('gives it an extent, so there is something to drop a card into', () => {
+    const [section] = withSection(board()).sections
+    expect(section!.width).toBeGreaterThan(0)
+    expect(section!.height).toBeGreaterThan(0)
+  })
+
+  it('lands clear of the cards already there, so it starts empty', () => {
+    const arranged = board({ cards: [{ nodeId: 'rag', x: 80, y: 120 }] })
+    const [section] = withSection(arranged).sections
+    expect(section!.x).toBeGreaterThan(arranged.cards[0]!.x)
+  })
+
+  it('never reuses an id a section already answers to', () => {
+    const drawn = withSection(withSection(board({
+      sections: [{ id: 'section-1', name: 'Basics', x: 0, y: 0, width: 10, height: 10 }],
+    })))
+    const ids = drawn.sections.map(section => section.id)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('renames the one it names and no other', () => {
+    const two = withSection(withSection(board()))
+    const renamed = renameSection(two, two.sections[0]!.id, 'Basics')
+    expect(renamed.sections[0]!.name).toBe('Basics')
+    expect(renamed.sections[1]!.name).toBe(two.sections[1]!.name)
+  })
+})
+
+describe('putting something where it was dropped', () => {
+  const arranged = board({
+    cards: [{ nodeId: 'rag', x: 20, y: 20 }, { nodeId: 'agents', x: 900, y: 900 }],
+    sections: [{ id: 's1', name: 'Basics', x: 0, y: 0, width: 200, height: 200 }],
+  })
+
+  it('moves a card and nothing else', () => {
+    const next = moved(arranged, 'rag', { x: 50, y: 60 })
+    expect(next.cards[0]).toEqual({ nodeId: 'rag', x: 50, y: 60 })
+    expect(next.cards[1]).toEqual(arranged.cards[1])
+  })
+
+  it('takes what sits inside a section along with it', () => {
+    const next = moved(arranged, 's1', { x: 100, y: 0 })
+    expect(next.cards[0]).toEqual({ nodeId: 'rag', x: 120, y: 20 })
+    expect(next.cards[1]).toEqual(arranged.cards[1])
+  })
+
+  it('leaves the board as it was when it was handed an id it does not hold', () => {
+    const next = moved(arranged, 'nothing', { x: 5, y: 5 })
+    expect(next.cards).toEqual(arranged.cards)
+    expect(next.sections).toEqual(arranged.sections)
+  })
+})
+
+describe('talking to the workspace about boards', () => {
+  const options = { apiUrl: 'http://localhost:4321/', workspaceId: 'knowledge' }
+
+  it('reads the arrangement the workspace is holding', async () => {
+    const asked: string[] = []
+    const client = createBoardClient({
+      ...options,
+      fetcher: async (input) => {
+        asked.push(String(input))
+        return new Response(JSON.stringify({ boards: [board()] }), { status: 200 })
+      },
+    })
+    expect((await client.read()).boards).toHaveLength(1)
+    expect(asked[0]).toBe('http://localhost:4321/workspaces/knowledge/boards')
+  })
+
+  it('says so when the workspace will not hand its boards back', async () => {
+    const client = createBoardClient({ ...options, fetcher: async () => new Response('', { status: 500 }) })
+    await expect(client.read()).rejects.toThrow('500')
+  })
+
+  it('sends the whole arrangement, since that is what a board is', async () => {
+    let sent: string | undefined
+    const client = createBoardClient({
+      ...options,
+      fetcher: async (_input, init) => {
+        sent = String(init?.body)
+        return new Response('', { status: 200 })
+      },
+    })
+    await client.keep({ boards: [board()] })
+    expect(JSON.parse(sent!)).toEqual({ boards: [board()] })
+  })
+
+  it('says so when an arrangement was refused', async () => {
+    const client = createBoardClient({ ...options, fetcher: async () => new Response('', { status: 400 }) })
+    await expect(client.keep({ boards: [] })).rejects.toThrow('400')
+  })
+})
