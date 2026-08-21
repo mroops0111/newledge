@@ -1,4 +1,4 @@
-import type { SourceLink } from '../proposal.js'
+import type { SourceLink } from '../lib/proposal.js'
 
 /**
  * The sources a node traces to, numbered against the card's own list.

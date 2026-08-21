@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { createInboxClient } from './client.js'
-import { Inbox } from './Inbox.js'
+import { createInboxClient } from './lib/client.js'
+import { Inbox } from './pages/Inbox.js'
 import './index.css'
 
 const client = createInboxClient({
