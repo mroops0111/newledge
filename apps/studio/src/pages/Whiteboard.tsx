@@ -16,6 +16,7 @@ import type { DrawnEdge } from '../lib/drawing.js'
 import { drawnCards, drawnEdges } from '../lib/drawing.js'
 import { cardExtent } from '../lib/measure.js'
 import { kinship } from '../lib/family.js'
+import { familyColours } from '../lib/kinship.js'
 import { borderRun } from '../lib/path.js'
 import type { GraphEdge, GraphNode, Ontology } from '../lib/graph.js'
 import type { Nav } from '../ui/AppShell.js'
@@ -116,10 +117,17 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
   }, [boardClient, others])
 
+  /**
+   * What a card wears down its side.
+   * A board of one kind gains nothing from a colour that says which kind, so
+   * the stripe says what a card belongs to instead, and falls back to its type
+   * when it belongs to nothing.
+   */
   const colourOf = useMemo(() => {
     const byType = new Map((ontology?.nodeTypes ?? []).map(type => [type.id, type.color ?? UNTYPED]))
-    return (type: string): string => byType.get(type) ?? UNTYPED
-  }, [ontology])
+    const byFamily = familyColours(graph.edges)
+    return (node: GraphNode): string => byFamily.get(node.id) ?? byType.get(node.type) ?? UNTYPED
+  }, [ontology, graph])
 
   const byId = useMemo(() => new Map(graph.nodes.map(node => [node.id, node])), [graph])
   const available = useMemo(() => {
@@ -185,7 +193,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       id: card.nodeId,
       type: 'card',
       position: { x: card.x, y: card.y },
-      data: { node: card.node, form: nodeStyle(card.node.type).form, colour: colourOf(card.node.type) },
+      data: { node: card.node, form: nodeStyle(card.node.type).form, colour: colourOf(card.node) },
       style: { width: card.width },
       zIndex: 3,
     }))
@@ -255,11 +263,17 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     id: brood.id,
     type: 'brood',
     position: { x: brood.x, y: brood.y },
-    data: { width: brood.width, height: brood.height },
+    data: {
+      width: brood.width,
+      height: brood.height,
+      // The bracket wears the family it encloses, so enclosure and colour say
+      // the same thing rather than two unrelated things.
+      colour: familyColours(graph.edges).get(brood.id.replace(/^brood-/, '')) ?? UNTYPED,
+    },
     draggable: false,
     selectable: false,
     zIndex: 1,
-  })), [kin])
+  })), [kin, graph])
 
   const edges: Edge[] = useMemo(() => {
     const onBoard = new Set(drawn.filter(node => node.type === 'card').map(node => node.id))
