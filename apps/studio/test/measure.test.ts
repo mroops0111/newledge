@@ -104,16 +104,17 @@ describe('anchoring a line on a card rather than on a point', () => {
 })
 
 describe('how wide a card is', () => {
-  // A section is sized by what it holds, so a topic's own width is only ever
-  // the heading card a reader may add, never the ground it becomes.
-  it('gives everything a reader reads the same width', () => {
-    const widths = ['Concept', 'Claim', 'Source', 'Question']
+  // A card is a card. A section is sized by what it holds instead, which is a
+  // different mechanism entirely and never reads a width from a type.
+  it('gives every card the same width, whatever kind it is', () => {
+    const widths = ['Concept', 'Claim', 'Source', 'Topic', 'Question']
       .map(type => cardExtent(node(type, 'A name', 'A description.')).width)
     expect(new Set(widths).size).toBe(1)
   })
 
-  it('draws a topic narrower, since as a card it is a heading', () => {
-    expect(cardExtent(node('Topic', 'Retrieval')).width)
-      .toBeLessThan(cardExtent(node('Concept', 'RAG')).width)
+  it('still lets a kind be its own height, since that is what it holds', () => {
+    const heights = ['Concept', 'Claim', 'Source', 'Topic']
+      .map(type => cardExtent(node(type, 'A name', 'A description.')).height)
+    expect(new Set(heights).size).toBeGreaterThan(1)
   })
 })

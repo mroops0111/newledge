@@ -19,8 +19,9 @@ export interface NodeStyle {
   readonly form: NodeForm
   /**
    * How wide this kind is drawn **as a card**.
-   * A kind that is ground never uses it, since a section is sized by what it
-   * holds rather than by what it is.
+   * Every kind shares one, because a card is a card and a board is scanned by
+   * reading down a column whose edges line up. A kind that is ground never
+   * uses it at all, since a section is sized by what it holds.
    */
   readonly cardWidth: number
   /** A topic becomes a section on the board, and a card only if asked for. */
@@ -88,15 +89,18 @@ export const TONE_COLOURS: Readonly<Record<EdgeTone, string>> = {
   contradicts: 'var(--contradicts)',
 }
 
-// A card has to be worth looking at without opening it, so the default is wide
-// enough to carry several lines of reading text rather than a label.
+/**
+ * The width of every card, whatever it holds.
+ * Wide enough to be worth looking at without opening it, and shared by every
+ * kind so that a column of cards begins and ends on the same two lines.
+ */
 const CARD_WIDTH = 320
 
 export const NODE_STYLES: Readonly<Record<string, NodeStyle>> = {
   Concept: { form: 'concept', cardWidth: CARD_WIDTH, ground: false, band: 0, placed: true },
   Claim: { form: 'claim', cardWidth: CARD_WIDTH, ground: false, band: 1, placed: false },
   Source: { form: 'source', cardWidth: CARD_WIDTH, ground: false, band: 2, placed: false },
-  Topic: { form: 'topic', cardWidth: 220, ground: true, band: 0, placed: false },
+  Topic: { form: 'topic', cardWidth: CARD_WIDTH, ground: true, band: 0, placed: false },
 }
 
 const UNKNOWN_NODE: NodeStyle = { form: 'concept', cardWidth: CARD_WIDTH, ground: false, band: 3, placed: true }
