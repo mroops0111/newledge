@@ -4,8 +4,18 @@ import { edgeStyle } from './boardStyle.js'
 /** How far under a parent the shared bar runs, when there is room for it. */
 const TRUNK = 26
 
+/** How far outside the parts a bracket sits. */
+const BRACKET = 16
+
 export interface Kinship {
   readonly edges: ReadonlyMap<string, readonly Point[]>
+  /**
+   * A box round what each card contains.
+   * It is worked out from where the parts are now, so it follows a reader who
+   * moves one and it survives a board being reopened. Keeping the parts
+   * together in the first place is the layout's job, not this one's.
+   */
+  readonly broods: readonly (Box & { readonly id: string })[]
 }
 
 /**
@@ -20,6 +30,7 @@ export function kinship(
   at: ReadonlyMap<string, Box>,
 ): Kinship {
   const drawn = new Map<string, readonly Point[]>()
+  const broods: (Box & { id: string })[] = []
 
   for (const [, group] of familiesIn(edges, at)) {
     const parent = at.get(group.parentId)!
@@ -37,9 +48,12 @@ export function kinship(
         { x: centre(child.box), y: child.box.y },
       ])
     }
+
+    if (group.kin === 'brood')
+      broods.push({ id: `brood-${group.parentId}`, ...enclosing(children.map(child => child.box)) })
   }
 
-  return { edges: drawn }
+  return { edges: drawn, broods }
 }
 
 interface Family {
@@ -77,4 +91,15 @@ function midpoint(below: number, above: number): number {
 
 function centre(box: Box): number {
   return box.x + box.width / 2
+}
+
+function enclosing(boxes: readonly Box[]): Box {
+  const left = Math.min(...boxes.map(box => box.x)) - BRACKET
+  const top = Math.min(...boxes.map(box => box.y)) - BRACKET
+  return {
+    x: left,
+    y: top,
+    width: Math.max(...boxes.map(box => box.x + box.width)) + BRACKET - left,
+    height: Math.max(...boxes.map(box => box.y + box.height)) + BRACKET - top,
+  }
 }

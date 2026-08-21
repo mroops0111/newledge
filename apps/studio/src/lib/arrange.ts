@@ -14,8 +14,6 @@ export interface Arrangement {
   readonly board: Board
   /** Where each line runs, when the placement worked that out as it placed. */
   readonly routes: ReadonlyMap<string, readonly { x: number, y: number }[]>
-  /** A box round each card's parts, which is what part-of is drawn as. */
-  readonly broods: readonly { id: string, x: number, y: number, width: number, height: number }[]
 }
 
 const BROOD = 'brood-'
@@ -102,13 +100,7 @@ export async function firstArrangement(
       height: box.height,
     }))
 
-  return {
-    board: { ...FIRST_BOARD, cards, sections },
-    routes: placed.edges ?? new Map(),
-    broods: [...placed.groups]
-      .filter(([id]) => isBrood(id))
-      .map(([id, box]) => ({ id, ...box })),
-  }
+  return { board: { ...FIRST_BOARD, cards, sections }, routes: placed.edges ?? new Map() }
 }
 
 /**

@@ -1,9 +1,8 @@
 import type { Board } from '@newledge/board'
 import { sectionHolding } from '@newledge/board'
 import type { Edge, Node, NodeTypes, XYPosition } from '@xyflow/react'
-import { Background, Controls, ReactFlow, useNodesState } from '@xyflow/react'
+import { Background, ReactFlow, useNodesState } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Arrangement } from '../lib/arrange.js'
 import { firstArrangement } from '../lib/arrange.js'
 import { emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { elkPlacement } from '../lib/elkPlacement.js'
@@ -26,8 +25,8 @@ import type { BroodBoxData } from '../ui/BroodBox.js'
 import { ConceptPanel, inside } from '../ui/ConceptPanel.js'
 import type { RoutedEdgeData } from '../ui/RoutedEdge.js'
 import { RoutedEdge } from '../ui/RoutedEdge.js'
-import { Button } from '../ui/Button.js'
 import { NodePicker } from '../ui/NodePicker.js'
+import { BoardTools } from '../ui/BoardTools.js'
 import type { SectionBoxData } from '../ui/SectionBox.js'
 import { SectionBox } from '../ui/SectionBox.js'
 import '@xyflow/react/dist/style.css'
@@ -57,7 +56,6 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   // moves a card leaves its lines behind, so those fall back to a plain curve
   // until a router runs again.
   const [routes, setRoutes] = useState<ReadonlyMap<string, readonly { x: number, y: number }[]>>(new Map())
-  const [enclosures, setEnclosures] = useState<Arrangement['broods']>([])
   const [focused, setFocused] = useState(false)
   const [error, setError] = useState<string | undefined>(undefined)
 
@@ -91,7 +89,6 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
         const opening = await firstArrangement(loaded, PLACEMENT)
         setBoard(opening.board)
         setRoutes(opening.routes)
-        setEnclosures(opening.broods)
         await boardClient.keep({ boards: [opening.board] })
       }
       catch (cause) {
@@ -212,7 +209,22 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     return [emphasis === 'dimmed' ? { ...node, style: { ...node.style, opacity: DIMMED } } : node]
   }), [drawn, near, attention])
 
-  const broods: Node<BroodBoxData>[] = useMemo(() => enclosures.map(brood => ({
+  const extent = useMemo(
+    () => [...boxes.values(), ...(board?.sections ?? []).map(section => ({
+      x: section.x,
+      y: section.y,
+      width: section.width,
+      height: section.height,
+    }))],
+    [boxes, board],
+  )
+
+  const laidOut = board !== undefined
+    && board.cards.length > 0
+    && boxes.size === board.cards.length
+    && [...boxes.values()].every(box => box.width > 0 && box.height > 0)
+
+  const broods: Node<BroodBoxData>[] = useMemo(() => kin.broods.map(brood => ({
     id: brood.id,
     type: 'brood',
     position: { x: brood.x, y: brood.y },
@@ -220,7 +232,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     draggable: false,
     selectable: false,
     zIndex: 1,
-  })), [enclosures])
+  })), [kin])
 
   const edges: Edge[] = useMemo(() => {
     const onBoard = new Set(drawn.filter(node => node.type === 'card').map(node => node.id))
@@ -331,14 +343,6 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
             style={{ width: `${Math.max(board.name.length, MIN_NAME_WIDTH)}ch` }}
             className="rounded-control bg-transparent px-2 py-1 font-ui text-sm font-semibold text-ink outline-none focus:bg-raised"
           />
-          <Button onClick={() => persist(withSection(board))}>Add a section</Button>
-          <Button
-            onClick={() => setFocused(now => !now)}
-            disabled={pickedId === undefined}
-            aria-pressed={focused}
-          >
-            {focused ? 'Show the rest' : 'Focus'}
-          </Button>
         </header>
 
         <div className="relative min-h-0 flex-1">
@@ -353,12 +357,19 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
             onNodeDrag={onNodeDrag}
             onNodeDragStop={onNodeDragStop}
             nodesConnectable={false}
-            fitView
-            fitViewOptions={{ padding: 0.15, minZoom: 0.2, maxZoom: 1 }}
+            minZoom={0.1}
+            maxZoom={2}
             proOptions={{ hideAttribution: true }}
           >
             <Background color="var(--line-strong)" gap={24} size={1} />
-            <Controls showInteractive={false} className="!border-line !bg-surface !shadow-card" />
+            <BoardTools
+              extent={extent}
+              laidOut={laidOut}
+              onAddSection={() => persist(withSection(board))}
+              onFocus={() => setFocused(now => !now)}
+              focused={focused}
+              canFocus={pickedId !== undefined}
+            />
           </ReactFlow>
         </div>
       </div>
