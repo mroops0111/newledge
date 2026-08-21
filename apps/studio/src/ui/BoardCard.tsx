@@ -6,8 +6,13 @@ export interface BoardCardData {
   readonly node: GraphNode
   readonly form: NodeForm
   readonly colour: string
+  /** What this card hangs off, written on it so it need not be traced. */
+  readonly lineage?: { readonly label: string, readonly kin: 'family' | 'brood' }
   [key: string]: unknown
 }
+
+/** The same two shapes the lines end in, so one vocabulary says one thing. */
+const KIN_GLYPH = { brood: '\u25C6', family: '\u25B7' } as const
 
 /** Where a source came from, which is the only part of a URL worth drawing. */
 function domainOf(node: GraphNode): string | undefined {
@@ -31,25 +36,40 @@ export function BoardCard({ data, selected }: {
   data: BoardCardData
   selected: boolean
 }): React.JSX.Element {
-  const { node, form, colour } = data
+  const { node, form, colour, lineage } = data
   const lift = selected ? 'shadow-lifted ring-1 ring-ink/25' : 'shadow-card'
 
   return (
     <div className={`rounded-card border border-line bg-surface ${lift}`}>
       <Handle type="target" position={Position.Top} className="!opacity-0" />
-      {body(node, form, colour)}
+      {body(node, form, colour, lineage)}
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />
     </div>
   )
 }
 
-function body(node: GraphNode, form: NodeForm, colour: string): React.JSX.Element {
+function body(
+  node: GraphNode,
+  form: NodeForm,
+  colour: string,
+  lineage: BoardCardData['lineage'],
+): React.JSX.Element {
   switch (form) {
     case 'concept': {
       return (
         <>
-          <div className="rounded-t-card border-l-2 px-3.5 py-2.5" style={{ borderLeftColor: colour }}>
+          <div className="rounded-t-card border-l-2 px-3.5 pt-2.5" style={{ borderLeftColor: colour }}>
             <p className="truncate font-ui text-xs font-semibold text-ink">{node.name}</p>
+            {lineage === undefined
+              ? <div className="pb-2.5" />
+              : (
+                  <p
+                    className="truncate pb-2 pt-1 font-ui text-[0.6875rem] leading-none"
+                    style={{ color: colour }}
+                  >
+                    {`${KIN_GLYPH[lineage.kin]}\u00A0${lineage.label}`}
+                  </p>
+                )}
           </div>
           {node.description !== undefined && (
             <div className="px-3.5 pb-3.5">

@@ -118,16 +118,17 @@ export function nodeStyle(typeId: string): NodeStyle {
 }
 
 export const EDGE_STYLES: Readonly<Record<string, EdgeStyle>> = {
-  // A hierarchy is said by what a card wears and by what encloses it, which a
-  // reader takes in at a glance, so its lines wait until one is asked about.
-  // Kinds of a thing share a colour and nothing encloses them.
-  extends: { shapes: 'layout', kin: 'family', tone: 'structure', strokeWidth: STROKE, marker: 'triangleHollow', shown: 'onSelect' },
-  instantiates: { shapes: 'layout', kin: 'family', tone: 'structure', strokeWidth: STROKE, dash: '6 4', marker: 'triangleHollow', shown: 'onSelect' },
+  // A hierarchy says three things and needs all three channels. Colour says
+  // which family, so several trees can be followed through each other.
+  // Enclosure says a part from a kind. The line says which way it runs, which
+  // neither of the others can.
+  extends: { shapes: 'layout', kin: 'family', tone: 'structure', strokeWidth: STROKE, marker: 'triangleHollow', shown: 'always' },
+  instantiates: { shapes: 'layout', kin: 'family', tone: 'structure', strokeWidth: STROKE, dash: '6 4', marker: 'triangleHollow', shown: 'always' },
 
   // Parts of a thing share that colour and are enclosed as well, which is the
   // whole difference between a part and a kind, said in a different channel
   // rather than in a different arrow head.
-  contains: { shapes: 'layout', kin: 'brood', tone: 'structure', strokeWidth: STROKE, marker: 'diamond', shown: 'onSelect' },
+  contains: { shapes: 'layout', kin: 'brood', tone: 'structure', strokeWidth: STROKE, marker: 'diamond', shown: 'always' },
 
   // How much a curve claims is how solid it is drawn. A named dependency
   // asserts that one thing needs another, so it is solid and points.

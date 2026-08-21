@@ -3,6 +3,8 @@ import type { NodeForm } from './boardStyle.js'
 import type { GraphNode } from './graph.js'
 
 const LINE = 20
+/** The row a card gives to saying what it hangs off, when it hangs off anything. */
+const LINEAGE_ROW = 22
 const TITLE_ROW = 36
 const PADDING = 22
 const DEFINITION_LINES = 6
@@ -18,9 +20,12 @@ const PER_LINE = 58
  * arrangement is built from. A reader moving a card afterwards uses the real
  * one, since by then the card is on screen.
  */
-export function cardExtent(node: GraphNode): { width: number, height: number } {
+export function cardExtent(node: GraphNode, hasLineage = false): { width: number, height: number } {
   const style = nodeStyle(node.type)
-  return { width: style.cardWidth, height: heightOf(node, style.form) }
+  return {
+    width: style.cardWidth,
+    height: heightOf(node, style.form) + (hasLineage ? LINEAGE_ROW : 0),
+  }
 }
 
 function heightOf(node: GraphNode, form: NodeForm): number {

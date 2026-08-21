@@ -10,15 +10,15 @@ import { emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { elkPlacement } from '../lib/elkPlacement.js'
 import type { BoardClient } from '../lib/boards.js'
 import { renameSection, withBoard, withCard, withSection } from '../lib/boards.js'
-import { nodeStyle, TONE_COLOURS } from '../lib/boardStyle.js'
+import { nodeStyle } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import type { DrawnEdge } from '../lib/drawing.js'
 import { drawnCards, drawnEdges } from '../lib/drawing.js'
 import { cardExtent } from '../lib/measure.js'
 import { kinship } from '../lib/family.js'
-import { familyColours } from '../lib/kinship.js'
+import { familyColours, familyOfRoot, kinColour, lineageLabel, lineages, NO_FAMILY } from '../lib/kinship.js'
 import { borderRun } from '../lib/path.js'
-import type { GraphEdge, GraphNode, Ontology } from '../lib/graph.js'
+import type { GraphEdge, GraphNode } from '../lib/graph.js'
 import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
 import type { BoardCardData } from '../ui/BoardCard.js'
@@ -36,7 +36,6 @@ import type { SectionBoxData } from '../ui/SectionBox.js'
 import { SectionBox } from '../ui/SectionBox.js'
 import '@xyflow/react/dist/style.css'
 
-const UNTYPED = 'var(--ink-subtle)'
 const NODE_TYPES: NodeTypes = { card: BoardCard, section: SectionBox, brood: BroodBox }
 const EDGE_TYPES = { routed: RoutedEdge }
 const PLACEMENT = elkPlacement()
@@ -56,7 +55,6 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   boardClient: BoardClient
   nav: Nav
 }): React.JSX.Element {
-  const [ontology, setOntology] = useState<Ontology | undefined>(undefined)
   const [graph, setGraph] = useState<{ nodes: readonly GraphNode[], edges: readonly GraphEdge[] }>({ nodes: [], edges: [] })
   const [board, setBoard] = useState<Board | undefined>(undefined)
   const [others, setOthers] = useState<readonly Board[]>([])
@@ -83,12 +81,10 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   useEffect(() => {
     void (async () => {
       try {
-        const [declared, loaded, state] = await Promise.all([
-          graphClient.ontology(),
+        const [loaded, state] = await Promise.all([
           graphClient.graph(),
           boardClient.read(),
         ])
-        setOntology(declared)
         setGraph(loaded)
         const [kept] = state.boards
         setOthers(state.boards.slice(1))
@@ -118,16 +114,17 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   }, [boardClient, others])
 
   /**
-   * What a card wears down its side.
-   * A board of one kind gains nothing from a colour that says which kind, so
-   * the stripe says what a card belongs to instead, and falls back to its type
-   * when it belongs to nothing.
+   * What a card wears down its side, which is what it belongs to.
+   * Not what kind it is, because the card's own shape already says that and
+   * two meanings in one stripe can only be told apart by knowing the palette.
    */
-  const colourOf = useMemo(() => {
-    const byType = new Map((ontology?.nodeTypes ?? []).map(type => [type.id, type.color ?? UNTYPED]))
-    const byFamily = familyColours(graph.edges)
-    return (node: GraphNode): string => byFamily.get(node.id) ?? byType.get(node.type) ?? UNTYPED
-  }, [ontology, graph])
+  const familyOf = useMemo(() => familyColours(graph.edges), [graph])
+  const hangsOff = useMemo(() => lineages(graph.edges), [graph])
+  const familyLed = useMemo(() => familyOfRoot(graph.edges), [graph])
+  const colourOf = useMemo(
+    () => (node: GraphNode): string => kinColour(familyOf.get(node.id) ?? NO_FAMILY),
+    [familyOf],
+  )
 
   const byId = useMemo(() => new Map(graph.nodes.map(node => [node.id, node])), [graph])
   const available = useMemo(() => {
@@ -193,12 +190,22 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       id: card.nodeId,
       type: 'card',
       position: { x: card.x, y: card.y },
-      data: { node: card.node, form: nodeStyle(card.node.type).form, colour: colourOf(card.node) },
+      data: {
+        node: card.node,
+        form: nodeStyle(card.node.type).form,
+        colour: colourOf(card.node),
+        ...(hangsOff.get(card.nodeId) === undefined
+          ? {}
+          : { lineage: {
+              label: lineageLabel(hangsOff.get(card.nodeId)!, byId),
+              kin: hangsOff.get(card.nodeId)!.kin,
+            } }),
+      },
       style: { width: card.width },
       zIndex: 3,
     }))
     setDrawn([...sections, ...cards])
-  }, [membership, byId, colourOf, rename, keepLatest, setDrawn])
+  }, [membership, byId, colourOf, hangsOff, rename, keepLatest, setDrawn])
 
   const selected = useMemo(
     () => new Set(drawn.filter(node => node.selected === true).map(node => node.id)),
@@ -226,8 +233,12 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       const graphNode = byId.get(node.id)
       return graphNode === undefined
         ? []
-        : [[node.id, { x: node.position.x, y: node.position.y, ...cardExtent(graphNode) }] as const]
-    })), [drawn, byId])
+        : [[node.id, {
+            x: node.position.x,
+            y: node.position.y,
+            ...cardExtent(graphNode, hangsOff.has(node.id)),
+          }] as const]
+    })), [drawn, byId, hangsOff])
 
   const kin = useMemo(() => {
     const at = boxes
@@ -268,12 +279,12 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       height: brood.height,
       // The bracket wears the family it encloses, so enclosure and colour say
       // the same thing rather than two unrelated things.
-      colour: familyColours(graph.edges).get(brood.id.replace(/^brood-/, '')) ?? UNTYPED,
+      colour: kinColour(familyOf.get(brood.id.replace(/^brood-/, '')) ?? NO_FAMILY),
     },
     draggable: false,
     selectable: false,
     zIndex: 1,
-  })), [kin, graph])
+  })), [kin, familyOf])
 
   const edges: Edge[] = useMemo(() => {
     const onBoard = new Set(drawn.filter(node => node.type === 'card').map(node => node.id))
@@ -285,6 +296,16 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
         return kin.edges.get(edge.id) ?? routes.get(edge.id)
       const [from, to] = [boxes.get(edge.source), boxes.get(edge.target)]
       return from === undefined || to === undefined ? undefined : borderRun(from, to)
+    }
+
+    // A hierarchy is drawn in its family's colour, so several trees can be
+    // followed through each other rather than read as one mass of grey. A
+    // relation that belongs to no family keeps the tone its kind carries.
+    const paintOf = (edge: DrawnEdge): string => {
+      if (edge.style.kin === 'curve')
+        return edge.style.tone
+      const parent = edge.style.kin === 'brood' ? edge.source : edge.target
+      return familyLed.get(parent) ?? NO_FAMILY
     }
 
     return drawnEdges(graph.edges, onBoard, selected).flatMap((edge) => {
@@ -303,17 +324,17 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
           curved: edge.style.kin === 'curve',
         } satisfies RoutedEdgeData,
         style: {
-          stroke: TONE_COLOURS[edge.style.tone],
+          stroke: kinColour(paintOf(edge)),
           strokeWidth: edge.style.strokeWidth,
           ...(edge.style.dash === undefined ? {} : { strokeDasharray: edge.style.dash }),
           ...(emphasis === 'dimmed' ? { opacity: DIMMED } : {}),
         },
-        markerEnd: markerId(edge.style.marker, edge.style.tone),
+        markerEnd: markerId(edge.style.marker, paintOf(edge)),
         // Above the ground a section paints, below the cards it holds.
         zIndex: 2,
       }]
     })
-  }, [graph, drawn, selected, routes, kin, boxes, near, attention])
+  }, [graph, drawn, selected, routes, kin, boxes, near, attention, familyLed])
 
   // A section is the shape of a thought, so moving one moves the thought,
   // and what sits inside keeps its arrangement rather than being relaid out.
