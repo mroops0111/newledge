@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Card } from './Card.js'
-import type { InboxClient } from './client.js'
-import type { ProposalCard } from './proposal.js'
-import { toCard } from './proposal.js'
-import { conceptAnchor } from './Card.js'
-import { AppShell } from './ui/AppShell.js'
-import type { OutlineSection } from './ui/Outline.js'
-import { Outline } from './ui/Outline.js'
+import { Card } from '../components/ReadingCard.js'
+import type { InboxClient } from '../lib/client.js'
+import type { ProposalCard } from '../lib/proposal.js'
+import { toCard } from '../lib/proposal.js'
+import { conceptAnchor } from '../components/ReadingCard.js'
+import { AppShell } from '../ui/AppShell.js'
+import type { OutlineSection } from '../ui/Outline.js'
+import { Outline } from '../ui/Outline.js'
 
 // The outline mirrors the cards, so a theme is where a reader steers from,
 // which is the only place topics surface at all.
