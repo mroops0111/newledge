@@ -38,14 +38,13 @@ export function kinship(
       .map(id => ({ id, box: at.get(group.childOf.get(id)!)! }))
       .sort((one, other) => one.box.x - other.box.x)
 
-    const highest = Math.min(...children.map(child => child.box.y))
-    const bar = midpoint(parent.y + parent.height, highest)
+    const bar = barFor(parent, children.map(child => child.box))
     for (const child of children) {
       // Drawn from the child towards the root, so the end that says what the
       // relation is lands on the root from outside it. Drawn the other way it
       // would point back into the card and be covered by it.
       drawn.set(child.id, [
-        { x: centre(child.box), y: child.box.y },
+        { x: centre(child.box), y: leaving(child.box, bar) },
         { x: centre(child.box), y: bar },
         { x: centre(parent), y: bar },
         { x: centre(parent), y: parent.y + parent.height },
@@ -92,10 +91,27 @@ function familiesIn(
   return families
 }
 
-// A bar halfway between a parent and its nearest child, unless they sit so
-// close that halfway would run through one of them.
-function midpoint(below: number, above: number): number {
-  return above - below > TRUNK * 2 ? (below + above) / 2 : below + TRUNK
+/**
+ * Where the bar every sibling shares runs.
+ * It has to clear every card in the family, since a card is drawn over the
+ * lines that reach it and a bar crossing one would take the run that leads to
+ * it out of sight. When every child sits below the parent there is room for
+ * the bar between them, and otherwise it goes under whichever of them reaches
+ * lowest.
+ */
+function barFor(parent: Box, children: readonly Box[]): number {
+  const under = parent.y + parent.height
+  const beside = children.filter(child => child.y < under)
+  if (beside.length === 0) {
+    const highest = Math.min(...children.map(child => child.y))
+    return highest - under > TRUNK * 2 ? (under + highest) / 2 : under + TRUNK
+  }
+  return Math.max(under, ...beside.map(child => child.y + child.height)) + TRUNK
+}
+
+/** The side of a card the bar is on, which is the side a line leaves by. */
+function leaving(child: Box, bar: number): number {
+  return bar >= child.y + child.height ? child.y + child.height : child.y
 }
 
 function centre(box: Box): number {

@@ -80,6 +80,32 @@ describe('drawing a hierarchy', () => {
     expect(kin.edges.get('k1')![2]).not.toEqual(kin.edges.get('p1')![2])
   })
 
+  // A card is drawn over the lines that reach it, so a bar crossing one takes
+  // the run that leads to it out of sight, which is what made a trunk between
+  // two cards side by side read as a stray line.
+  it('keeps the bar clear of a child that is not below the parent at all', () => {
+    const beside = kinship(
+      [edge('p1', 'contains', 'whole', 'partA')],
+      new Map([['whole', box(0, 0)], ['partA', box(400, 60)]]),
+    )
+    const route = beside.edges.get('p1')!
+    expect(route[1]!.y).toBeGreaterThan(160)
+  })
+
+  it('leaves a child by the side the bar is on, not always by its top', () => {
+    const beside = kinship(
+      [edge('p1', 'contains', 'whole', 'partA')],
+      new Map([['whole', box(0, 0)], ['partA', box(400, 60)]]),
+    )
+    expect(beside.edges.get('p1')![0]!.y).toBe(160)
+  })
+
+  it('still runs the bar between a parent and children that sit below it', () => {
+    const bar = kin.edges.get('p1')![2]!.y
+    expect(bar).toBeGreaterThan(100)
+    expect(bar).toBeLessThan(600)
+  })
+
   it('draws nothing for a relation whose end is not on the board', () => {
     const stray = kinship([edge('k1', 'extends', 'gone', 'whole')], at)
     expect(stray.edges.size).toBe(0)
