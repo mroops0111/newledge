@@ -13,8 +13,8 @@ export interface BroodBoxData {
 export function BroodBox({ data }: { data: BroodBoxData }): React.JSX.Element {
   return (
     <div
-      className="rounded-card border-2 border-dashed bg-raised/50"
-      style={{ width: data.width, height: data.height, borderColor: 'var(--edge-quiet)' }}
+      className="rounded-card border-2 border-dashed bg-transparent"
+      style={{ width: data.width, height: data.height, borderColor: 'var(--edge)' }}
     />
   )
 }

@@ -23,9 +23,9 @@ export function SectionBox({ data }: { data: SectionBoxData }): React.JSX.Elemen
         onChange={event => onRename(event.target.value)}
         onBlur={onRenamed}
         aria-label="Section name"
-        className="nodrag absolute -top-7 left-0 w-full rounded-control bg-transparent px-2 py-1 font-ui text-xs font-semibold text-ink outline-none focus:bg-surface"
+        className="nodrag absolute -top-8 left-0 w-full rounded-control bg-transparent px-2 py-1 font-ui text-sm font-semibold text-ink-muted outline-none focus:bg-surface"
       />
-      <div className="size-full rounded-card border border-line bg-raised/60" />
+      <div className="size-full rounded-card border border-section-line bg-section" />
     </div>
   )
 }

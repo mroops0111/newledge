@@ -5,6 +5,7 @@ import { Background, Controls, ReactFlow, useNodesState } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Arrangement } from '../lib/arrange.js'
 import { firstArrangement } from '../lib/arrange.js'
+import { emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { elkPlacement } from '../lib/elkPlacement.js'
 import type { BoardClient } from '../lib/boards.js'
 import { renameSection, withBoard, withCard, withSection } from '../lib/boards.js'
@@ -36,6 +37,7 @@ const NODE_TYPES: NodeTypes = { card: BoardCard, section: SectionBox, brood: Bro
 const EDGE_TYPES = { routed: RoutedEdge }
 const PLACEMENT = elkPlacement()
 const MIN_NAME_WIDTH = 10
+const DIMMED = 0.22
 
 interface SectionDrag {
   readonly held: ReadonlySet<string>
@@ -56,6 +58,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   // until a router runs again.
   const [routes, setRoutes] = useState<ReadonlyMap<string, readonly { x: number, y: number }[]>>(new Map())
   const [enclosures, setEnclosures] = useState<Arrangement['broods']>([])
+  const [focused, setFocused] = useState(false)
   const [error, setError] = useState<string | undefined>(undefined)
 
   // React Flow owns where things are while a reader is moving them, and the
@@ -170,6 +173,15 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     () => new Set(drawn.filter(node => node.selected === true).map(node => node.id)),
     [drawn],
   )
+  const [pickedId] = [...selected]
+  const attention = pickedId === undefined ? IDLE : { selectedId: pickedId, focused }
+  const near = useMemo(
+    () => neighbourhood(
+      attention.selectedId,
+      graph.edges.map(edge => ({ id: edge.id, from: edge.fromNodeId, to: edge.toNodeId })),
+    ),
+    [attention.selectedId, graph],
+  )
 
   // Where the cards actually are right now, which is what a family tree has to
   // be drawn from, since a reader may have moved any of them since it opened.
@@ -189,6 +201,17 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       at,
     )
   }, [boxes, graph])
+  // A reader who picked something wants the rest out of the way, gently while
+  // they glance and entirely once they ask to focus.
+  const attended: Node[] = useMemo(() => drawn.flatMap((node) => {
+    if (node.type !== 'card')
+      return [node]
+    const emphasis = emphasisOf(node.id, near.nodes, attention)
+    if (emphasis === 'gone')
+      return []
+    return [emphasis === 'dimmed' ? { ...node, style: { ...node.style, opacity: DIMMED } } : node]
+  }), [drawn, near, attention])
+
   const broods: Node<BroodBoxData>[] = useMemo(() => enclosures.map(brood => ({
     id: brood.id,
     type: 'brood',
@@ -210,26 +233,34 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       const [from, to] = [boxes.get(edge.source), boxes.get(edge.target)]
       return from === undefined || to === undefined ? undefined : borderRun(from, to)
     }
-    return drawnEdges(graph.edges, onBoard, selected).map(edge => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      type: 'routed',
-      ...(edge.label === undefined ? {} : { label: edge.label }),
-      data: {
-        ...(pointsFor(edge) === undefined ? {} : { points: pointsFor(edge) }),
-        curved: edge.style.kin === 'curve',
-      } satisfies RoutedEdgeData,
-      style: {
-        stroke: TONE_COLOURS[edge.style.tone],
-        strokeWidth: edge.style.strokeWidth,
-        ...(edge.style.dash === undefined ? {} : { strokeDasharray: edge.style.dash }),
-      },
-      markerEnd: markerId(edge.style.marker, edge.style.tone),
-      // Above the ground a section paints, below the cards it holds.
-      zIndex: 2,
-    }))
-  }, [graph, drawn, selected, routes, kin, boxes])
+
+    return drawnEdges(graph.edges, onBoard, selected).flatMap((edge) => {
+      const emphasis = emphasisOf(edge.id, near.edges, attention)
+      if (emphasis === 'gone')
+        return []
+      const points = pointsFor(edge)
+      return [{
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        type: 'routed',
+        ...(edge.label === undefined ? {} : { label: edge.label }),
+        data: {
+          ...(points === undefined ? {} : { points }),
+          curved: edge.style.kin === 'curve',
+        } satisfies RoutedEdgeData,
+        style: {
+          stroke: TONE_COLOURS[edge.style.tone],
+          strokeWidth: edge.style.strokeWidth,
+          ...(edge.style.dash === undefined ? {} : { strokeDasharray: edge.style.dash }),
+          ...(emphasis === 'dimmed' ? { opacity: DIMMED } : {}),
+        },
+        markerEnd: markerId(edge.style.marker, edge.style.tone),
+        // Above the ground a section paints, below the cards it holds.
+        zIndex: 2,
+      }]
+    })
+  }, [graph, drawn, selected, routes, kin, boxes, near, attention])
 
   // A section is the shape of a thought, so moving one moves the thought,
   // and what sits inside keeps its arrangement rather than being relaid out.
@@ -301,12 +332,19 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
             className="rounded-control bg-transparent px-2 py-1 font-ui text-sm font-semibold text-ink outline-none focus:bg-raised"
           />
           <Button onClick={() => persist(withSection(board))}>Add a section</Button>
+          <Button
+            onClick={() => setFocused(now => !now)}
+            disabled={pickedId === undefined}
+            aria-pressed={focused}
+          >
+            {focused ? 'Show the rest' : 'Focus'}
+          </Button>
         </header>
 
         <div className="relative min-h-0 flex-1">
           <BoardMarkers />
           <ReactFlow
-            nodes={[...drawn, ...broods]}
+            nodes={[...attended, ...broods]}
             edges={edges}
             nodeTypes={NODE_TYPES}
             edgeTypes={EDGE_TYPES}

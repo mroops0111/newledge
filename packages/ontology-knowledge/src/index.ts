@@ -49,8 +49,10 @@ const edgeTypes: readonly EdgeTypeDescriptor[] = [
 
   // Is-a, instance-of, and part-of stay distinct (ISO 25964),
   // because is-a chains are transitive but part-of chains are not.
-  edge('extends', 'extends', 'A concept is a specialization or kind of another (is-a), e.g. GraphRAG extends RAG.', ['Concept'], ['Concept'], 'N:N'),
-  edge('instantiates', 'instantiates', 'A concept is a concrete instance of a type concept, e.g. GPT-4 instantiates FoundationModel.', ['Concept'], ['Concept'], 'N:N'),
+  // These two are close enough to be mixed up, so each says how to tell them
+  // apart. The test is whether the narrower end could itself have kinds.
+  edge('extends', 'extends', 'A kind of another concept (is-a), where both ends are categories, e.g. GraphRAG extends RAG. Use this when "all X" makes sense, because X could have kinds of its own.', ['Concept'], ['Concept'], 'N:N'),
+  edge('instantiates', 'instantiates', 'One particular thing of a kind (instance-of), where the narrow end is an individual and the wide end a category, e.g. GPT-4 instantiates FoundationModel. Use this when "all X" makes no sense, because there is only one X.', ['Concept'], ['Concept'], 'N:N'),
   edge('contains', 'contains', 'A concept contains another as a component, from whole to part.', ['Concept'], ['Concept'], 'N:N'),
 
   // Association is a named dependency plus a catch-all, reach for uses first,
