@@ -78,6 +78,7 @@ function write(request: PlacementRequest): ElkNode {
   const held = new Map<string, ElkNode[]>(request.groups.map(group => [group.id, []]))
   const seatOf = new Map<string, string>()
   const loose: ElkNode[] = []
+  const groupById = new Map(request.groups.map(group => [group.id, group]))
 
   // Anything a relation reaches is placed by that relation. What none reaches
   // is laid down in the order it is handed over, so handing kinds over in
@@ -112,19 +113,38 @@ function write(request: PlacementRequest): ElkNode {
     within.set(owner, kept)
   }
 
-  const groups: ElkNode[] = request.groups
-    .filter(group => (held.get(group.id) ?? []).length > 0)
-    .map(group => ({
+  // A group inside a group is built from the inside out, so a nested one is
+  // already whole by the time the one holding it asks for its children.
+  const built = new Map<string, ElkNode>()
+  for (const group of [...request.groups].reverse()) {
+    const children = held.get(group.id) ?? []
+    if (children.length === 0)
+      continue
+    built.set(group.id, {
       id: group.id,
-      children: held.get(group.id),
+      children,
       edges: within.get(group.id) ?? [],
-      layoutOptions: groupOptions((held.get(group.id) ?? []).length, (within.get(group.id) ?? []).length),
-    }))
+      layoutOptions: groupOptions(children.length, (within.get(group.id) ?? []).length),
+    })
+  }
+  for (const [id, group] of built) {
+    const parent = groupById.get(id)?.groupId
+    const seat = parent === undefined ? undefined : held.get(parent)
+    if (seat !== undefined)
+      seat.push(group)
+  }
+
+  const top = [...built]
+    .filter(([id]) => {
+      const parent = groupById.get(id)?.groupId
+      return parent === undefined || !built.has(parent)
+    })
+    .map(([, group]) => group)
 
   return {
     id: ROOT,
     layoutOptions: BOARD_OPTIONS,
-    children: [...groups, ...loose],
+    children: [...top, ...loose],
     edges: within.get(ROOT) ?? [],
   }
 }
@@ -138,24 +158,32 @@ function read(laid: ElkNode): Placed {
   const nodes = new Map<string, Point>()
   const groups = new Map<string, Box>()
   const edges = new Map<string, readonly Point[]>()
-  const origin = { x: 0, y: 0 }
+  walk(laid, { x: 0, y: 0 }, { nodes, groups, edges })
+  return { nodes, groups, edges }
+}
 
-  routesOf(laid, origin, edges)
-  for (const child of laid.children ?? []) {
-    const at = { x: child.x ?? 0, y: child.y ?? 0 }
+interface Collected {
+  readonly nodes: Map<string, Point>
+  readonly groups: Map<string, Box>
+  readonly edges: Map<string, readonly Point[]>
+}
+
+/**
+ * Read the arrangement back out.
+ * ELK gives a child its position within its parent, and a group may hold
+ * another, so everything is carried out to where the board sees it.
+ */
+function walk(container: ElkNode, origin: Point, into: Collected): void {
+  routesOf(container, origin, into.edges)
+  for (const child of container.children ?? []) {
+    const at = { x: origin.x + (child.x ?? 0), y: origin.y + (child.y ?? 0) }
     if (child.children === undefined || child.children.length === 0) {
-      nodes.set(child.id, at)
+      into.nodes.set(child.id, at)
       continue
     }
-    groups.set(child.id, { ...at, width: child.width ?? 0, height: child.height ?? 0 })
-    // A section lays its own cards and its own lines out in its own corner,
-    // so both are carried out to where the board sees them.
-    routesOf(child, at, edges)
-    for (const held of child.children)
-      nodes.set(held.id, { x: at.x + (held.x ?? 0), y: at.y + (held.y ?? 0) })
+    into.groups.set(child.id, { ...at, width: child.width ?? 0, height: child.height ?? 0 })
+    walk(child, at, into)
   }
-
-  return { nodes, groups, edges }
 }
 
 function routesOf(container: ElkNode, origin: Point, into: Map<string, readonly Point[]>): void {

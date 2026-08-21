@@ -14,6 +14,19 @@ export interface Arrangement {
   readonly board: Board
   /** Where each line runs, when the placement worked that out as it placed. */
   readonly routes: ReadonlyMap<string, readonly { x: number, y: number }[]>
+  /** A box round each card's parts, which is what part-of is drawn as. */
+  readonly broods: readonly { id: string, x: number, y: number, width: number, height: number }[]
+}
+
+const BROOD = 'brood-'
+
+/** The id a card's parts are kept together under. */
+export function broodOf(nodeId: string): string {
+  return `${BROOD}${nodeId}`
+}
+
+export function isBrood(groupId: string): boolean {
+  return groupId.startsWith(BROOD)
 }
 
 /**
@@ -26,19 +39,39 @@ export async function firstArrangement(
   placement: Placement,
 ): Promise<Arrangement> {
   const topics = graph.nodes.filter(node => nodeStyle(node.type).ground)
-  const placeable = graph.nodes.filter(node => !nodeStyle(node.type).ground)
+  const placeable = graph.nodes.filter(node => nodeStyle(node.type).placed)
   const filedUnder = filing(graph, new Set(topics.map(topic => topic.id)))
   const named = new Map(topics.map(topic => [`topic-${topic.id}`, topic.name]))
 
+  // What a card contains is kept in a group of its own, so a layout cannot
+  // scatter the parts of one thing among the parts of another.
+  const partOf = new Map<string, string>()
+  for (const edge of graph.edges) {
+    if (edge.type === 'contains' && !partOf.has(edge.toNodeId))
+      partOf.set(edge.toNodeId, broodOf(edge.fromNodeId))
+  }
+
+  const sectionOf = (nodeId: string): string | undefined => {
+    const [topicId] = [...(filedUnder.get(nodeId) ?? [])]
+    return topicId === undefined ? undefined : `topic-${topicId}`
+  }
+
   const nodes: LayoutNode[] = placeable.map((node) => {
-    const [topicId] = [...(filedUnder.get(node.id) ?? [])]
+    const seat = partOf.get(node.id) ?? sectionOf(node.id)
     return {
       id: node.id,
       type: node.type,
       ...cardExtent(node),
-      ...(topicId === undefined ? {} : { groupId: `topic-${topicId}` }),
+      ...(seat === undefined ? {} : { groupId: seat }),
     }
   })
+
+  const broods = [...new Set(partOf.values())].map(id => ({
+    id,
+    ...(sectionOf(id.slice(BROOD.length)) === undefined
+      ? {}
+      : { groupId: sectionOf(id.slice(BROOD.length))! }),
+  }))
   const edges: LayoutEdge[] = graph.edges.map(edge => ({
     id: edge.id,
     type: edge.type,
@@ -49,23 +82,33 @@ export async function firstArrangement(
   const placed = await placement.place({
     nodes,
     edges,
-    groups: [...named.keys()].map(id => ({ id, inset: { width: 0, height: 24 } })),
+    // The broods come first, since a group has to be whole before the one
+    // holding it can be built round it.
+    groups: [...broods, ...[...named.keys()].map(id => ({ id, inset: { width: 0, height: 24 } }))],
   })
 
   const cards: Card[] = nodes.flatMap((node) => {
     const at = placed.nodes.get(node.id)
     return at === undefined ? [] : [{ nodeId: node.id, x: at.x, y: at.y }]
   })
-  const sections: Section[] = [...placed.groups].map(([id, box]) => ({
-    id,
-    name: named.get(id) ?? id,
-    x: box.x,
-    y: box.y,
-    width: box.width,
-    height: box.height,
-  }))
+  const sections: Section[] = [...placed.groups]
+    .filter(([id]) => !isBrood(id))
+    .map(([id, box]) => ({
+      id,
+      name: named.get(id) ?? id,
+      x: box.x,
+      y: box.y,
+      width: box.width,
+      height: box.height,
+    }))
 
-  return { board: { ...FIRST_BOARD, cards, sections }, routes: placed.edges ?? new Map() }
+  return {
+    board: { ...FIRST_BOARD, cards, sections },
+    routes: placed.edges ?? new Map(),
+    broods: [...placed.groups]
+      .filter(([id]) => isBrood(id))
+      .map(([id, box]) => ({ id, ...box })),
+  }
 }
 
 /**

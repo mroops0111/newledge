@@ -29,6 +29,12 @@ export interface LayoutGroup {
   readonly id: string
   /** Room at the top of a group that its contents must not be placed in. */
   readonly inset?: Extent
+  /**
+   * The group this one sits inside.
+   * A group within a group is how part-of is kept true, since a layout that is
+   * only told which cards are parts is free to scatter them.
+   */
+  readonly groupId?: string
 }
 
 export interface PlacementRequest {

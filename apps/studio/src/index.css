@@ -21,6 +21,11 @@
     --source: #0284c7;
     --topic: #d97706;
 
+    /* A relation has to be followed across a board, so it is drawn darker than
+       the rules and borders that only need to separate things. */
+    --edge: #8c857a;
+    --edge-quiet: #b8b1a6;
+
     /* Agreement and conflict are the two things a line has to say at a glance,
        so they are the only relations that carry a colour of their own. */
     --supports: #15803d;

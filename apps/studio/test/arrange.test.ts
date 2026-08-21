@@ -44,9 +44,11 @@ describe('what a board opens on', () => {
     arranged = await firstArrangement(graph, gridPlacement())
   })
 
-  it('places every node the graph holds, so nothing is hiding off the board', () => {
+  // A board is for the things a reader thinks with. What is asserted about one
+  // of them, and where that came from, is read inside it rather than beside it.
+  it('places the concepts, and leaves claims and sources to be opened', () => {
     expect(arranged.board.cards.map(card => card.nodeId).sort())
-      .toEqual(['embedding', 'faster', 'graphRag', 'paper', 'planner', 'rag', 'stray'])
+      .toEqual(['embedding', 'graphRag', 'planner', 'rag'])
   })
 
   it('draws a topic as its section rather than as a card among its members', () => {
@@ -64,23 +66,9 @@ describe('what a board opens on', () => {
     expect(sectionHolding(rag, [retrieval])).toBeDefined()
   })
 
-  it('sits a claim nobody filed with the concept it is about', () => {
-    const retrieval = arranged.board.sections.find(section => section.name === 'Retrieval')!
-    const faster = arranged.board.cards.find(card => card.nodeId === 'faster')!
-    expect(sectionHolding(faster, [retrieval])).toBeDefined()
-  })
-
-  it('sits a source with what it introduced, one step further out', () => {
-    const retrieval = arranged.board.sections.find(section => section.name === 'Retrieval')!
-    const paper = arranged.board.cards.find(card => card.nodeId === 'paper')!
-    expect(sectionHolding(paper, [retrieval])).toBeDefined()
-  })
-
-  it('leaves a node with nothing to sit beside out in the open', () => {
-    for (const id of ['embedding', 'stray']) {
-      const loose = arranged.board.cards.find(card => card.nodeId === id)!
-      expect(sectionHolding(loose, arranged.board.sections)).toBeUndefined()
-    }
+  it('leaves a concept nobody filed out in the open', () => {
+    const loose = arranged.board.cards.find(card => card.nodeId === 'embedding')!
+    expect(sectionHolding(loose, arranged.board.sections)).toBeUndefined()
   })
 
   it('arranges the same graph the same way every time', async () => {

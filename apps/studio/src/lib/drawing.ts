@@ -7,7 +7,6 @@ export interface DrawnEdge {
   readonly id: string
   readonly source: string
   readonly target: string
-  readonly type: string
   readonly label?: string
   readonly style: EdgeStyle
 }
@@ -27,6 +26,8 @@ export function drawnEdges(
     .filter(edge => onBoard.has(edge.fromNodeId) && onBoard.has(edge.toNodeId))
     .flatMap((edge) => {
       const style = edgeStyle(edge.type)
+      if (style.shown === 'never')
+        return []
       const asked = selected.has(edge.fromNodeId) || selected.has(edge.toNodeId)
       if (style.shown === 'onSelect' && !asked)
         return []
@@ -34,7 +35,6 @@ export function drawnEdges(
         id: edge.id,
         source: edge.fromNodeId,
         target: edge.toNodeId,
-        type: style.routing === 'step' ? 'smoothstep' : 'default',
         // The line already says what kind of relation it is, so the verb is
         // spelled out only when a reader has asked about one of its ends.
         ...(asked ? { label: edge.type } : {}),

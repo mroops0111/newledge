@@ -3,6 +3,7 @@ import { sectionHolding } from '@newledge/board'
 import type { Edge, Node, NodeTypes, XYPosition } from '@xyflow/react'
 import { Background, Controls, ReactFlow, useNodesState } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { Arrangement } from '../lib/arrange.js'
 import { firstArrangement } from '../lib/arrange.js'
 import { elkPlacement } from '../lib/elkPlacement.js'
 import type { BoardClient } from '../lib/boards.js'
@@ -10,12 +11,16 @@ import { renameSection, withBoard, withCard, withSection } from '../lib/boards.j
 import { nodeStyle, TONE_COLOURS } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import { drawnCards, drawnEdges } from '../lib/drawing.js'
+import { kinship } from '../lib/family.js'
 import type { GraphEdge, GraphNode, Ontology } from '../lib/graph.js'
 import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
 import type { BoardCardData } from '../ui/BoardCard.js'
 import { BoardCard } from '../ui/BoardCard.js'
 import { BoardMarkers, markerId } from '../ui/BoardMarkers.js'
+import { BroodBox } from '../ui/BroodBox.js'
+import type { BroodBoxData } from '../ui/BroodBox.js'
+import { ConceptPanel, inside } from '../ui/ConceptPanel.js'
 import type { RoutedEdgeData } from '../ui/RoutedEdge.js'
 import { RoutedEdge } from '../ui/RoutedEdge.js'
 import { Button } from '../ui/Button.js'
@@ -25,7 +30,7 @@ import { SectionBox } from '../ui/SectionBox.js'
 import '@xyflow/react/dist/style.css'
 
 const UNTYPED = 'var(--ink-subtle)'
-const NODE_TYPES: NodeTypes = { card: BoardCard, section: SectionBox }
+const NODE_TYPES: NodeTypes = { card: BoardCard, section: SectionBox, brood: BroodBox }
 const EDGE_TYPES = { routed: RoutedEdge }
 const PLACEMENT = elkPlacement()
 const MIN_NAME_WIDTH = 10
@@ -48,6 +53,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   // moves a card leaves its lines behind, so those fall back to a plain curve
   // until a router runs again.
   const [routes, setRoutes] = useState<ReadonlyMap<string, readonly { x: number, y: number }[]>>(new Map())
+  const [enclosures, setEnclosures] = useState<Arrangement['broods']>([])
   const [error, setError] = useState<string | undefined>(undefined)
 
   // React Flow owns where things are while a reader is moving them, and the
@@ -80,6 +86,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
         const opening = await firstArrangement(loaded, PLACEMENT)
         setBoard(opening.board)
         setRoutes(opening.routes)
+        setEnclosures(opening.broods)
         await boardClient.keep({ boards: [opening.board] })
       }
       catch (cause) {
@@ -152,7 +159,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       position: { x: card.x, y: card.y },
       data: { node: card.node, form: nodeStyle(card.node.type).form, colour: colourOf(card.node.type) },
       style: { width: card.width },
-      zIndex: 2,
+      zIndex: 3,
     }))
     setDrawn([...sections, ...cards])
   }, [membership, byId, colourOf, rename, keepLatest, setDrawn])
@@ -161,8 +168,39 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     () => new Set(drawn.filter(node => node.selected === true).map(node => node.id)),
     [drawn],
   )
+
+  // Where the cards actually are right now, which is what a family tree has to
+  // be drawn from, since a reader may have moved any of them since it opened.
+  const kin = useMemo(() => {
+    const at = new Map(drawn
+      .filter(node => node.type === 'card')
+      .map(node => [node.id, {
+        x: node.position.x,
+        y: node.position.y,
+        width: node.measured?.width ?? 0,
+        height: node.measured?.height ?? 0,
+      }]))
+    return kinship(
+      graph.edges.map(edge => ({ id: edge.id, type: edge.type, from: edge.fromNodeId, to: edge.toNodeId })),
+      at,
+    )
+  }, [drawn, graph])
+  const broods: Node<BroodBoxData>[] = useMemo(() => enclosures.map(brood => ({
+    id: brood.id,
+    type: 'brood',
+    position: { x: brood.x, y: brood.y },
+    data: { width: brood.width, height: brood.height },
+    draggable: false,
+    selectable: false,
+    zIndex: 1,
+  })), [enclosures])
+
   const edges: Edge[] = useMemo(() => {
     const onBoard = new Set(drawn.filter(node => node.type === 'card').map(node => node.id))
+    // A hierarchy is drawn from where the cards are, so it survives a reader
+    // moving one. Everything else keeps the route it was placed with.
+    const pointsFor = (id: string): readonly { x: number, y: number }[] | undefined =>
+      kin.edges.get(id) ?? routes.get(id)
     return drawnEdges(graph.edges, onBoard, selected).map(edge => ({
       id: edge.id,
       source: edge.source,
@@ -170,8 +208,8 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       type: 'routed',
       ...(edge.label === undefined ? {} : { label: edge.label }),
       data: {
-        ...(routes.get(edge.id) === undefined ? {} : { points: routes.get(edge.id) }),
-        curved: edge.style.routing === 'curve',
+        ...(pointsFor(edge.id) === undefined ? {} : { points: pointsFor(edge.id) }),
+        curved: edge.style.kin === 'curve',
       } satisfies RoutedEdgeData,
       style: {
         stroke: TONE_COLOURS[edge.style.tone],
@@ -180,9 +218,9 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       },
       markerEnd: markerId(edge.style.marker, edge.style.tone),
       // Above the ground a section paints, below the cards it holds.
-      zIndex: 1,
+      zIndex: 2,
     }))
-  }, [graph, drawn, selected, routes])
+  }, [graph, drawn, selected, routes, kin])
 
   // A section is the shape of a thought, so moving one moves the thought,
   // and what sits inside keeps its arrangement rather than being relaid out.
@@ -226,13 +264,21 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     })
   }, [drawn, persist])
 
+  // Opening a concept is what shows what is asserted about it and where that
+  // came from, since a board draws neither.
+  const [openedId] = [...selected]
+  const opened = openedId === undefined ? undefined : byId.get(openedId)
+
   if (error !== undefined)
     return <AppShell {...nav}><p className="p-10 font-ui text-sm text-claim">{error}</p></AppShell>
   if (board === undefined)
     return <AppShell {...nav}><p className="p-10 font-ui text-sm text-ink-subtle">Opening your board</p></AppShell>
 
   return (
-    <AppShell {...nav} panel={<NodePicker available={available} onAdd={nodeId => persist(withCard(board, nodeId))} />}>
+    <AppShell {...nav} panel={opened === undefined
+      ? <NodePicker available={available} onAdd={nodeId => persist(withCard(board, nodeId))} />
+      : <ConceptPanel node={opened} held={inside(opened, graph)} />}
+    >
       <div className="flex h-screen flex-col">
         <header className="flex items-center gap-3 border-b border-line px-6 py-3">
           <input
@@ -251,7 +297,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
         <div className="relative min-h-0 flex-1">
           <BoardMarkers />
           <ReactFlow
-            nodes={drawn}
+            nodes={[...drawn, ...broods]}
             edges={edges}
             nodeTypes={NODE_TYPES}
             edgeTypes={EDGE_TYPES}
