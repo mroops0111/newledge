@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GraphEdge } from '../src/lib/graph.js'
-import { FAMILY_COLOURS, familyColours } from '../src/lib/kinship.js'
+import { FAMILY_COLOURS, familyColours, familyOfRoot, lineageLabel, lineages } from '../src/lib/kinship.js'
+import { cardExtent } from '../src/lib/measure.js'
 
 function edge(type: string, from: string, to: string): GraphEdge {
   return { id: `${type}-${from}-${to}`, type, fromNodeId: from, toNodeId: to }
@@ -48,5 +49,72 @@ describe('what a card wears to say what it belongs to', () => {
       edge('contains', `whole${index}`, `part${index}`))
     const stretched = familyColours(many)
     expect([...stretched.values()].every(colour => FAMILY_COLOURS.includes(colour))).toBe(true)
+  })
+})
+
+describe('what a card says it hangs off', () => {
+  const byId = new Map([
+    ['suite', { id: 'suite', type: 'Concept', name: 'Suite' }],
+    ['rag', { id: 'rag', type: 'Concept', name: 'RAG' }],
+  ])
+  const held = lineages(edges)
+
+  it('names the whole a part belongs to', () => {
+    expect(lineageLabel(held.get('editor')!, byId)).toBe('Part of Suite')
+  })
+
+  it('names what a kind is a kind of, which is the other end of how it is written', () => {
+    expect(lineageLabel(held.get('graphRag')!, byId)).toBe('Kind of RAG')
+  })
+
+  it('says nothing on a card that hangs off nothing', () => {
+    expect(held.has('embedding')).toBe(false)
+    expect(held.has('suite')).toBe(false)
+  })
+
+  // A card that says what it hangs off is taller than one that does not, and a
+  // layout given the wrong height lays the board out wrong.
+  it('costs a card a row, which the arrangement has to know about', () => {
+    const node = { id: 'editor', type: 'Concept', name: 'Editor', description: 'A kit.' }
+    expect(cardExtent(node, true).height).toBeGreaterThan(cardExtent(node, false).height)
+  })
+})
+
+describe('a family of one', () => {
+  // A middle card leads a family of its own and wears that, so the family
+  // above it is left with nobody but itself, and a colour worn by one card
+  // announces a group that is not there.
+  const chained = familyColours([
+    edge('contains', 'vendor', 'suite'),
+    edge('contains', 'suite', 'editor'),
+    edge('contains', 'suite', 'viewer'),
+  ])
+
+  it('leaves it uncoloured', () => {
+    expect(chained.has('vendor')).toBe(false)
+  })
+
+  it('still colours the family the middle card leads', () => {
+    expect(chained.get('editor')).toBe(chained.get('suite'))
+    expect(chained.get('viewer')).toBe(chained.get('suite'))
+  })
+})
+
+describe('what colour a relation is drawn in', () => {
+  const chained = [
+    edge('contains', 'vendor', 'suite'),
+    edge('contains', 'suite', 'editor'),
+    edge('contains', 'suite', 'viewer'),
+  ]
+  const led = familyOfRoot(chained)
+
+  // A relation belongs to the family its parent leads. Asking the child gives
+  // the wrong answer whenever that child leads a family of its own.
+  it('gives a relation the colour of the family its parent leads', () => {
+    expect(led.get('suite')).toBe(familyColours(chained).get('editor'))
+  })
+
+  it('leaves a relation into a family of one uncoloured, as that family is', () => {
+    expect(led.has('vendor')).toBe(false)
   })
 })

@@ -1,16 +1,27 @@
-import type { EdgeTone, MarkerKind } from '../lib/boardStyle.js'
+import type { MarkerKind } from '../lib/boardStyle.js'
 import { TONE_COLOURS } from '../lib/boardStyle.js'
+import { kinColour, KINSHIP_KEYS } from '../lib/kinship.js'
 
 const KINDS: readonly Exclude<MarkerKind, 'none'>[] = ['triangleHollow', 'diamond', 'arrow', 'dot']
-const TONES = Object.keys(TONE_COLOURS) as EdgeTone[]
+
+/**
+ * Every colour a line can end in.
+ * A relation drawn in the colour of the family it belongs to needs an end in
+ * that colour too, since an end in another colour would say it belongs
+ * somewhere else.
+ */
+const PAINTS: readonly (readonly [string, string])[] = [
+  ...Object.entries(TONE_COLOURS),
+  ...KINSHIP_KEYS.map(key => [key, kinColour(key)] as const),
+]
 
 /**
  * What an edge points its end at, or nothing when it has no direction.
  * The bare id, since the canvas wraps it in a reference itself and wrapping it
  * here as well produces one nested inside another, which resolves to nothing.
  */
-export function markerId(kind: MarkerKind, tone: EdgeTone): string | undefined {
-  return kind === 'none' ? undefined : `board-${kind}-${tone}`
+export function markerId(kind: MarkerKind, paint: string): string | undefined {
+  return kind === 'none' ? undefined : `board-${kind}-${paint}`
 }
 
 /**
@@ -24,10 +35,10 @@ export function BoardMarkers(): React.JSX.Element {
   return (
     <svg className="pointer-events-none absolute size-0" aria-hidden>
       <defs>
-        {KINDS.flatMap(kind => TONES.map(tone => (
+        {KINDS.flatMap(kind => PAINTS.map(([paint, colour]) => (
           <marker
-            key={`${kind}-${tone}`}
-            id={`board-${kind}-${tone}`}
+            key={`${kind}-${paint}`}
+            id={`board-${kind}-${paint}`}
             viewBox="0 0 12 12"
             refX={kind === 'dot' ? 6 : 11}
             refY={6}
@@ -36,7 +47,7 @@ export function BoardMarkers(): React.JSX.Element {
             orient="auto-start-reverse"
             markerUnits="userSpaceOnUse"
           >
-            {shapeOf(kind, TONE_COLOURS[tone])}
+            {shapeOf(kind, colour)}
           </marker>
         )))}
       </defs>

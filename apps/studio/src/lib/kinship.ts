@@ -1,20 +1,67 @@
 import { edgeStyle } from './boardStyle.js'
-import type { GraphEdge } from './graph.js'
+import type { GraphEdge, GraphNode } from './graph.js'
+
+/** What a card hangs off, said on the card so it need not be traced. */
+export interface Lineage {
+  readonly parentId: string
+  readonly kin: 'family' | 'brood'
+}
+
+/**
+ * What each card hangs off, and how.
+ * A colour says which family a card is in but not which card it answers to,
+ * and a line says that only to a reader willing to follow it, so the card
+ * carries the answer as well.
+ */
+export function lineages(edges: readonly GraphEdge[]): Map<string, Lineage> {
+  const held = new Map<string, Lineage>()
+  for (const edge of edges) {
+    const kin = edgeStyle(edge.type).kin
+    if (kin === 'curve')
+      continue
+    const [parentId, child] = kin === 'brood'
+      ? [edge.fromNodeId, edge.toNodeId]
+      : [edge.toNodeId, edge.fromNodeId]
+    if (!held.has(child))
+      held.set(child, { parentId, kin })
+  }
+  return held
+}
+
+/** How a lineage is written on a card, in the vocabulary its line already uses. */
+export function lineageLabel(lineage: Lineage, byId: ReadonlyMap<string, GraphNode>): string {
+  const name = byId.get(lineage.parentId)?.name ?? lineage.parentId
+  return lineage.kin === 'brood' ? `Part of ${name}` : `Kind of ${name}`
+}
+
+/**
+ * What a card wears when it belongs to nothing.
+ * Neutral rather than a colour, so a colour always means membership and never
+ * has to be told apart from a card that simply has no family.
+ */
+export const NO_FAMILY = 'kin-none'
 
 /**
  * The colours a family can be drawn in.
- * Low saturation, since this is worn by a card rather than shouted by it, and
- * kept clear of the green and red that agreement and conflict own. Which
- * colour a family gets means nothing, only that two families differ.
+ * Which colour a family gets means nothing, only that two families differ.
+ * Kept clear of the green and red that agreement and conflict own.
  */
 export const FAMILY_COLOURS: readonly string[] = [
-  'var(--kin-1)',
-  'var(--kin-2)',
-  'var(--kin-3)',
-  'var(--kin-4)',
-  'var(--kin-5)',
-  'var(--kin-6)',
+  'kin-1',
+  'kin-2',
+  'kin-3',
+  'kin-4',
+  'kin-5',
+  'kin-6',
 ]
+
+/** Every colour a card or a line can be drawn in for belonging to something. */
+export const KINSHIP_KEYS: readonly string[] = [...FAMILY_COLOURS, NO_FAMILY]
+
+/** A key names a colour rather than being one, so a marker can be cut for it. */
+export function kinColour(key: string): string {
+  return `var(--${key})`
+}
 
 /**
  * Which family each card belongs to, and what colour that family wears.
@@ -26,6 +73,23 @@ export const FAMILY_COLOURS: readonly string[] = [
  * decorating every card equally.
  */
 export function familyColours(edges: readonly GraphEdge[]): Map<string, string> {
+  return worthWearing(edges).byNode
+}
+
+/**
+ * What the family led by each card wears.
+ * A relation belongs to the family its parent leads, not to the one its child
+ * leads, and a middle card leads one of its own, so asking the child gives the
+ * wrong answer for the line that reaches it.
+ */
+export function familyOfRoot(edges: readonly GraphEdge[]): Map<string, string> {
+  return worthWearing(edges).byRoot
+}
+
+function worthWearing(edges: readonly GraphEdge[]): {
+  byNode: Map<string, string>
+  byRoot: Map<string, string>
+} {
   const rootOf = new Map<string, string>()
 
   for (const edge of edges) {
@@ -41,10 +105,22 @@ export function familyColours(edges: readonly GraphEdge[]): Map<string, string> 
     rootOf.set(root, root)
   }
 
+  // A card that leads a family of its own wears that one rather than the one
+  // above it, since the card already says which whole it is part of, and a
+  // colour worn by one card alone announces a group that is not there.
+  const wearers = new Map<string, number>()
+  for (const root of rootOf.values())
+    wearers.set(root, (wearers.get(root) ?? 0) + 1)
+
   // Sorted, so the same graph wears the same colours every time it is opened.
-  const roots = [...new Set(rootOf.values())].sort()
+  const roots = [...wearers].filter(([, count]) => count > 1).map(([root]) => root).sort()
   const worn = new Map(roots.map((root, index) =>
     [root, FAMILY_COLOURS[index % FAMILY_COLOURS.length]!]))
 
-  return new Map([...rootOf].map(([id, root]) => [id, worn.get(root)!]))
+  return {
+    byNode: new Map([...rootOf]
+      .filter(([, root]) => worn.has(root))
+      .map(([id, root]) => [id, worn.get(root)!])),
+    byRoot: worn,
+  }
 }

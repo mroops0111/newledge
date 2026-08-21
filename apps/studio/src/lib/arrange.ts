@@ -3,6 +3,7 @@ import type { LayoutEdge, LayoutNode, Placement } from '@newledge/board-layout'
 import { nodeStyle } from './boardStyle.js'
 import type { GraphEdge, GraphNode } from './graph.js'
 import { cardExtent } from './measure.js'
+import { lineages } from './kinship.js'
 
 const FIRST_BOARD = { id: 'board-1', name: 'My board' }
 
@@ -65,12 +66,13 @@ export async function firstArrangement(
     return topicId === undefined ? undefined : `topic-${topicId}`
   }
 
+  const hangsOff = lineages(graph.edges)
   const nodes: LayoutNode[] = placeable.map((node) => {
     const seat = partOf.get(node.id) ?? sectionOf(node.id)
     return {
       id: node.id,
       type: node.type,
-      ...cardExtent(node),
+      ...cardExtent(node, hangsOff.has(node.id)),
       ...(seat === undefined ? {} : { groupId: seat }),
     }
   })
