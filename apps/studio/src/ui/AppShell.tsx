@@ -59,20 +59,15 @@ export function AppShell({ surfaces, activeId, onSelect, panel, children }: {
         </ul>
       </nav>
 
-      {/* The panel sits opposite the navigation, so the reading column is held
-          between them rather than pushed off to one side.
-          A rail against the left margin would also compete with the return
+      {/* The frame imposes no measure of its own, so a canvas can run edge to
+          edge while a reading surface holds itself to a column.
+          The panel sits opposite the navigation, out of the way of the return
           sweep the eye makes at the start of every line. */}
-      <main className="min-w-0 flex-1">
-        <div className="mx-auto flex w-full max-w-[64.5rem] gap-10 px-10 py-14">
-          <div className="min-w-0 flex-1">{children}</div>
-          {panel !== undefined && (
-            <aside className="sticky top-14 hidden h-fit max-h-[calc(100vh-7rem)] w-56 shrink-0 overflow-y-auto lg:block">
-              {panel}
-            </aside>
-          )}
-        </div>
-      </main>
+      <main className="min-w-0 flex-1">{children}</main>
+
+      {panel !== undefined && (
+        <aside className={`${RAIL} hidden border-l border-line lg:block`}>{panel}</aside>
+      )}
     </div>
   )
 }

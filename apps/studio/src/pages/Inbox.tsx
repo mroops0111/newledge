@@ -37,7 +37,8 @@ function Shell({ nav, count, outline, children }: {
   )
   return (
     <AppShell {...nav} surfaces={surfaces} panel={panel}>
-      {children}
+      {/* Reading holds itself to a column the eye can follow. */}
+      <div className="mx-auto max-w-column px-10 py-14">{children}</div>
     </AppShell>
   )
 }

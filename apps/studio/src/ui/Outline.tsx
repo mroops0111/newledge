@@ -16,7 +16,7 @@ export interface OutlineSection {
  */
 export function Outline({ sections }: { sections: readonly OutlineSection[] }): React.JSX.Element {
   return (
-    <nav className="border-l border-line pl-4">
+    <nav className="w-60 px-4 py-6">
       {sections.map(section => (
         <section key={section.id} className="mb-6 last:mb-0">
           <h2 className="font-ui text-xs font-semibold text-ink">{section.title}</h2>

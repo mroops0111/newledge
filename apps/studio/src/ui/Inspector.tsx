@@ -24,7 +24,7 @@ export function Inspector({ node, claims }: {
     .filter((uri): uri is string => uri !== undefined)
 
   return (
-    <div className="border-l border-line pl-4">
+    <div className="w-80 px-5 py-6">
       <h2 className="font-ui text-sm font-semibold text-ink">{node.name}</h2>
       {node.description !== undefined && (
         <p className="mt-2 font-reading text-prose-sm text-ink-muted">{node.description}</p>

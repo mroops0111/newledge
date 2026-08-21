@@ -11,9 +11,8 @@ const NODE_HEIGHT = 96
 
 /**
  * Place nodes that have never been placed, and leave the rest where they are.
- * A board is where a reader arranges what they understand,
- * so a position they chose is never recomputed.
- * An arrival only has to start somewhere sensible rather than heaped at the origin.
+ * Asking for another relation should not rearrange what is already on screen,
+ * so an arrival is laid out around the rest rather than everything anew.
  */
 export function placeArrivals(
   nodes: readonly GraphNode[],

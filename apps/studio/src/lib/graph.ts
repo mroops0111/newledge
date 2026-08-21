@@ -30,7 +30,7 @@ export interface Ontology {
 }
 
 /** Which types a reader has chosen to see. */
-export interface BoardView {
+export interface GraphView {
   readonly nodeTypes: ReadonlySet<string>
   readonly edgeTypes: ReadonlySet<string>
 }
@@ -41,13 +41,13 @@ export interface VisibleGraph {
 }
 
 /**
- * Decide what the board draws, from the types a reader has turned on.
+ * Decide what the graph draws, from the types a reader has turned on.
  * A node is drawn when its own type is on, or when a drawn relation reaches it,
  * so asking for contradictions brings the claims in dispute along with them,
  * and dropping the relation takes those claims away again.
  * Nothing is special-cased by type, so an ontology can add one and be drawn.
  */
-export function visibleGraph(graph: VisibleGraph, view: BoardView): VisibleGraph {
+export function visibleGraph(graph: VisibleGraph, view: GraphView): VisibleGraph {
   const byId = new Map(graph.nodes.map(node => [node.id, node]))
   const edges = graph.edges.filter(edge =>
     view.edgeTypes.has(edge.type) && byId.has(edge.fromNodeId) && byId.has(edge.toNodeId),
@@ -75,7 +75,7 @@ export function visibleGraph(graph: VisibleGraph, view: BoardView): VisibleGraph
 const OPENING_EDGE_TYPES = ['extends', 'instantiates', 'contains', 'uses', 'relatesTo', 'belongsTo', 'contradicts']
 const OPENING_NODE_TYPES = ['Concept', 'Topic']
 
-export function openingView(ontology: Ontology): BoardView {
+export function openingView(ontology: Ontology): GraphView {
   const declared = <T extends { id: string }>(types: readonly T[], wanted: readonly string[]): Set<string> =>
     new Set(types.map(type => type.id).filter(id => wanted.includes(id)))
   return {

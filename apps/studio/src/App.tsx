@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import type { GraphClient, InboxClient } from './lib/client.js'
-import { Board } from './pages/Board.js'
+import { Graph } from './pages/Graph.js'
 import { Inbox } from './pages/Inbox.js'
 import type { SurfaceLink } from './ui/AppShell.js'
 
 const SURFACES: readonly SurfaceLink[] = [
   { id: 'inbox', label: 'Reading inbox' },
-  { id: 'board', label: 'Board' },
+  { id: 'graph', label: 'Graph' },
 ]
 
 /**
@@ -17,7 +17,7 @@ const SURFACES: readonly SurfaceLink[] = [
 export function App({ inbox, graph }: { inbox: InboxClient, graph: GraphClient }): React.JSX.Element {
   const [activeId, setActiveId] = useState(SURFACES[0]!.id)
   const nav = { surfaces: SURFACES, activeId, onSelect: setActiveId }
-  return activeId === 'board'
-    ? <Board client={graph} nav={nav} />
+  return activeId === 'graph'
+    ? <Graph client={graph} nav={nav} />
     : <Inbox client={inbox} nav={nav} />
 }

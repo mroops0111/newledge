@@ -11,34 +11,31 @@ export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      // Every colour resolves to the variables declared in index.css,
+      // so a utility class and a canvas stroke cannot drift apart.
       colors: {
-        // Surfaces, warm rather than blue grey, so long reading stays easy.
-        canvas: '#faf9f7',
-        surface: '#ffffff',
-        raised: '#f5f3f0',
+        canvas: 'var(--canvas)',
+        surface: 'var(--surface)',
+        raised: 'var(--raised)',
 
         ink: {
-          DEFAULT: '#1c1917',
-          muted: '#57534e',
-          subtle: '#8a8378',
+          DEFAULT: 'var(--ink)',
+          muted: 'var(--ink-muted)',
+          subtle: 'var(--ink-subtle)',
         },
         line: {
-          DEFAULT: '#e7e3dd',
-          strong: '#d3cec5',
+          DEFAULT: 'var(--line)',
+          strong: 'var(--line-strong)',
         },
-
-        // Accent carries the one action that matters, absorbing a reading.
         accent: {
-          DEFAULT: '#1c1917',
-          hover: '#3b3734',
+          DEFAULT: 'var(--accent)',
+          hover: 'var(--accent-hover)',
         },
 
-        // Ontology colours, shared with the graph,
-        // so a concept reads the same on a card and on the board.
-        concept: '#7c3aed',
-        claim: '#dc2626',
-        source: '#0284c7',
-        topic: '#d97706',
+        concept: 'var(--concept)',
+        claim: 'var(--claim)',
+        source: 'var(--source)',
+        topic: 'var(--topic)',
       },
       fontFamily: {
         // Reading runs on a serif, the interface on the system stack.
