@@ -61,6 +61,6 @@ export function drawnCards(board: Board, byId: ReadonlyMap<string, GraphNode>): 
     const node = byId.get(card.nodeId)
     return node === undefined
       ? []
-      : [{ nodeId: card.nodeId, node, x: card.x, y: card.y, width: nodeStyle(node.type).width }]
+      : [{ nodeId: card.nodeId, node, x: card.x, y: card.y, width: nodeStyle(node.type).cardWidth }]
   })
 }

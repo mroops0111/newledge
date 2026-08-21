@@ -102,3 +102,18 @@ describe('anchoring a line on a card rather than on a point', () => {
     expect(path.startsWith('M 0,0')).toBe(true)
   })
 })
+
+describe('how wide a card is', () => {
+  // A section is sized by what it holds, so a topic's own width is only ever
+  // the heading card a reader may add, never the ground it becomes.
+  it('gives everything a reader reads the same width', () => {
+    const widths = ['Concept', 'Claim', 'Source', 'Question']
+      .map(type => cardExtent(node(type, 'A name', 'A description.')).width)
+    expect(new Set(widths).size).toBe(1)
+  })
+
+  it('draws a topic narrower, since as a card it is a heading', () => {
+    expect(cardExtent(node('Topic', 'Retrieval')).width)
+      .toBeLessThan(cardExtent(node('Concept', 'RAG')).width)
+  })
+})

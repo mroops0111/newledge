@@ -20,7 +20,7 @@ const PER_LINE = 46
  */
 export function cardExtent(node: GraphNode): { width: number, height: number } {
   const style = nodeStyle(node.type)
-  return { width: style.width, height: heightOf(node, style.form) }
+  return { width: style.cardWidth, height: heightOf(node, style.form) }
 }
 
 function heightOf(node: GraphNode, form: NodeForm): number {

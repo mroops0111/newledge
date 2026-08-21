@@ -69,7 +69,7 @@ describe('which cards the board draws', () => {
   })
 
   it('draws a card as wide as its type says', () => {
-    expect(drawnCards(board, byId)[0]?.width).toBe(nodeStyle('Concept').width)
+    expect(drawnCards(board, byId)[0]?.width).toBe(nodeStyle('Concept').cardWidth)
   })
 })
 

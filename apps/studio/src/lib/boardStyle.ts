@@ -17,7 +17,12 @@ export type NodeForm =
 
 export interface NodeStyle {
   readonly form: NodeForm
-  readonly width: number
+  /**
+   * How wide this kind is drawn **as a card**.
+   * A kind that is ground never uses it, since a section is sized by what it
+   * holds rather than by what it is.
+   */
+  readonly cardWidth: number
   /** A topic becomes a section on the board, and a card only if asked for. */
   readonly ground: boolean
   /**
@@ -88,13 +93,13 @@ export const TONE_COLOURS: Readonly<Record<EdgeTone, string>> = {
 const CARD_WIDTH = 320
 
 export const NODE_STYLES: Readonly<Record<string, NodeStyle>> = {
-  Concept: { form: 'concept', width: CARD_WIDTH, ground: false, band: 0, placed: true },
-  Claim: { form: 'claim', width: CARD_WIDTH, ground: false, band: 1, placed: false },
-  Source: { form: 'source', width: CARD_WIDTH, ground: false, band: 2, placed: false },
-  Topic: { form: 'topic', width: 220, ground: true, band: 0, placed: false },
+  Concept: { form: 'concept', cardWidth: CARD_WIDTH, ground: false, band: 0, placed: true },
+  Claim: { form: 'claim', cardWidth: CARD_WIDTH, ground: false, band: 1, placed: false },
+  Source: { form: 'source', cardWidth: CARD_WIDTH, ground: false, band: 2, placed: false },
+  Topic: { form: 'topic', cardWidth: 220, ground: true, band: 0, placed: false },
 }
 
-const UNKNOWN_NODE: NodeStyle = { form: 'concept', width: CARD_WIDTH, ground: false, band: 3, placed: true }
+const UNKNOWN_NODE: NodeStyle = { form: 'concept', cardWidth: CARD_WIDTH, ground: false, band: 3, placed: true }
 
 /** A type the ontology adds is still drawn, as the default form. */
 export function nodeStyle(typeId: string): NodeStyle {
