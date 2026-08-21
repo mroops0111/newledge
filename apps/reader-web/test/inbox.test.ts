@@ -12,27 +12,27 @@ const proposal: Proposal = {
     {
       operation: 'addNode',
       payload: {
-        id: 'kdanSeriesB2021',
+        id: 'acmeRoundReport',
         type: 'Source',
-        name: 'TechCrunch report',
-        metadata: { sourceReferences: [{ location: { uri: 'https://techcrunch.com/a' } }] },
+        name: 'Trade press report',
+        metadata: { sourceReferences: [{ location: { uri: 'https://press.example/a' } }] },
       },
     },
     {
       operation: 'addNodes',
       payloads: [
-        { id: 'kdan', type: 'Concept', name: 'KDAN', description: 'A Taiwan-based software company.' },
-        { id: 'dottedSign', type: 'Concept', name: 'DottedSign' },
+        { id: 'acme', type: 'Concept', name: 'Acme', description: 'A company that builds workflow software.' },
+        { id: 'signFlow', type: 'Concept', name: 'SignFlow' },
         {
-          id: 'seriesB16M',
+          id: 'raisedSeriesB',
           type: 'Claim',
-          name: 'Kdan raised a $16M Series B',
-          metadata: { sourceReferences: [{ sourceId: 'kdanSeriesB2021', location: { uri: 'https://techcrunch.com/a' } }] },
+          name: 'Acme raised a Series B',
+          metadata: { sourceReferences: [{ sourceId: 'acmeRoundReport', location: { uri: 'https://press.example/a' } }] },
         },
       ],
     },
     { operation: 'addNode', payload: { id: 'funding', type: 'Topic', name: 'Funding' } },
-    { operation: 'addEdge', payload: { type: 'introduces', fromNodeId: 'kdanSeriesB2021', toNodeId: 'kdan' } },
+    { operation: 'addEdge', payload: { type: 'introduces', fromNodeId: 'acmeRoundReport', toNodeId: 'acme' } },
   ],
 }
 
@@ -42,14 +42,14 @@ describe('toCard', () => {
   const card = toCard(proposal)
 
   it('groups a proposal into what it asks you to absorb', () => {
-    expect(readingsOf(card).map(r => r.concept.id)).toEqual(['kdan', 'dottedSign'])
-    expect(card.sources.map(s => s.id)).toEqual(['kdanSeriesB2021'])
+    expect(readingsOf(card).map(r => r.concept.id)).toEqual(['acme', 'signFlow'])
+    expect(card.sources.map(s => s.id)).toEqual(['acmeRoundReport'])
     expect(card.conceptCount).toBe(2)
     expect(card.claimCount).toBe(1)
   })
 
   it('keeps a claim that concerns nothing rather than dropping it', () => {
-    expect(card.looseClaims.map(c => c.node.id)).toEqual(['seriesB16M'])
+    expect(card.looseClaims.map(c => c.node.id)).toEqual(['raisedSeriesB'])
     expect(readingsOf(card).flatMap(r => r.claims)).toEqual([])
   })
 
@@ -58,23 +58,23 @@ describe('toCard', () => {
       ...proposal,
       operations: [
         ...proposal.operations,
-        { operation: 'addEdge', payload: { type: 'concerns', fromNodeId: 'seriesB16M', toNodeId: 'kdan' } },
+        { operation: 'addEdge', payload: { type: 'concerns', fromNodeId: 'raisedSeriesB', toNodeId: 'acme' } },
       ],
     }
     const grouped = toCard(withSubject)
 
-    expect(readingsOf(grouped).find(r => r.concept.id === 'kdan')?.claims.map(c => c.node.id)).toEqual(['seriesB16M'])
-    expect(readingsOf(grouped).find(r => r.concept.id === 'dottedSign')?.claims).toEqual([])
+    expect(readingsOf(grouped).find(r => r.concept.id === 'acme')?.claims.map(c => c.node.id)).toEqual(['raisedSeriesB'])
+    expect(readingsOf(grouped).find(r => r.concept.id === 'signFlow')?.claims).toEqual([])
     expect(grouped.looseClaims).toEqual([])
     expect(grouped.claimCount).toBe(1)
   })
 
   it('separates edges from nodes', () => {
-    expect(card.edges).toEqual([{ type: 'introduces', fromNodeId: 'kdanSeriesB2021', toNodeId: 'kdan' }])
+    expect(card.edges).toEqual([{ type: 'introduces', fromNodeId: 'acmeRoundReport', toNodeId: 'acme' }])
   })
 
   it('names each source rather than reducing it to a host', () => {
-    expect(card.sources).toEqual([{ id: 'kdanSeriesB2021', index: 1, title: 'TechCrunch report', url: 'https://techcrunch.com/a' }])
+    expect(card.sources).toEqual([{ id: 'acmeRoundReport', index: 1, title: 'Trade press report', url: 'https://press.example/a' }])
   })
 
   it('files concepts under the themes they belong to, and the rest last', () => {
@@ -82,14 +82,14 @@ describe('toCard', () => {
       ...proposal,
       operations: [
         ...proposal.operations,
-        { operation: 'addEdge', payload: { type: 'belongsTo', fromNodeId: 'kdan', toNodeId: 'funding' } },
+        { operation: 'addEdge', payload: { type: 'belongsTo', fromNodeId: 'acme', toNodeId: 'funding' } },
       ],
     }
     const card = toCard(themed)
 
     expect(card.groups.map(g => [g.title, g.readings.map(r => r.concept.id)])).toEqual([
-      ['Funding', ['kdan']],
-      ['Not filed under a theme', ['dottedSign']],
+      ['Funding', ['acme']],
+      ['Not filed under a theme', ['signFlow']],
     ])
   })
 
@@ -106,13 +106,13 @@ describe('toCard', () => {
       ...proposal,
       operations: [
         ...proposal.operations,
-        { operation: 'addEdge', payload: { type: 'concerns', fromNodeId: 'seriesB16M', toNodeId: 'kdan' } },
-        { operation: 'addEdge', payload: { type: 'concerns', fromNodeId: 'seriesB16M', toNodeId: 'dottedSign' } },
+        { operation: 'addEdge', payload: { type: 'concerns', fromNodeId: 'raisedSeriesB', toNodeId: 'acme' } },
+        { operation: 'addEdge', payload: { type: 'concerns', fromNodeId: 'raisedSeriesB', toNodeId: 'signFlow' } },
       ],
     }
     const card = toCard(tying)
 
-    expect(readingsOf(card).map(r => r.claims.map(c => c.node.id))).toEqual([['seriesB16M'], ['seriesB16M']])
+    expect(readingsOf(card).map(r => r.claims.map(c => c.node.id))).toEqual([['raisedSeriesB'], ['raisedSeriesB']])
     expect(card.looseClaims).toEqual([])
     expect(card.claimCount).toBe(1)
   })
@@ -122,19 +122,19 @@ describe('toCard', () => {
       ...proposal,
       operations: [
         ...proposal.operations,
-        { operation: 'addEdge', payload: { type: 'concerns', fromNodeId: 'seriesB16M', toNodeId: 'someOtherConcept' } },
+        { operation: 'addEdge', payload: { type: 'concerns', fromNodeId: 'raisedSeriesB', toNodeId: 'someOtherConcept' } },
       ],
     }
     const card = toCard(elsewhere)
 
-    expect(card.looseClaims.map(c => c.node.id)).toEqual(['seriesB16M'])
+    expect(card.looseClaims.map(c => c.node.id)).toEqual(['raisedSeriesB'])
     expect(readingsOf(card).flatMap(r => r.claims)).toEqual([])
   })
 
   it('numbers the source a claim traces to, so provenance rides beside the text', () => {
     expect(card.sources.map(s => s.index)).toEqual([1])
     expect(card.looseClaims[0]?.cites.map(c => c.index)).toEqual([1])
-    expect(card.looseClaims[0]?.cites[0]?.title).toBe('TechCrunch report')
+    expect(card.looseClaims[0]?.cites[0]?.title).toBe('Trade press report')
   })
 
   it('runs citation markers in reading order, whatever order the node lists them', () => {
