@@ -83,6 +83,14 @@ This is not a style preference. A fact buried in prose cannot be corroborated,
 contradicted, or traced on its own, so it is invisible to convergence. As a Claim
 it carries its own sources and joins the topology that decides confidence.
 
+## A unit holds several pages
+
+A source loader writes one file per sync, holding every page that source fetched,
+and that file is the unit an extraction reads. The pages arrive together so they
+can be reconciled against each other: one node per subject, one claim carrying
+several sources, and `supports` or `contradicts` where two pages agree or differ.
+That judgement is impossible page by page, which is why they are bundled.
+
 ## Evidence gate
 
 Every `Concept` and `Claim` you emit must carry provenance in

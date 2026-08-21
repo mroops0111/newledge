@@ -13,17 +13,3 @@ export function Surface({ children }: { children: ReactNode }): React.JSX.Elemen
 export function GroupLabel({ children }: { children: ReactNode }): React.JSX.Element {
   return <h3 className="font-ui text-label font-semibold uppercase text-ink-subtle">{children}</h3>
 }
-
-/** A quiet inline link, used where a claim traces back to its source. */
-export function SourceLink({ href, children }: { href: string, children: ReactNode }): React.JSX.Element {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="block rounded-control bg-raised px-2 py-1 font-ui text-xs text-ink-muted transition-colors hover:text-ink"
-    >
-      {children}
-    </a>
-  )
-}

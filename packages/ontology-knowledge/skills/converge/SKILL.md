@@ -7,7 +7,7 @@ braid:
   category: build
   order: 150
   summary: Converge concepts and claims across sources
-  required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
+  required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE, NEWLEDGE_CLAIMS_PER_CONCEPT]
 ---
 
 ## Role
@@ -68,7 +68,24 @@ For each cluster of claims on the same subject:
 - Ensure every genuine disagreement carries a `contradicts` edge. Surface it, never merge the claims.
 - Where sources restate one claim, consolidate its `metadata.sourceReferences` down to the most representative few and prune the outdated or minor ones.
 
-### Step 4: Submit Proposals and Clarifications
+### Step 4: Trim a Concept Back to Its Telling Claims
+
+Sources repeat each other, so claims accrue faster than understanding does, and a
+concept buried under its own evidence is harder to learn from. Where a concept
+carries more than `$NEWLEDGE_CLAIMS_PER_CONCEPT` claims, propose deprecating the
+weakest until it is back at the cap.
+
+Keep, in this order:
+
+1. Any claim carrying a `supports` or `contradicts` edge, since it holds the graph's confidence signal.
+2. Any claim corroborated by several sources.
+3. Whichever remaining claims say the most about what the concept is.
+
+Deprecate rather than remove, so provenance and history survive the trim, and say
+in the rationale which claims were set aside and why. A claim that concerns
+several concepts stays while any one of them still keeps it.
+
+### Step 5: Submit Proposals and Clarifications
 
 Submit a Proposal via `braid-core` proposal-create for the edge additions,
 reference consolidations, and confidence updates:
@@ -96,6 +113,7 @@ Processed K concepts, J claims: 1 merge clarification, 2 contradictions surfaced
 - [ ] No two concepts were merged without a confirming Clarification.
 - [ ] No two claims were merged, every disagreement carries a `contradicts` edge.
 - [ ] Each converged claim's `sourceReferences` is a pruned, representative shortlist.
+- [ ] No concept carries more claims than `$NEWLEDGE_CLAIMS_PER_CONCEPT`, and every claim set aside was deprecated rather than removed.
 - [ ] Each proposal was submitted via `braid-core` proposal-create and the final response was 201.
 
 ## Companion Docs
