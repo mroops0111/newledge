@@ -37,6 +37,7 @@ const EDGE_TYPES = { routed: RoutedEdge }
 const PLACEMENT = elkPlacement()
 const MIN_NAME_WIDTH = 10
 const DIMMED = 0.22
+const GRID = 24
 
 interface SectionDrag {
   readonly held: ReadonlySet<string>
@@ -359,9 +360,13 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
             nodesConnectable={false}
             minZoom={0.1}
             maxZoom={2}
+            // A card lands on the same grid the canvas draws, so two a reader
+            // dropped near each other line up rather than nearly lining up.
+            snapToGrid
+            snapGrid={[GRID, GRID]}
             proOptions={{ hideAttribution: true }}
           >
-            <Background color="var(--line-strong)" gap={24} size={1} />
+            <Background color="var(--line-strong)" gap={GRID} size={1} />
             <BoardTools
               extent={extent}
               laidOut={laidOut}

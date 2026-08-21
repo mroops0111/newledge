@@ -24,8 +24,8 @@
     /* A section is ground a reader has to see the edge of, so it is a warm
        sand rather than another shade of the canvas. Hue stays unspent here,
        because a board will want it for something it can measure. */
-    --section: #e7dabc;
-    --section-line: #c8b48a;
+    --section: #f0eae0;
+    --section-line: #ddd2c0;
 
     /* A relation has to be followed across a board, so it is drawn darker than
        the rules and borders that only need to separate things. */

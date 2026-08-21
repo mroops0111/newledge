@@ -4,9 +4,13 @@ import { TONE_COLOURS } from '../lib/boardStyle.js'
 const KINDS: readonly Exclude<MarkerKind, 'none'>[] = ['triangleHollow', 'diamond', 'arrow', 'dot']
 const TONES = Object.keys(TONE_COLOURS) as EdgeTone[]
 
-/** What an edge points its end at, or nothing when the relation has no direction. */
+/**
+ * What an edge points its end at, or nothing when it has no direction.
+ * The bare id, since the canvas wraps it in a reference itself and wrapping it
+ * here as well produces one nested inside another, which resolves to nothing.
+ */
 export function markerId(kind: MarkerKind, tone: EdgeTone): string | undefined {
-  return kind === 'none' ? undefined : `url(#board-${kind}-${tone})`
+  return kind === 'none' ? undefined : `board-${kind}-${tone}`
 }
 
 /**

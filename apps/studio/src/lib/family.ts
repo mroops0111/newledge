@@ -41,11 +41,14 @@ export function kinship(
     const highest = Math.min(...children.map(child => child.box.y))
     const bar = midpoint(parent.y + parent.height, highest)
     for (const child of children) {
+      // Drawn from the child towards the root, so the end that says what the
+      // relation is lands on the root from outside it. Drawn the other way it
+      // would point back into the card and be covered by it.
       drawn.set(child.id, [
-        { x: centre(parent), y: parent.y + parent.height },
-        { x: centre(parent), y: bar },
-        { x: centre(child.box), y: bar },
         { x: centre(child.box), y: child.box.y },
+        { x: centre(child.box), y: bar },
+        { x: centre(parent), y: bar },
+        { x: centre(parent), y: parent.y + parent.height },
       ])
     }
 
@@ -63,7 +66,12 @@ interface Family {
   readonly childOf: Map<string, string>
 }
 
-/** One family per parent and relation, since a card can be both a whole and a kind. */
+/**
+ * One family per root and relation, since a card can be both a whole and a kind.
+ * Which end is the root follows from the relation, not from how it was written.
+ * A whole contains its parts, so a part-of runs from the root, while a kind
+ * extends what it is a kind of, so an is-a runs towards it.
+ */
 function familiesIn(
   edges: readonly LayoutEdge[],
   at: ReadonlyMap<string, Box>,
@@ -73,11 +81,12 @@ function familiesIn(
     const kin = edgeStyle(edge.type).kin
     if (kin === 'curve' || !at.has(edge.from) || !at.has(edge.to))
       continue
-    const key = `${edge.from}:${edge.type}`
+    const [parentId, childId] = kin === 'brood' ? [edge.from, edge.to] : [edge.to, edge.from]
+    const key = `${parentId}:${edge.type}`
     const family = families.get(key)
-      ?? { parentId: edge.from, kin, edgeIds: [], childOf: new Map<string, string>() }
+      ?? { parentId, kin, edgeIds: [], childOf: new Map<string, string>() }
     family.edgeIds.push(edge.id)
-    family.childOf.set(edge.id, edge.to)
+    family.childOf.set(edge.id, childId)
     families.set(key, family)
   }
   return families

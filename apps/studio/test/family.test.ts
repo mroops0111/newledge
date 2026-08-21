@@ -20,8 +20,8 @@ function edge(id: string, type: string, from: string, to: string): LayoutEdge {
 
 describe('drawing a hierarchy', () => {
   const kin = kinship([
-    edge('k1', 'extends', 'whole', 'kindA'),
-    edge('k2', 'extends', 'whole', 'kindB'),
+    edge('k1', 'extends', 'kindA', 'whole'),
+    edge('k2', 'extends', 'kindB', 'whole'),
     edge('p1', 'contains', 'whole', 'partA'),
     edge('p2', 'contains', 'whole', 'partB'),
     edge('u1', 'uses', 'kindA', 'kindB'),
@@ -33,36 +33,55 @@ describe('drawing a hierarchy', () => {
 
   it('runs every sibling down the one trunk, so a family reads as one relation', () => {
     const [one, other] = [kin.edges.get('k1')!, kin.edges.get('k2')!]
-    expect(one[0]).toEqual(other[0])
-    expect(one[1]).toEqual(other[1])
+    expect(one[2]).toEqual(other[2])
+    expect(one[3]).toEqual(other[3])
   })
 
-  it('leaves the trunk from the parent and arrives at the top of each child', () => {
-    const route = kin.edges.get('k1')!
-    expect(route[0]).toEqual({ x: 400, y: 100 })
-    expect(route[3]).toEqual({ x: 100, y: 300 })
+  // A kind extends what it is a kind of, so the general one is the root even
+  // though the relation is written from the narrow end.
+  it('roots a kind at what it is a kind of, not at the end it was written from', () => {
+    const upward = kinship(
+      [edge('k1', 'extends', 'kindA', 'whole')],
+      new Map([['whole', box(300, 0)], ['kindA', box(0, 300)]]),
+    )
+    const route = upward.edges.get('k1')!
+    expect(route[3]).toEqual({ x: 400, y: 100 })
+    expect(route[0]).toEqual({ x: 100, y: 300 })
+  })
+
+  it('roots a part at the whole that holds it, which is the end it was written from', () => {
+    const route = kin.edges.get('p1')!
+    expect(route[3]).toEqual({ x: 400, y: 100 })
+    expect(route[0]).toEqual({ x: 100, y: 600 })
+  })
+
+  // The end that says what a relation is has to land on the root from outside,
+  // since a card is drawn over the lines that reach it.
+  it('finishes on the root, so its end is not covered by the card it points at', () => {
+    const route = kin.edges.get('p1')!
+    expect(route[route.length - 1]).toEqual({ x: 400, y: 100 })
   })
 
   it('keeps the shared bar clear of both the parent and the children', () => {
-    const bar = kin.edges.get('k1')![1]!.y
+    const bar = kin.edges.get('k1')![2]!.y
     expect(bar).toBeGreaterThan(100)
     expect(bar).toBeLessThan(300)
   })
 
   it('drops the bar just below the parent when there is no room to halve it', () => {
     const tight = kinship(
-      [edge('k1', 'extends', 'whole', 'kindA')],
+      [edge('k1', 'extends', 'kindA', 'whole')],
       new Map([['whole', box(0, 0)], ['kindA', box(0, 120)]]),
     )
-    expect(tight.edges.get('k1')![1]!.y).toBeGreaterThan(100)
+    expect(tight.edges.get('k1')![2]!.y).toBeGreaterThan(100)
   })
 
   it('keeps a whole and a kind apart, even from the same card', () => {
-    expect(kin.edges.get('k1')![1]).not.toEqual(kin.edges.get('p1')![1])
+    expect(kin.edges.get('k1')![2]).not.toEqual(kin.edges.get('p1')![2])
   })
 
   it('draws nothing for a relation whose end is not on the board', () => {
-    const stray = kinship([edge('k1', 'extends', 'whole', 'gone')], at)
+    const stray = kinship([edge('k1', 'extends', 'gone', 'whole')], at)
     expect(stray.edges.size).toBe(0)
   })
 })
