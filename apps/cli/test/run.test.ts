@@ -1,6 +1,6 @@
 import type { WebSearchProvider } from '@newledge/source-loader-web'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { readdirSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { WorkspaceId } from '@braidhq/schema'
@@ -42,9 +42,14 @@ describe('knowledge run pipeline', () => {
     const workspace = await runtime.deps.workspaceService.findById(id)
     expect(workspace.productManifest.ontologyId).toBe('knowledge')
 
+    // Every page lands in one file, so the batch runs one extraction over them.
     const feedDir = join(braidHome, 'workspaces', WORKSPACE_NAME, 'feeds', 'web')
     const files = readdirSync(feedDir).filter(name => name.endsWith('.md'))
-    expect(files.length).toBe(pages.length)
+    expect(files).toHaveLength(1)
+
+    const unit = readFileSync(join(feedDir, files[0]!), 'utf-8')
+    for (const page of pages)
+      expect(unit).toContain(page.url)
   })
 
   it('reuses the existing workspace on a second run', async () => {

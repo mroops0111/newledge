@@ -3,12 +3,35 @@ import { Card } from './Card.js'
 import type { InboxClient } from './client.js'
 import type { ProposalCard } from './proposal.js'
 import { toCard } from './proposal.js'
+import { conceptAnchor } from './Card.js'
 import { AppShell } from './ui/AppShell.js'
+import type { OutlineSection } from './ui/Outline.js'
+import { Outline } from './ui/Outline.js'
 
-function Shell({ count, children }: { count?: number, children: React.ReactNode }): React.JSX.Element {
+// The outline mirrors the cards, so a theme is where a reader steers from,
+// which is the only place topics surface at all.
+function outlineOf(cards: readonly ProposalCard[]): readonly OutlineSection[] {
+  return cards.flatMap(card => card.groups.map(group => ({
+    id: `${card.id}--${group.id}`,
+    title: group.title,
+    entries: group.readings.map(reading => ({
+      anchor: conceptAnchor(card.id, reading.concept.id),
+      label: reading.concept.name ?? reading.concept.id,
+    })),
+  })))
+}
+
+function Shell({ count, outline, children }: {
+  count?: number
+  outline?: readonly OutlineSection[]
+  children: React.ReactNode
+}): React.JSX.Element {
+  const panel = outline === undefined || outline.length === 0
+    ? undefined
+    : <Outline sections={outline} />
   return (
-    <AppShell items={[{ id: 'inbox', label: 'Reading inbox', count }]} activeId="inbox">
-      <div className="mx-auto max-w-column px-10 py-14">{children}</div>
+    <AppShell title="Reading inbox" count={count} panel={panel}>
+      {children}
     </AppShell>
   )
 }
@@ -59,7 +82,7 @@ export function Inbox({ client }: { client: InboxClient }): React.JSX.Element {
   }
 
   return (
-    <Shell count={cards.length}>
+    <Shell count={cards.length} outline={outlineOf(cards)}>
       <header className="mb-10">
         <h1 className="font-ui text-xl font-semibold tracking-tight text-ink">Reading inbox</h1>
         <p className="mt-2 font-reading text-prose-sm text-ink-muted">

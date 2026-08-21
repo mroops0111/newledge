@@ -74,6 +74,19 @@ describe('knowledgeOntology plugin wiring', () => {
     expect(dirBasename(knowledgeOntology.referenceDir!)).toBe('shared')
   })
 
+  it('hands the checkpoint a claim cap a deployment can set', () => {
+    const checkpoint = knowledgeOntology.batch?.checkpoint
+    expect(checkpoint?.extraEnv?.([])).toEqual({ NEWLEDGE_CLAIMS_PER_CONCEPT: '7' })
+
+    process.env.NEWLEDGE_CLAIMS_PER_CONCEPT = '3'
+    try {
+      expect(checkpoint?.extraEnv?.([])).toEqual({ NEWLEDGE_CLAIMS_PER_CONCEPT: '3' })
+    }
+    finally {
+      delete process.env.NEWLEDGE_CLAIMS_PER_CONCEPT
+    }
+  })
+
   it('binds a per-unit extract with a chunked converge checkpoint', () => {
     const batch = knowledgeOntology.batch
     expect(batch?.perUnit.skillId).toBe('knowledge:extract')

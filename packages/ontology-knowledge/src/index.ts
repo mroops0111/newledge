@@ -83,13 +83,26 @@ const sourceRoles: readonly SourceRoleInput[] = [
 ]
 
 // SKILL.md prompts shipped with this ontology, run by the agent runtime.
-// Each id is composed as `<ontologyId>:<directory basename>`,
+// Each id composes as `<ontologyId>:<directory basename>`,
 // so the directory named extract becomes `knowledge:extract`.
 function skillDir(verb: string): URL {
   return new URL(`../skills/${verb}`, import.meta.url)
 }
 function skillId(verb: string): SkillId {
   return SkillId.parse(`${ONTOLOGY_ID}:${verb}`)
+}
+
+const DEFAULT_CLAIMS_PER_CONCEPT = 7
+
+/**
+ * How many claims a concept keeps once convergence has weighed them.
+ * Sources repeat each other, so claims accrue faster than understanding does,
+ * and a concept buried under its own evidence is harder to learn from.
+ * Extraction stays free to propose, and the trimming happens at the checkpoint.
+ * Read at call time rather than at import, so a deployment can set it.
+ */
+function claimsPerConcept(): string {
+  return process.env.NEWLEDGE_CLAIMS_PER_CONCEPT ?? String(DEFAULT_CLAIMS_PER_CONCEPT)
 }
 
 /**
@@ -115,10 +128,10 @@ export const knowledgeOntology = defineOntologyPlugin({
   // mounted into each skill session so the ontology contract lives in one place.
   referenceDir: new URL('../skills/shared', import.meta.url),
 
-  // Batch and reactor binding. `knowledge:extract` runs once per fetched page,
+  // Batch and reactor binding. `knowledge:extract` runs once per unit,
   // and the checkpoint `knowledge:converge` fires every five successful extracts,
   // then once more at the end for a graph-wide pass.
-  // There is no deriveUnits, the feed loader already emits one unit per page.
+  // There is no deriveUnits, a feed source already writes the unit it yields.
   batch: {
     perUnit: {
       skillId: skillId('extract'),
@@ -129,6 +142,7 @@ export const knowledgeOntology = defineOntologyPlugin({
       label: 'Converge',
       chunkSize: 5,
       runAtEnd: true,
+      extraEnv: () => ({ NEWLEDGE_CLAIMS_PER_CONCEPT: claimsPerConcept() }),
     },
   },
 })

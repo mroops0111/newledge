@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import type { ConceptReading, GraphNodePayload, ProposalCard } from './proposal.js'
+import type { CitedNode, ConceptReading, ProposalCard, SourceLink, TopicGroup } from './proposal.js'
 import { Button } from './ui/Button.js'
-import { GroupLabel, SourceLink, Surface } from './ui/Card.js'
+import { GroupLabel, Surface } from './ui/Card.js'
+import { Cites, References } from './ui/Citation.js'
 
 type NodeKind = 'concept' | 'claim' | 'topic'
 
@@ -13,13 +14,18 @@ const KIND_ACCENT: Record<NodeKind, string> = {
   topic: 'border-l-topic',
 }
 
-function hostOf(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '')
-  }
-  catch {
-    return url
-  }
+// A bundle is titled by its one page when it holds one, and counted otherwise,
+// since seven titles cannot all lead.
+function headline(sources: readonly SourceLink[]): string {
+  const [only] = sources
+  if (sources.length === 1 && only !== undefined)
+    return only.title
+  return `${sources.length} readings on this search`
+}
+
+/** The anchor an outline entry jumps to. */
+export function conceptAnchor(cardId: string, conceptId: string): string {
+  return `${cardId}--${conceptId}`
 }
 
 function Tally({ colour, count, label }: { colour: string, count: number, label: string }): React.JSX.Element {
@@ -32,53 +38,83 @@ function Tally({ colour, count, label }: { colour: string, count: number, label:
   )
 }
 
-function ClaimLine({ claim }: { claim: GraphNodePayload }): React.JSX.Element {
+function ClaimLine({ claim }: { claim: CitedNode }): React.JSX.Element {
   return (
     <li className={`border-l-2 pl-4 ${KIND_ACCENT.claim}`}>
-      <p className="font-reading text-prose-sm text-ink">{claim.name ?? claim.id}</p>
-      {claim.description !== undefined && (
-        <p className="mt-1 font-reading text-prose-sm text-ink-muted">{claim.description}</p>
+      <p className="font-reading text-prose-sm text-ink">
+        {claim.node.name ?? claim.node.id}
+        <Cites cites={claim.cites} />
+      </p>
+      {claim.node.description !== undefined && (
+        <p className="mt-1 font-reading text-prose-sm text-ink-muted">{claim.node.description}</p>
       )}
     </li>
   )
 }
 
-function Reading({ reading }: { reading: ConceptReading }): React.JSX.Element {
+/**
+ * A concept leads with what it is, and its claims stay folded until asked for.
+ * A well-covered concept carries many assertions,
+ * and unfolding them all at once buries the definition the reader came for.
+ */
+function Reading({ anchor, reading }: { anchor: string, reading: ConceptReading }): React.JSX.Element {
+  const [open, setOpen] = useState(false)
   const { concept, claims } = reading
   return (
-    <li className={`border-l-2 pl-5 ${KIND_ACCENT.concept}`}>
-      <p className="font-ui text-sm font-semibold text-ink">{concept.name ?? concept.id}</p>
+    <li id={anchor} className={`scroll-mt-6 border-l-2 pl-5 ${KIND_ACCENT.concept}`}>
+      <p className="font-ui text-sm font-semibold text-ink">
+        {concept.name ?? concept.id}
+        <Cites cites={reading.cites} />
+      </p>
       {concept.description !== undefined && (
         <p className="mt-1.5 font-reading text-prose-sm text-ink-muted">{concept.description}</p>
       )}
+
       {claims.length > 0 && (
-        <ul className="mt-3 space-y-2.5">
-          {claims.map(claim => <ClaimLine key={claim.id} claim={claim} />)}
-        </ul>
+        <>
+          <button
+            type="button"
+            onClick={() => setOpen(!open)}
+            className="mt-2 font-ui text-xs text-ink-subtle underline decoration-line-strong underline-offset-4 transition-colors hover:text-ink-muted"
+          >
+            {open ? 'Hide claims' : `${claims.length} ${claims.length === 1 ? 'claim' : 'claims'}`}
+          </button>
+          {open && (
+            <ul className="mt-3 space-y-2.5">
+              {claims.map(claim => <ClaimLine key={claim.node.id} claim={claim} />)}
+            </ul>
+          )}
+        </>
       )}
     </li>
   )
 }
 
-function PlainList({ kind, label, nodes }: {
-  kind: NodeKind
-  label: string
-  nodes: readonly GraphNodePayload[]
-}): React.JSX.Element | null {
-  if (nodes.length === 0)
+function Theme({ cardId, group }: { cardId: string, group: TopicGroup }): React.JSX.Element {
+  return (
+    <section className="mt-7">
+      <GroupLabel>{group.title}</GroupLabel>
+      <ul className="mt-4 space-y-6">
+        {group.readings.map(reading => (
+          <Reading
+            key={reading.concept.id}
+            anchor={conceptAnchor(cardId, reading.concept.id)}
+            reading={reading}
+          />
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function LooseClaims({ claims }: { claims: readonly CitedNode[] }): React.JSX.Element | null {
+  if (claims.length === 0)
     return null
   return (
     <section className="mt-7">
-      <GroupLabel>{label}</GroupLabel>
+      <GroupLabel>Claims about nothing here</GroupLabel>
       <ul className="mt-4 space-y-4">
-        {nodes.map(node => (
-          <li key={node.id} className={`border-l-2 pl-5 ${KIND_ACCENT[kind]}`}>
-            <p className="font-ui text-sm font-semibold text-ink">{node.name ?? node.id}</p>
-            {node.description !== undefined && (
-              <p className="mt-1.5 font-reading text-prose-sm text-ink-muted">{node.description}</p>
-            )}
-          </li>
-        ))}
+        {claims.map(claim => <ClaimLine key={claim.node.id} claim={claim} />)}
       </ul>
     </section>
   )
@@ -90,6 +126,7 @@ export function Card({ card, onAbsorb, onDiscard }: {
   onDiscard: () => Promise<void>
 }): React.JSX.Element {
   const [showReasoning, setShowReasoning] = useState(false)
+  const [showSources, setShowSources] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const run = (action: () => Promise<void>) => async (): Promise<void> => {
@@ -102,38 +139,28 @@ export function Card({ card, onAbsorb, onDiscard }: {
     }
   }
 
-  const source = card.sources[0]
-
   return (
     <Surface>
       <header className="border-b border-line pb-5">
-        <h2 className="font-ui text-base font-semibold leading-snug text-ink">
-          {source?.name ?? 'Untitled reading'}
-        </h2>
+        <h2 className="font-ui text-base font-semibold leading-snug text-ink">{headline(card.sources)}</h2>
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
           <Tally colour="bg-concept" count={card.conceptCount} label="concepts" />
           <Tally colour="bg-claim" count={card.claimCount} label="claims" />
-          <span className="ml-auto flex flex-wrap gap-1.5">
-            {card.citations.map(url => (
-              <SourceLink key={url} href={url}>{hostOf(url)}</SourceLink>
-            ))}
-          </span>
+          {card.sources.length > 1 && (
+            <button
+              type="button"
+              onClick={() => setShowSources(!showSources)}
+              className="font-ui text-xs text-ink-subtle underline decoration-line-strong underline-offset-4 transition-colors hover:text-ink-muted"
+            >
+              {showSources ? 'Hide sources' : `${card.sources.length} sources`}
+            </button>
+          )}
         </div>
+        {showSources && <References sources={card.sources} />}
       </header>
 
-      {card.readings.length > 0 && (
-        <section className="mt-7">
-          <GroupLabel>Concepts</GroupLabel>
-          <ul className="mt-4 space-y-6">
-            {card.readings.map(reading => (
-              <Reading key={reading.concept.id} reading={reading} />
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <PlainList kind="claim" label="Claims" nodes={card.looseClaims} />
-      <PlainList kind="topic" label="Topics" nodes={card.topics} />
+      {card.groups.map(group => <Theme key={group.id} cardId={card.id} group={group} />)}
+      <LooseClaims claims={card.looseClaims} />
 
       <div className="mt-8 border-t border-line pt-6">
         <div className="flex flex-wrap items-center gap-2">

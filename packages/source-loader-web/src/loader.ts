@@ -1,6 +1,5 @@
 import type { SourceLoaderPlugin } from '@braidhq/core'
 import type { Timestamp } from '@braidhq/schema'
-import { createHash } from 'node:crypto'
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { defineSourceLoaderPlugin } from '@braidhq/sdk'
@@ -19,17 +18,31 @@ export const webSourceConfig = z.object({
 export type WebSourceConfig = z.infer<typeof webSourceConfig>
 
 const FILE_EXT = '.md'
+const BUNDLE_FILE = `results${FILE_EXT}`
 
-// Filename is a hash of the url, so the files on disk are the seen set,
-// and a re-sync diffs fresh results against them without a manifest.
-function fileNameFor(url: string): string {
-  return `${createHash('sha256').update(url).digest('hex').slice(0, 16)}${FILE_EXT}`
+// A unit is one file, so a query's results are bundled into one.
+// The extract skill then reads the pages together,
+// which is what lets it dedupe across them and weigh one against another.
+// Splitting a query across files would put the same concept in rival proposals,
+// and applying the second one is rejected as a duplicate id.
+function renderBundle(results: readonly WebSearchResult[]): string {
+  return results.map(renderResult).join('\n')
 }
 
-// The source url rides in an HTML comment so it reaches the extract file,
-// and full-content comparison of that file still detects an update.
-function render(result: WebSearchResult): string {
+// The source url rides in an HTML comment,
+// so each page inside the bundle stays attributable.
+// Full-content comparison still detects an update.
+function renderResult(result: WebSearchResult): string {
   return `<!-- source-url: ${result.url} -->\n# ${result.title}\n\n${result.markdown}\n`
+}
+
+async function readIfPresent(path: string): Promise<string | undefined> {
+  try {
+    return await readFile(path, 'utf-8')
+  }
+  catch {
+    return undefined
+  }
 }
 
 function now(): Timestamp {
@@ -56,49 +69,33 @@ export function createWebSourceLoaderPlugin(provider: WebSearchProvider): Source
       const results = await provider.search(toQuery(config))
       await rm(destination, { recursive: true, force: true })
       await mkdir(destination, { recursive: true })
-      await Promise.all(results.map(r => writeFile(join(destination, fileNameFor(r.url)), render(r), 'utf-8')))
+      await writeFile(join(destination, BUNDLE_FILE), renderBundle(results), 'utf-8')
       return { localPath: destination, metadata: { query: config.query, resultCount: results.length }, fetchedAt: now() }
     },
 
     sync: async (config, destination) => {
       await mkdir(destination, { recursive: true })
       const results = await provider.search(toQuery(config))
-      const fresh = new Map(results.map(r => [fileNameFor(r.url), render(r)]))
-      const existing = new Set((await readdir(destination)).filter(name => name.endsWith(FILE_EXT)))
+      const bundle = renderBundle(results)
+      const path = join(destination, BUNDLE_FILE)
+      const previous = await readIfPresent(path)
 
-      let added = 0
-      let updated = 0
-      let unchanged = 0
-      let removed = 0
+      // A file left by the earlier one-per-result layout enumerates as its own unit,
+      // so the bundle stays the only unit this source yields.
+      const stale = (await readdir(destination)).filter(name => name.endsWith(FILE_EXT) && name !== BUNDLE_FILE)
+      for (const name of stale)
+        await rm(join(destination, name))
 
-      for (const [name, content] of fresh) {
-        const path = join(destination, name)
-        if (!existing.has(name)) {
-          await writeFile(path, content, 'utf-8')
-          added++
-        }
-        else if (await readFile(path, 'utf-8') === content) {
-          unchanged++
-        }
-        else {
-          await writeFile(path, content, 'utf-8')
-          updated++
-        }
-      }
-
-      for (const name of existing) {
-        if (!fresh.has(name)) {
-          await rm(join(destination, name))
-          removed++
-        }
-      }
+      const changed = previous !== bundle || stale.length > 0
+      if (previous !== bundle)
+        await writeFile(path, bundle, 'utf-8')
 
       return {
-        changed: added + updated + removed > 0,
-        added,
-        updated,
-        removed,
-        unchanged,
+        changed,
+        added: previous === undefined ? 1 : 0,
+        updated: previous !== undefined && previous !== bundle ? 1 : 0,
+        removed: stale.length,
+        unchanged: previous === bundle ? 1 : 0,
         metadata: { query: config.query, resultCount: results.length },
         fetchedAt: now(),
       }
