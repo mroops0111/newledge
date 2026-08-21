@@ -3,6 +3,60 @@ export interface Point {
   readonly y: number
 }
 
+export interface Box extends Point {
+  readonly width: number
+  readonly height: number
+}
+
+/** How far a curve bows out from the straight line between two cards. */
+const BOW = 0.11
+
+/**
+ * Where a line between two cards should leave and arrive.
+ * A card is a rectangle, not a point, so a line is anchored where the run
+ * between the two centres crosses each border. That is what keeps a line
+ * between a card and the one below it short, instead of leaving the bottom of
+ * one and travelling round to the top of the other.
+ */
+export function borderRun(from: Box, to: Box): [Point, Point] {
+  const start = centreOf(from)
+  const end = centreOf(to)
+  return [onBorder(from, start, end), onBorder(to, end, start)]
+}
+
+/**
+ * A gentle arc between two points.
+ * A straight line reads as a diagram and a whiteboard is not one, so an
+ * association bows slightly, which also keeps two lines between the same
+ * neighbours from lying on top of each other.
+ */
+export function curvePath(from: Point, to: Point): string {
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const control = {
+    x: (from.x + to.x) / 2 - dy * BOW,
+    y: (from.y + to.y) / 2 + dx * BOW,
+  }
+  return `M ${from.x},${from.y} Q ${control.x},${control.y} ${to.x},${to.y}`
+}
+
+export function centreOf(box: Box): Point {
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+}
+
+/** Where the run from a box's centre towards a point leaves the box. */
+function onBorder(box: Box, from: Point, towards: Point): Point {
+  const dx = towards.x - from.x
+  const dy = towards.y - from.y
+  if (dx === 0 && dy === 0)
+    return from
+  const reach = Math.min(
+    dx === 0 ? Infinity : (box.width / 2) / Math.abs(dx),
+    dy === 0 ? Infinity : (box.height / 2) / Math.abs(dy),
+  )
+  return { x: from.x + dx * reach, y: from.y + dy * reach }
+}
+
 const CORNER = 10
 
 /**

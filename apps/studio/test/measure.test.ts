@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { cardExtent } from '../src/lib/measure.js'
-import { orthogonalPath } from '../src/lib/path.js'
+import { borderRun, curvePath, orthogonalPath } from '../src/lib/path.js'
 
 function node(type: string, name: string, description?: string): {
   id: string
@@ -67,5 +67,38 @@ describe('drawing a line along the route it was given', () => {
   it('leaves a corner where it is when a route doubles back on itself', () => {
     const path = orthogonalPath([{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 10, y: 0 }])
     expect(path).toContain('Q 0,0')
+  })
+})
+
+describe('anchoring a line on a card rather than on a point', () => {
+  const upper = { x: 0, y: 0, width: 200, height: 100 }
+  const lower = { x: 0, y: 300, width: 200, height: 100 }
+
+  it('leaves the near side of one card and arrives at the near side of the other', () => {
+    const [from, to] = borderRun(upper, lower)
+    expect(from).toEqual({ x: 100, y: 100 })
+    expect(to).toEqual({ x: 100, y: 300 })
+  })
+
+  it('takes the short way round when the target sits above the source', () => {
+    const [from, to] = borderRun(lower, upper)
+    expect(from).toEqual({ x: 100, y: 300 })
+    expect(to).toEqual({ x: 100, y: 100 })
+  })
+
+  it('leaves through the side when the other card is beside it', () => {
+    const [from] = borderRun(upper, { x: 500, y: 0, width: 200, height: 100 })
+    expect(from).toEqual({ x: 200, y: 50 })
+  })
+
+  it('stays put when two cards sit on top of each other', () => {
+    const [from, to] = borderRun(upper, upper)
+    expect(from).toEqual(to)
+  })
+
+  it('bows a curve off the straight line, so two never lie on top of each other', () => {
+    const path = curvePath({ x: 0, y: 0 }, { x: 100, y: 0 })
+    expect(path).not.toContain('Q 50,0')
+    expect(path.startsWith('M 0,0')).toBe(true)
   })
 })

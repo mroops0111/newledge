@@ -75,7 +75,7 @@ export function ConceptPanel({ node, held }: { node: GraphNode, held: Inside }):
 
       {held.claims.length > 0 && (
         <div className="mt-7">
-          <GroupLabel>{`${held.claims.length} said about it`}</GroupLabel>
+          <GroupLabel>Claims</GroupLabel>
           <ul className="mt-3 space-y-3">
             {held.claims.map(claim => (
               <li key={claim.id} className="border-l-2 border-claim pl-3">
@@ -90,7 +90,7 @@ export function ConceptPanel({ node, held }: { node: GraphNode, held: Inside }):
 
       {held.sources.length > 0 && (
         <div className="mt-7">
-          <GroupLabel>{`${held.sources.length} it came from`}</GroupLabel>
+          <GroupLabel>Traces to</GroupLabel>
           <ul className="mt-3 space-y-2">
             {held.sources.map(source => (
               <li key={source.id} className="font-ui text-xs leading-snug text-ink-muted">

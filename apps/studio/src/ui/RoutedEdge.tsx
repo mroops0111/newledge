@@ -1,7 +1,7 @@
 import type { EdgeProps } from '@xyflow/react'
-import { BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath } from '@xyflow/react'
+import { BaseEdge, EdgeLabelRenderer, getBezierPath } from '@xyflow/react'
 import type { Point } from '../lib/path.js'
-import { orthogonalPath } from '../lib/path.js'
+import { curvePath, orthogonalPath } from '../lib/path.js'
 
 export interface RoutedEdgeData {
   /** Where the router said this line bends, when a router has been asked. */
@@ -40,6 +40,9 @@ export function RoutedEdge(props: EdgeProps): React.JSX.Element {
 function pathFor(props: EdgeProps, data: RoutedEdgeData | undefined): [string, number, number] {
   const points = data?.points
   if (points !== undefined && points.length > 1) {
+    const [first, last] = [points[0]!, points[points.length - 1]!]
+    if (data?.curved === true)
+      return [curvePath(first, last), (first.x + last.x) / 2, (first.y + last.y) / 2]
     const middle = points[Math.floor(points.length / 2)]!
     return [orthogonalPath(points), middle.x, middle.y]
   }
@@ -51,8 +54,6 @@ function pathFor(props: EdgeProps, data: RoutedEdgeData | undefined): [string, n
     sourcePosition: props.sourcePosition,
     targetPosition: props.targetPosition,
   }
-  const [path, labelX, labelY] = data?.curved === false
-    ? getSmoothStepPath(ends)
-    : getBezierPath(ends)
+  const [path, labelX, labelY] = getBezierPath(ends)
   return [path, labelX, labelY]
 }

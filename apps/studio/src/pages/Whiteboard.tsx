@@ -10,8 +10,10 @@ import type { BoardClient } from '../lib/boards.js'
 import { renameSection, withBoard, withCard, withSection } from '../lib/boards.js'
 import { nodeStyle, TONE_COLOURS } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
+import type { DrawnEdge } from '../lib/drawing.js'
 import { drawnCards, drawnEdges } from '../lib/drawing.js'
 import { kinship } from '../lib/family.js'
+import { borderRun } from '../lib/path.js'
 import type { GraphEdge, GraphNode, Ontology } from '../lib/graph.js'
 import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
@@ -171,20 +173,22 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
 
   // Where the cards actually are right now, which is what a family tree has to
   // be drawn from, since a reader may have moved any of them since it opened.
+  const boxes = useMemo(() => new Map(drawn
+    .filter(node => node.type === 'card')
+    .map(node => [node.id, {
+      x: node.position.x,
+      y: node.position.y,
+      width: node.measured?.width ?? 0,
+      height: node.measured?.height ?? 0,
+    }])), [drawn])
+
   const kin = useMemo(() => {
-    const at = new Map(drawn
-      .filter(node => node.type === 'card')
-      .map(node => [node.id, {
-        x: node.position.x,
-        y: node.position.y,
-        width: node.measured?.width ?? 0,
-        height: node.measured?.height ?? 0,
-      }]))
+    const at = boxes
     return kinship(
       graph.edges.map(edge => ({ id: edge.id, type: edge.type, from: edge.fromNodeId, to: edge.toNodeId })),
       at,
     )
-  }, [drawn, graph])
+  }, [boxes, graph])
   const broods: Node<BroodBoxData>[] = useMemo(() => enclosures.map(brood => ({
     id: brood.id,
     type: 'brood',
@@ -197,10 +201,15 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
 
   const edges: Edge[] = useMemo(() => {
     const onBoard = new Set(drawn.filter(node => node.type === 'card').map(node => node.id))
-    // A hierarchy is drawn from where the cards are, so it survives a reader
-    // moving one. Everything else keeps the route it was placed with.
-    const pointsFor = (id: string): readonly { x: number, y: number }[] | undefined =>
-      kin.edges.get(id) ?? routes.get(id)
+    // A hierarchy and an association are both drawn from where the cards are,
+    // so both survive a reader moving one. An association runs border to
+    // border, which is the short way round rather than handle to handle.
+    const pointsFor = (edge: DrawnEdge): readonly { x: number, y: number }[] | undefined => {
+      if (edge.style.kin !== 'curve')
+        return kin.edges.get(edge.id) ?? routes.get(edge.id)
+      const [from, to] = [boxes.get(edge.source), boxes.get(edge.target)]
+      return from === undefined || to === undefined ? undefined : borderRun(from, to)
+    }
     return drawnEdges(graph.edges, onBoard, selected).map(edge => ({
       id: edge.id,
       source: edge.source,
@@ -208,7 +217,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       type: 'routed',
       ...(edge.label === undefined ? {} : { label: edge.label }),
       data: {
-        ...(pointsFor(edge.id) === undefined ? {} : { points: pointsFor(edge.id) }),
+        ...(pointsFor(edge) === undefined ? {} : { points: pointsFor(edge) }),
         curved: edge.style.kin === 'curve',
       } satisfies RoutedEdgeData,
       style: {
@@ -220,7 +229,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       // Above the ground a section paints, below the cards it holds.
       zIndex: 2,
     }))
-  }, [graph, drawn, selected, routes, kin])
+  }, [graph, drawn, selected, routes, kin, boxes])
 
   // A section is the shape of a thought, so moving one moves the thought,
   // and what sits inside keeps its arrangement rather than being relaid out.
