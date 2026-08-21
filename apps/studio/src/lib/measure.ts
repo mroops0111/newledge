@@ -2,14 +2,14 @@ import { nodeStyle } from './boardStyle.js'
 import type { NodeForm } from './boardStyle.js'
 import type { GraphNode } from './graph.js'
 
-const LINE = 18
-const TITLE_ROW = 34
-const PADDING = 20
-const DEFINITION_LINES = 3
-const CLAIM_LINES = { least: 2, most: 8 }
-// A card 240 wide with 12px of padding either side fits about this many
+const LINE = 20
+const TITLE_ROW = 36
+const PADDING = 22
+const DEFINITION_LINES = 6
+const CLAIM_LINES = { least: 2, most: 10 }
+// A card 320 wide with 14px of padding either side fits about this many
 // characters of reading text per line, which is close enough to lay out with.
-const PER_LINE = 34
+const PER_LINE = 46
 
 /**
  * How tall a card will be before it has been drawn.
@@ -38,7 +38,7 @@ function heightOf(node: GraphNode, form: NodeForm): number {
       return PADDING + lines * LINE
     }
     case 'source':
-      return TITLE_ROW + LINE * 2
+      return TITLE_ROW + LINE * 2 + PADDING / 2
     case 'topic':
       return TITLE_ROW
     default: {

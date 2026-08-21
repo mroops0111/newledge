@@ -24,11 +24,28 @@ const BOARD_OPTIONS: Record<string, string> = {
   'elk.padding': '[top=40.0,left=40.0,bottom=40.0,right=40.0]',
 }
 
+const GROUP_PADDING = '[top=20.0,left=20.0,bottom=20.0,right=20.0]'
+
+/**
+ * How many relations a section needs before laying it out in layers is worth it.
+ * A layered algorithm exists to make a dense directed graph readable. Given a
+ * section with almost nothing to go on it spreads the cards out to fill layers,
+ * which reads worse than simply sitting them together.
+ */
+const DENSE_ENOUGH = 0.6
+
 // A section lays itself out, and ELK asks each container for its own options
 // rather than reading them off the one above, so they are given again here.
-const GROUP_OPTIONS: Record<string, string> = {
-  ...CORE_OPTIONS,
-  'elk.padding': '[top=20.0,left=20.0,bottom=20.0,right=20.0]',
+function groupOptions(cards: number, relations: number): Record<string, string> {
+  const dense = cards > 0 && relations / cards >= DENSE_ENOUGH
+  return dense
+    ? { ...CORE_OPTIONS, 'elk.padding': GROUP_PADDING }
+    : {
+        ...CORE_OPTIONS,
+        'elk.algorithm': 'rectpacking',
+        'elk.padding': GROUP_PADDING,
+        'elk.aspectRatio': '1.6',
+      }
 }
 
 type ElkFactory = () => Promise<{
@@ -101,7 +118,7 @@ function write(request: PlacementRequest): ElkNode {
       id: group.id,
       children: held.get(group.id),
       edges: within.get(group.id) ?? [],
-      layoutOptions: GROUP_OPTIONS,
+      layoutOptions: groupOptions((held.get(group.id) ?? []).length, (within.get(group.id) ?? []).length),
     }))
 
   return {

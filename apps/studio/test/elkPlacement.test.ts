@@ -96,6 +96,41 @@ describe('handing a board to the layout kernel', () => {
     expect(section?.layoutOptions?.['elk.edgeRouting']).toBe('ORTHOGONAL')
   })
 
+  // A layered layout has nothing to go on in a section with almost no
+  // relations, and spreads the cards out to fill layers rather than sitting
+  // them together, which is what made a small board look empty.
+  it('sits a sparse section together instead of laying it out in layers', async () => {
+    const { sent, place } = asked()
+    await place({
+      nodes: [
+        { id: 'a', type: 'Concept', width: 240, height: 100, groupId: 'g1' },
+        { id: 'b', type: 'Concept', width: 240, height: 100, groupId: 'g1' },
+        { id: 'c', type: 'Concept', width: 240, height: 100, groupId: 'g1' },
+        { id: 'd', type: 'Concept', width: 240, height: 100, groupId: 'g1' },
+      ],
+      edges: [{ id: 'e1', type: 'uses', from: 'a', to: 'b' }],
+      groups: [{ id: 'g1' }],
+    })
+    expect(sent[0]?.children?.[0]?.layoutOptions?.['elk.algorithm']).toBe('rectpacking')
+  })
+
+  it('lays a section out in layers once its relations carry enough structure', async () => {
+    const { sent, place } = asked()
+    await place({
+      nodes: [
+        { id: 'a', type: 'Concept', width: 240, height: 100, groupId: 'g1' },
+        { id: 'b', type: 'Concept', width: 240, height: 100, groupId: 'g1' },
+        { id: 'c', type: 'Concept', width: 240, height: 100, groupId: 'g1' },
+      ],
+      edges: [
+        { id: 'e1', type: 'uses', from: 'a', to: 'b' },
+        { id: 'e2', type: 'uses', from: 'b', to: 'c' },
+      ],
+      groups: [{ id: 'g1' }],
+    })
+    expect(sent[0]?.children?.[0]?.layoutOptions?.['elk.algorithm']).toBe('layered')
+  })
+
   it('leaves out a section nobody filed anything under', async () => {
     const { sent, place } = asked()
     await place(request)

@@ -48,12 +48,12 @@ function body(node: GraphNode, form: NodeForm, colour: string): React.JSX.Elemen
     case 'concept': {
       return (
         <>
-          <div className="rounded-t-card border-l-2 px-3 py-2" style={{ borderLeftColor: colour }}>
+          <div className="rounded-t-card border-l-2 px-3.5 py-2.5" style={{ borderLeftColor: colour }}>
             <p className="truncate font-ui text-xs font-semibold text-ink">{node.name}</p>
           </div>
           {node.description !== undefined && (
-            <div className="px-3 pb-3">
-              <p className="line-clamp-3 font-reading text-[0.8125rem] leading-snug text-ink-muted">
+            <div className="px-3.5 pb-3.5">
+              <p className="line-clamp-6 font-reading text-[0.8125rem] leading-relaxed text-ink-muted">
                 {node.description}
               </p>
             </div>
@@ -66,8 +66,8 @@ function body(node: GraphNode, form: NodeForm, colour: string): React.JSX.Elemen
     // would destroy the thing itself, so the card is as tall as saying it takes.
     case 'claim': {
       return (
-        <div className="border-l-2 px-3 py-2.5" style={{ borderLeftColor: colour }}>
-          <p className="font-reading text-[0.8125rem] leading-snug text-ink">
+        <div className="border-l-2 px-3.5 py-3" style={{ borderLeftColor: colour }}>
+          <p className="font-reading text-[0.8125rem] leading-relaxed text-ink">
             {node.name}
           </p>
         </div>

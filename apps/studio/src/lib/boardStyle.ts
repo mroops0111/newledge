@@ -77,13 +77,15 @@ export const TONE_COLOURS: Readonly<Record<EdgeTone, string>> = {
   contradicts: 'var(--contradicts)',
 }
 
-const CARD_WIDTH = 240
+// A card has to be worth looking at without opening it, so the default is wide
+// enough to carry several lines of reading text rather than a label.
+const CARD_WIDTH = 320
 
 export const NODE_STYLES: Readonly<Record<string, NodeStyle>> = {
   Concept: { form: 'concept', width: CARD_WIDTH, ground: false, band: 0 },
   Claim: { form: 'claim', width: CARD_WIDTH, ground: false, band: 1 },
   Source: { form: 'source', width: CARD_WIDTH, ground: false, band: 2 },
-  Topic: { form: 'topic', width: 190, ground: true, band: 0 },
+  Topic: { form: 'topic', width: 220, ground: true, band: 0 },
 }
 
 const UNKNOWN_NODE: NodeStyle = { form: 'concept', width: CARD_WIDTH, ground: false, band: 3 }
