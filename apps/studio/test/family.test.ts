@@ -111,3 +111,45 @@ describe('drawing a hierarchy', () => {
     expect(stray.edges.size).toBe(0)
   })
 })
+
+describe('a family whose children sit above its root', () => {
+  // A layout is free to put children above their root, and a trunk sent
+  // downwards then runs through the root's own card and out the far side,
+  // which reads as a line that has been cut in two.
+  const upward = kinship(
+    [edge('p1', 'contains', 'whole', 'partA'), edge('p2', 'contains', 'whole', 'partB')],
+    new Map([
+      ['whole', box(300, 600)],
+      ['partA', box(0, 0)],
+      ['partB', box(600, 0)],
+    ]),
+  )
+
+  it('meets the root on the face the children are on', () => {
+    expect(upward.edges.get('p1')![3]).toEqual({ x: 400, y: 600 })
+  })
+
+  it('runs the bar between the children and the root, not past the root', () => {
+    const bar = upward.edges.get('p1')![2]!.y
+    expect(bar).toBeGreaterThan(100)
+    expect(bar).toBeLessThan(600)
+  })
+
+  it('leaves each child by the face the bar is on', () => {
+    expect(upward.edges.get('p1')![0]).toEqual({ x: 100, y: 100 })
+    expect(upward.edges.get('p2')![0]).toEqual({ x: 700, y: 100 })
+  })
+
+  it('still shares one bar, so a family reads as one relation', () => {
+    expect(upward.edges.get('p1')![2]!.y).toBe(upward.edges.get('p2')![2]!.y)
+  })
+
+  it('clears a child that straddles the root rather than crossing it', () => {
+    const straddling = kinship(
+      [edge('p1', 'contains', 'whole', 'partA')],
+      new Map([['whole', box(0, 300)], ['partA', box(400, 250)]]),
+    )
+    const bar = straddling.edges.get('p1')![2]!.y
+    expect(bar).toBeLessThan(250)
+  })
+})
