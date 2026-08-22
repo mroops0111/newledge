@@ -27,7 +27,9 @@ export function kinship(
       .map(id => ({ id, box: at.get(group.childOf.get(id)!)! }))
       .sort((one, other) => one.box.x - other.box.x)
 
-    const trunk = trunkFor(parent, children.map(child => child.box))
+    const kept = new Set([group.parentId, ...group.edgeIds.map(id => group.childOf.get(id)!)])
+    const others = [...at].filter(([id]) => !kept.has(id)).map(([, box]) => box)
+    const trunk = trunkFor(parent, children.map(child => child.box), others)
     for (const child of children) {
       // Drawn from the child towards the root, so the end that says what the
       // relation is lands on the root from outside it. Drawn the other way it
@@ -83,34 +85,65 @@ function familiesIn(
  * downwards. Sent the wrong way it runs straight through the root's own card
  * and comes out the far side, which reads as a line that has been cut in two.
  *
- * The bar also has to clear every card in the family, since a card is drawn
- * over the lines that reach it.
+ * The bar also has to clear every card it runs past, its own family's and
+ * anyone else's, since a card is drawn over the lines that reach it. A family
+ * spread wide enough has a bar long enough to reach cards that have nothing to
+ * do with it, and run through one it reads as two lines with a gap.
  */
-function trunkFor(root: Box, children: readonly Box[]): { bar: number, root: number } {
+function trunkFor(root: Box, children: readonly Box[], others: readonly Box[]): { bar: number, root: number } {
   const under = root.y + root.height
   const below = children.filter(child => middle(child) > middle(root))
+  const reaches = {
+    from: Math.min(centre(root), ...children.map(centre)),
+    to: Math.max(centre(root), ...children.map(centre)),
+  }
 
   if (below.length * 2 >= children.length) {
     const straddling = children.filter(child => child.y < under)
     const clear = Math.max(under, ...straddling.map(child => child.y + child.height))
     const highest = Math.min(...children.map(child => child.y))
-    return {
-      bar: straddling.length === 0 && highest - under > TRUNK * 2
-        ? (under + highest) / 2
-        : clear + TRUNK,
-      root: under,
-    }
+    const wanted = straddling.length === 0 && highest - under > TRUNK * 2
+      ? (under + highest) / 2
+      : clear + TRUNK
+    return { bar: lane(wanted, under, reaches, 1, [...children, ...others]), root: under }
   }
 
   const straddling = children.filter(child => child.y + child.height > root.y)
   const clear = Math.min(root.y, ...straddling.map(child => child.y))
   const lowest = Math.max(...children.map(child => child.y + child.height))
-  return {
-    bar: straddling.length === 0 && root.y - lowest > TRUNK * 2
-      ? (root.y + lowest) / 2
-      : clear - TRUNK,
-    root: root.y,
-  }
+  const wanted = straddling.length === 0 && root.y - lowest > TRUNK * 2
+    ? (root.y + lowest) / 2
+    : clear - TRUNK
+  return { bar: lane(wanted, root.y, reaches, -1, [...children, ...others]), root: root.y }
+}
+
+/**
+ * The nearest height the bar can run at without passing through a card.
+ * Only heights on the far side of the face it leaves the root by are taken,
+ * since coming back past that face would send the root's own stem back through
+ * the root's card. Nearer the wanted height is better whichever way it lies,
+ * so a bar squeezed by a card goes to whichever side of it has more room.
+ * Nothing free means the bar runs where it wanted to, which is the best of a
+ * bad job on a board with no room left in it.
+ */
+function lane(
+  wanted: number,
+  beyond: number,
+  reaches: { from: number, to: number },
+  away: number,
+  cards: readonly Box[],
+): number {
+  const inTheWay = cards.filter(card => card.x < reaches.to && card.x + card.width > reaches.from)
+  const blocked = (y: number): boolean =>
+    inTheWay.some(card => card.y <= y && y <= card.y + card.height)
+  if (!blocked(wanted))
+    return wanted
+
+  const free = inTheWay
+    .flatMap(card => [card.y - TRUNK, card.y + card.height + TRUNK])
+    .filter(y => (y - beyond) * away > 0 && !blocked(y))
+    .sort((one, other) => Math.abs(one - wanted) - Math.abs(other - wanted))
+  return free[0] ?? wanted
 }
 
 function middle(box: Box): number {

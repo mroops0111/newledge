@@ -1,35 +1,62 @@
 import { describe, expect, it } from 'vitest'
 import type { Point } from '../src/lib/path.js'
-import { borderRun, curvePath } from '../src/lib/path.js'
+import { borderRun, curvePath, facing } from '../src/lib/path.js'
 
-/** How far the drawn curve leaves the straight line between its two ends. */
-function sagitta(from: Point, to: Point): number {
-  const drawn = /Q ([-\d.]+),([-\d.]+)/.exec(curvePath(from, to))!
-  const control = { x: Number(drawn[1]), y: Number(drawn[2]) }
-  // Halfway along a quadratic sits halfway between the chord and the control.
-  const middle = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }
-  return Math.hypot(control.x - middle.x, control.y - middle.y) / 2
+/** The two handles of the drawn cubic, which say which way it leaves each end. */
+function handles(path: string): [Point, Point] {
+  const drawn = /C ([-\d.]+),([-\d.]+) ([-\d.]+),([-\d.]+)/.exec(path)!
+  return [
+    { x: Number(drawn[1]), y: Number(drawn[2]) },
+    { x: Number(drawn[3]), y: Number(drawn[4]) },
+  ]
 }
 
-describe('the arc an association is drawn as', () => {
-  it('bows gently between two cards standing side by side', () => {
-    const bow = sagitta({ x: 0, y: 0 }, { x: 80, y: 0 })
-    expect(bow).toBeGreaterThan(2)
-    expect(bow).toBeLessThan(6)
+describe('the S an association is drawn as', () => {
+  it('leaves and arrives square on to the borders it crosses', () => {
+    const from = { x: 0, y: 0 }
+    const to = { x: 400, y: 200 }
+    const [out, into] = handles(curvePath(from, to, 'x', 'x'))
+    expect(out.y).toBe(from.y)
+    expect(into.y).toBe(to.y)
+    expect(out.x).toBeGreaterThan(from.x)
+    expect(into.x).toBeLessThan(to.x)
   })
 
-  it('stops growing, so a run across the board is all but straight', () => {
-    const bow = sagitta({ x: 0, y: 0 }, { x: 1600, y: 0 })
-    expect(bow).toBeLessThanOrEqual(24)
+  it('turns in the middle rather than doubling back on itself', () => {
+    const [out, into] = handles(curvePath({ x: 0, y: 0 }, { x: 400, y: 200 }, 'x', 'x'))
+    expect(out.x).toBeLessThanOrEqual(into.x)
   })
 
-  it('bows the same amount whichever way the run points', () => {
-    expect(sagitta({ x: 0, y: 0 }, { x: 1600, y: 0 }))
-      .toBeCloseTo(sagitta({ x: 0, y: 0 }, { x: 0, y: 1600 }))
+  it('runs the other way when the ends face up and down', () => {
+    const [out, into] = handles(curvePath({ x: 0, y: 0 }, { x: 200, y: 400 }, 'y', 'y'))
+    expect(out.x).toBe(0)
+    expect(into.x).toBe(200)
+    expect(out.y).toBeGreaterThan(0)
+    expect(into.y).toBeLessThan(400)
+  })
+
+  it('takes the way from the longer side of the run when it is not told', () => {
+    expect(handles(curvePath({ x: 0, y: 0 }, { x: 400, y: 20 }))[0]!.y).toBe(0)
+    expect(handles(curvePath({ x: 0, y: 0 }, { x: 20, y: 400 }))[0]!.x).toBe(0)
+  })
+
+  it('still reaches out when the run is too short for a share of it to show', () => {
+    expect(handles(curvePath({ x: 0, y: 0 }, { x: 10, y: 0 }, 'x', 'x'))[0]!.x).toBe(30)
+  })
+
+  it('stops reaching, so a long run stays on the ground a router cleared', () => {
+    expect(handles(curvePath({ x: 0, y: 0 }, { x: 2000, y: 400 }, 'x', 'x'))[0]!.x).toBe(60)
   })
 
   it('draws something rather than nothing when both ends are the same point', () => {
-    expect(curvePath({ x: 10, y: 10 }, { x: 10, y: 10 })).toBe('M 10,10 Q 10,10 10,10')
+    expect(curvePath({ x: 10, y: 10 }, { x: 10, y: 10 }))
+      .toBe('M 10,10 C 40,10 -20,10 10,10')
+  })
+
+  it('reads which way to leave off the border the end sits on', () => {
+    const card = { x: 0, y: 0, width: 400, height: 100 }
+    expect(facing(card, { x: 400, y: 50 })).toBe('x')
+    expect(facing(card, { x: 200, y: 100 })).toBe('y')
   })
 
   it('anchors a run on the borders it crosses, not on the two centres', () => {

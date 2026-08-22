@@ -63,9 +63,22 @@ export interface Placement {
   readonly place: (request: PlacementRequest) => Promise<Placed>
 }
 
+/** Something a line has to reckon with, either by ending on it or by avoiding it. */
+export interface Obstacle extends Box {
+  readonly id: string
+  /**
+   * Whether a line may run over this rather than round it.
+   * A group is ground, drawn under everything, so a line crossing one is in no
+   * danger of being hidden by it and gains nothing by going round. Told to
+   * avoid one, a line on a board whose groups fill it finds no way through at
+   * all and falls back to running straight over everything.
+   */
+  readonly ground?: boolean
+}
+
 export interface RoutingRequest {
-  /** Everything a line has to get around, which is every card and every group. */
-  readonly obstacles: readonly (Box & { readonly id: string })[]
+  /** Everything a line has to get around, and everything it can end on. */
+  readonly obstacles: readonly Obstacle[]
   readonly edges: readonly LayoutEdge[]
 }
 

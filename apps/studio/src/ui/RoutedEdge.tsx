@@ -1,12 +1,15 @@
 import type { EdgeProps } from '@xyflow/react'
 import { BaseEdge, EdgeLabelRenderer, getBezierPath } from '@xyflow/react'
-import type { Point } from '../lib/path.js'
+import type { Facing, Point } from '../lib/path.js'
 import { curvePath, orthogonalPath } from '../lib/path.js'
 
 export interface RoutedEdgeData {
   /** Where the router said this line bends, when a router has been asked. */
   readonly points?: readonly Point[]
   readonly curved: boolean
+  /** Which way the line runs as it leaves each card, when the cards are known. */
+  readonly leaves?: Facing
+  readonly arrives?: Facing
   [key: string]: unknown
 }
 
@@ -49,7 +52,7 @@ function pathFor(props: EdgeProps, data: RoutedEdgeData | undefined): [string, n
     }
     const [first, last] = [points[0]!, points[points.length - 1]!]
     return data?.curved === true
-      ? [curvePath(first, last), (first.x + last.x) / 2, (first.y + last.y) / 2]
+      ? [curvePath(first, last, data.leaves, data.arrives), (first.x + last.x) / 2, (first.y + last.y) / 2]
       : [orthogonalPath(points), (first.x + last.x) / 2, (first.y + last.y) / 2]
   }
   const ends = {

@@ -131,6 +131,6 @@ describe('following a route rather than cutting across it', () => {
 
   it('has nothing to go round when a route is only its two ends', () => {
     const path = curvePath({ x: 0, y: 0 }, { x: 100, y: 0 })
-    expect(path.split(' ').filter(part => part === 'Q')).toHaveLength(1)
+    expect(path.split(' ').filter(part => part === 'C')).toHaveLength(1)
   })
 })
