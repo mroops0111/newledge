@@ -63,8 +63,8 @@ export interface DrawnRelations {
  *
  * A relation that cannot be drawn without a line long enough to be lost is
  * left undrawn, and what it says is not thrown away. It joins one line between
- * the two grounds, which says how many it stands for, and the card names it in
- * words.
+ * the two grounds, which says in words how many relations it stands for and
+ * why none of them is drawn, and the card names it too.
  */
 export function drawnRelations(
   edges: readonly GraphEdge[],
@@ -74,7 +74,12 @@ export function drawnRelations(
   selected: ReadonlySet<string>,
 ): DrawnRelations {
   const lines: DrawnEdge[] = []
-  const crossing = new Map<string, { source: string, target: string, ends: Set<string> }>()
+  const crossing = new Map<string, {
+    source: string
+    target: string
+    ends: Set<string>
+    relations: number
+  }>()
 
   for (const edge of edges) {
     if (!edgeStyle(edge.type).onBoard)
@@ -109,8 +114,9 @@ export function drawnRelations(
       continue
     const [one, other] = [from, to].sort() as [string, string]
     const pair = crossing.get(`${one}|${other}`)
-      ?? { source: one, target: other, ends: new Set<string>() }
+      ?? { source: one, target: other, ends: new Set<string>(), relations: 0 }
     pair.ends.add(edge.fromNodeId).add(edge.toNodeId)
+    pair.relations += 1
     crossing.set(`${one}|${other}`, pair)
   }
 
@@ -120,10 +126,13 @@ export function drawnRelations(
       id: `between-${id}`,
       source: pair.source,
       target: pair.target,
-      // Always said, since this is the one line whose shape does not carry
-      // what it is. Every other line says its kind by the end it points with,
-      // and a reader who cannot tell what a line means cannot use it.
-      label: `${pair.ends.size} across`,
+      // Always said, and said in full. This is the one line whose shape does
+      // not carry what it is, every other line says its kind by the end it
+      // points with, and a reader who cannot tell what a line means cannot
+      // use it. What it counts is relations, not the cards they run between.
+      label: pair.relations === 1
+        ? '1 relation, too far to draw'
+        : `${pair.relations} relations, too far to draw`,
       style: BETWEEN_GROUNDS,
       standsFor: [...pair.ends],
     })),

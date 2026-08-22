@@ -145,3 +145,42 @@ describe('the visual language', () => {
     expect(nodeStyle('Concept').ground).toBe(false)
   })
 })
+
+describe('what a line between two grounds says it stands for', () => {
+  // The one line on the board whose shape does not carry what it is, so it has
+  // to say so, and say it in a way that needs nothing else to be read first.
+  const nothingFits = (): boolean => false
+
+  it('counts relations, not the cards they run between', () => {
+    const drawn = drawnRelations(
+      [edge('u1', 'uses', 'here', 'there')],
+      id => id,
+      id => (id === 'here' ? 'left' : 'right'),
+      nothingFits,
+      new Set(),
+    )
+    expect(drawn.summaries[0]!.label).toBe('1 relation, too far to draw')
+  })
+
+  it('counts every relation it stands for, not every pair of ends', () => {
+    const drawn = drawnRelations(
+      [edge('u1', 'uses', 'here', 'there'), edge('r1', 'relatesTo', 'here', 'there')],
+      id => id,
+      id => (id === 'here' ? 'left' : 'right'),
+      nothingFits,
+      new Set(),
+    )
+    expect(drawn.summaries[0]!.label).toBe('2 relations, too far to draw')
+  })
+
+  it('says so whether or not a reader has asked about either end', () => {
+    const drawn = drawnRelations(
+      [edge('u1', 'uses', 'here', 'there')],
+      id => id,
+      id => (id === 'here' ? 'left' : 'right'),
+      nothingFits,
+      new Set(['here']),
+    )
+    expect(drawn.summaries[0]!.label).toBe('1 relation, too far to draw')
+  })
+})
