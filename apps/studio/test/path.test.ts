@@ -44,8 +44,17 @@ describe('the S an association is drawn as', () => {
     expect(handles(curvePath({ x: 0, y: 0 }, { x: 10, y: 0 }, 'x', 'x'))[0]!.x).toBe(30)
   })
 
-  it('stops reaching, so a long run stays on the ground a router cleared', () => {
-    expect(handles(curvePath({ x: 0, y: 0 }, { x: 2000, y: 400 }, 'x', 'x'))[0]!.x).toBe(60)
+  it('stops reaching, so a run across the board cannot swing past its own end', () => {
+    expect(handles(curvePath({ x: 0, y: 0 }, { x: 2000, y: 400 }, 'x', 'x'))[0]!.x).toBe(220)
+  })
+
+  it('crosses the straight run at the middle, however far it reaches', () => {
+    // Which is why the reach can be generous. A curve that bulges one way and
+    // then the other stays about the line between its ends rather than leaving
+    // the ground a router cleared along that line.
+    const [out, into] = handles(curvePath({ x: 0, y: 0 }, { x: 400, y: 200 }, 'x', 'x'))
+    expect((out.x + into.x) / 2).toBeCloseTo(200)
+    expect((out.y + into.y) / 2).toBeCloseTo(100)
   })
 
   it('draws something rather than nothing when both ends are the same point', () => {

@@ -15,6 +15,13 @@ export interface LayoutNode extends Extent {
   readonly id: string
   readonly type: string
   readonly groupId?: string
+  /**
+   * Whether the relations inside this group settle the order of its members.
+   * A group holding a whole and its parts is a hierarchy however few it holds,
+   * and has to be laid out as one, or the parts come back above the whole and
+   * a reader has to work out which way round it goes from the arrow heads.
+   */
+  readonly ranked?: boolean
 }
 
 export interface LayoutEdge {
@@ -35,6 +42,13 @@ export interface LayoutGroup {
    * only told which cards are parts is free to scatter them.
    */
   readonly groupId?: string
+  /**
+   * Whether the relations inside this group settle the order of its members.
+   * A group holding a whole and its parts is a hierarchy however few it holds,
+   * and has to be laid out as one, or the parts come back above the whole and
+   * a reader has to work out which way round it goes from the arrow heads.
+   */
+  readonly ranked?: boolean
 }
 
 export interface PlacementRequest {

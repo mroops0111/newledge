@@ -112,9 +112,12 @@ export async function firstArrangement(
     }
   })
 
+  // A brood is a whole and its parts, which is a hierarchy however few it
+  // holds, so its order comes from the relations inside it and not from how
+  // well its members happen to pack.
   const broods = [...new Set(partOf.values())].map((id) => {
     const seat = sectionOf(id.slice(BROOD.length))
-    return { id, ...(seat === undefined ? {} : { groupId: seat }) }
+    return { id, ranked: true, ...(seat === undefined ? {} : { groupId: seat }) }
   })
   const edges: LayoutEdge[] = graph.edges.map(edge => ({
     id: edge.id,

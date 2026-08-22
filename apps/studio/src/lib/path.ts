@@ -20,13 +20,12 @@ const LEAST_REACH = 30
 
 /**
  * How far it reaches however long the run is.
- * A router clears the straight run between two cards, not the curve drawn
- * along it, so a curve that leaves that run by half its length is not on
- * cleared ground at all and passes through whatever the router went to the
- * trouble of avoiding. Held to this, the curve is the straight run with its
- * two ends turned to meet their borders square on.
+ * With both ends facing the same way the curve keeps to the box its two ends
+ * make and crosses the straight run at the middle whatever it reaches, so the
+ * reach is free to be generous. Facing different ways it can swing past an end
+ * instead, and this is what stops it from swinging far.
  */
-const MOST_REACH = 60
+const MOST_REACH = 220
 
 /** The axis a line runs along as it leaves a card, set by the border it left by. */
 export type Facing = 'x' | 'y'
@@ -100,7 +99,15 @@ function onBorder(box: Box, from: Point, towards: Point): Point {
   return { x: from.x + dx * reach, y: from.y + dy * reach }
 }
 
-const CORNER = 10
+/**
+ * How far back from a corner a route starts turning.
+ * A rounded corner cuts inside the turn by under a third of this, so kept to
+ * the clearance a route was given it cannot cut into whatever the route went
+ * round. That is also as round as a corner can honestly be drawn, and a board
+ * of nearly square corners reads as a circuit diagram rather than as something
+ * drawn by hand.
+ */
+const CORNER = 20
 
 /**
  * An SVG path through the points a router handed back.

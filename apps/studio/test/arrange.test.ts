@@ -2,7 +2,7 @@ import { sectionHolding } from '@newledge/board'
 import { gridPlacement } from '@newledge/board-layout'
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { Arrangement } from '../src/lib/arrange.js'
-import { firstArrangement } from '../src/lib/arrange.js'
+import { broodOf, firstArrangement } from '../src/lib/arrange.js'
 import type { GraphEdge, GraphNode } from '../src/lib/graph.js'
 
 function node(id: string, type: string, name = id): GraphNode {
@@ -201,5 +201,45 @@ describe('moving sections so what relates sits nearer', () => {
     const { board } = await firstArrangement(quiet, gridPlacement())
     expect(board.sections.map(section => section.x))
       .toEqual([...board.sections].sort((one, other) => one.x - other.x).map(section => section.x))
+  })
+})
+
+describe('which way round a whole and its parts are laid out', () => {
+  // Packed rather than laid out, two cards go wherever they fit, and a reader
+  // has to work out which way a hierarchy runs from the arrow heads.
+  const held = {
+    nodes: [
+      node('subscription', 'Concept', 'The subscription'),
+      node('reader', 'Concept', 'The reader'),
+    ],
+    edges: [edge('contains', 'subscription', 'reader')],
+  }
+
+  it('says the relations inside a brood settle its order', async () => {
+    const asked: string[] = []
+    await firstArrangement(held, {
+      id: 'noting',
+      place: async (request) => {
+        asked.push(...request.groups.filter(group => group.ranked === true).map(group => group.id))
+        return gridPlacement().place(request)
+      },
+    })
+    expect(asked).toEqual([broodOf('subscription')])
+  })
+
+  it('does not say it of a section, which holds whatever was filed there', async () => {
+    const filed = {
+      nodes: [node('topic', 'Topic'), node('one', 'Concept'), node('other', 'Concept')],
+      edges: [edge('belongsTo', 'one', 'topic'), edge('belongsTo', 'other', 'topic')],
+    }
+    const ranked: string[] = []
+    await firstArrangement(filed, {
+      id: 'noting',
+      place: async (request) => {
+        ranked.push(...request.groups.filter(group => group.ranked === true).map(group => group.id))
+        return gridPlacement().place(request)
+      },
+    })
+    expect(ranked).toEqual([])
   })
 })
