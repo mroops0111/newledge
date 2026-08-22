@@ -44,7 +44,9 @@ const GROUP_PADDING = 20
  * How many relations a section needs before laying it out in layers is worth it.
  * A layered algorithm exists to make a dense directed graph readable. Given a
  * section with almost nothing to go on it spreads the cards out to fill layers,
- * which reads worse than simply sitting them together.
+ * which reads worse than simply sitting them together. A group that says its
+ * order is settled by its relations is laid out in layers whatever this says,
+ * since a hierarchy of two is still a hierarchy.
  */
 const DENSE_ENOUGH = 0.6
 
@@ -52,8 +54,8 @@ const DENSE_ENOUGH = 0.6
 // rather than reading them off the one above, so they are given again here.
 // What the group asked to keep clear is kept clear at the top, which is where
 // a section carries its name.
-function groupOptions(cards: number, relations: number, header: number): Record<string, string> {
-  const dense = cards > 0 && relations / cards >= DENSE_ENOUGH
+function groupOptions(cards: number, relations: number, header: number, ranked: boolean): Record<string, string> {
+  const dense = ranked || (cards > 0 && relations / cards >= DENSE_ENOUGH)
   const padding = `[top=${(GROUP_PADDING + header).toFixed(1)},left=${GROUP_PADDING}.0,`
     + `bottom=${GROUP_PADDING}.0,right=${GROUP_PADDING}.0]`
   return dense
@@ -159,6 +161,7 @@ function write(request: PlacementRequest): ElkNode {
         children.length,
         (within.get(group.id) ?? []).length,
         group.inset?.height ?? 0,
+        group.ranked === true,
       ),
     })
   }
