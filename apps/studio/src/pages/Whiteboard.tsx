@@ -17,7 +17,7 @@ import type { DrawnEdge } from '../lib/drawing.js'
 import { drawnCards, drawnRelations } from '../lib/drawing.js'
 import { cardExtent } from '../lib/measure.js'
 import { kinship } from '../lib/family.js'
-import { familyColours, familyOfRoot, kinColour, lineageLabel, lineages, lineColour, NO_FAMILY } from '../lib/kinship.js'
+import { familyColours, familyOfRoot, kinColour, lineageLabel, lineages, lineColour, NO_FAMILY, noteLabel } from '../lib/kinship.js'
 import type { Box, Facing } from '../lib/path.js'
 import { borderRun, facing } from '../lib/path.js'
 import type { GraphEdge, GraphNode } from '../lib/graph.js'
@@ -275,26 +275,6 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   }, [boxes, graph])
   // A reader who picked something wants the rest out of the way, gently while
   // they glance and entirely once they ask to focus.
-  /**
-   * The cards as the canvas is given them.
-   * A card moves only once it has been picked. Movable the moment it is under
-   * the pointer, every card is a hole in the board a reader trying to move the
-   * whole thing falls into, and a board is moved far more often than a card is.
-   * Picking first also makes moving a card something a reader means to do.
-   */
-  const attended: Node[] = useMemo(() => drawn.flatMap((node) => {
-    if (node.type !== 'card') {
-      const held = node.id === grabbed
-      return [{ ...node, draggable: held, data: { ...node.data, grabbed: held } }]
-    }
-    const emphasis = emphasisOf(node.id, near.nodes, attention)
-    if (emphasis === 'gone')
-      return []
-    const picked = { ...node, draggable: node.selected === true }
-    return [emphasis === 'dimmed'
-      ? { ...picked, style: { ...picked.style, opacity: DIMMED } }
-      : picked]
-  }), [drawn, near, attention, grabbed])
 
   const extent = useMemo(
     () => [...boxes.values(), ...(board?.sections ?? []).map(section => ({
@@ -374,7 +354,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     return () => { asking = false }
   }, [obstacles, graph])
 
-  const edges: Edge[] = useMemo(() => {
+  const relations = useMemo(() => {
     const onBoard = new Set(drawn.filter(node => node.type === 'card').map(node => node.id))
     /**
      * Where a relation's end attaches.
@@ -404,7 +384,39 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       return run <= FAR && run <= direct * WANDERS
     }
 
-    const relations = drawnRelations(graph.edges, endpointOf, groundOf, drawable, selected)
+    return drawnRelations(graph.edges, endpointOf, groundOf, drawable, selected)
+  }, [graph, drawn, selected, routes, kin, groundOf, sectionFor])
+
+  /**
+   * The cards as the canvas is given them.
+   * A card moves only once it has been picked. Movable the moment it is under
+   * the pointer, every card is a hole in the board a reader trying to move the
+   * whole thing falls into, and a board is moved far more often than a card is.
+   * Picking first also makes moving a card something a reader means to do.
+   */
+  const attended: Node[] = useMemo(() => drawn.flatMap((node): Node[] => {
+    if (node.type !== 'card') {
+      const held = node.id === grabbed
+      return [{ ...node, draggable: held, data: { ...node.data, grabbed: held } }]
+    }
+    const emphasis = emphasisOf(node.id, near.nodes, attention)
+    if (emphasis === 'gone')
+      return []
+    const said = relations.notes.get(node.id)
+    const picked: Node = {
+      ...node,
+      draggable: node.selected === true,
+      data: {
+        ...node.data,
+        notes: (said ?? []).map(note => noteLabel(note, byId)),
+      },
+    }
+    return [emphasis === 'dimmed'
+      ? { ...picked, style: { ...picked.style, opacity: DIMMED } }
+      : picked]
+  }), [drawn, near, attention, grabbed, relations, byId])
+
+  const edges: Edge[] = useMemo(() => {
 
     /**
      * The route a line takes.
@@ -459,22 +471,8 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       return familyLed.get(parent) ?? NO_FAMILY
     }
 
-    /**
-     * How prominent a line is.
-     * A line between two grounds is not any of the relations it stands for, so
-     * it is asked about those instead, or a reader picking a card would dim
-     * the only line carrying what they picked.
-     */
-    const emphasisFor = (edge: DrawnEdge): ReturnType<typeof emphasisOf> => {
-      if (edge.standsFor === undefined)
-        return emphasisOf(edge.id, near.edges, attention)
-      return edge.standsFor.some(end => near.nodes.has(end))
-        ? 'plain'
-        : emphasisOf(edge.id, new Set(), attention)
-    }
-
-    return [...relations.lines, ...relations.summaries].flatMap((edge) => {
-      const emphasis = emphasisFor(edge)
+    return relations.lines.flatMap((edge) => {
+      const emphasis = emphasisOf(edge.id, near.edges, attention)
       if (emphasis === 'gone')
         return []
       const points = pointsFor(edge)

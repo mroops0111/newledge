@@ -8,12 +8,34 @@ export interface BoardCardData {
   readonly colour: string
   /** What this card hangs off, written on it so it need not be traced. */
   readonly lineages?: readonly { readonly label: string, readonly type: string, readonly colour: string }[]
+  /** Relations the board could not draw, which the card says in words instead. */
+  readonly notes?: readonly string[]
   [key: string]: unknown
 }
 
 /** The same shapes the lines end in, so one vocabulary says one thing. */
 const PART_OF = '\u25C6'
 const KIND_OF = '\u25B7'
+
+/**
+ * What the board could not draw, said on the card instead.
+ * Set apart from the card's own words, since these are about what is elsewhere
+ * on the board rather than about the thing the card names. A reader who cannot
+ * find the line has to be able to find this without looking for it.
+ */
+function said(notes: readonly string[]): React.JSX.Element | null {
+  if (notes.length === 0)
+    return null
+  return (
+    <ul className="border-t border-line bg-canvas px-3.5 py-2">
+      {notes.map(note => (
+        <li key={note} className="truncate py-px font-ui text-[0.6875rem] leading-tight text-ink-subtle">
+          {note}
+        </li>
+      ))}
+    </ul>
+  )
+}
 
 /** Where a source came from, which is the only part of a URL worth drawing. */
 function domainOf(node: GraphNode): string | undefined {
@@ -37,7 +59,7 @@ export function BoardCard({ data, selected }: {
   data: BoardCardData
   selected: boolean
 }): React.JSX.Element {
-  const { node, form, colour, lineages } = data
+  const { node, form, colour, lineages, notes } = data
   const lift = selected ? 'shadow-lifted ring-1 ring-ink/25' : 'shadow-card'
 
   // The family colour runs the whole height of the card rather than beside its
@@ -49,7 +71,7 @@ export function BoardCard({ data, selected }: {
       style={{ borderLeftColor: colour }}
     >
       <Handle type="target" position={Position.Top} className="!opacity-0" />
-      {body(node, form, colour, lineages ?? [])}
+      {body(node, form, colour, lineages ?? [], notes ?? [])}
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />
     </div>
   )
@@ -60,6 +82,7 @@ function body(
   form: NodeForm,
   colour: string,
   lineages: NonNullable<BoardCardData['lineages']>,
+  notes: readonly string[],
 ): React.JSX.Element {
   switch (form) {
     case 'concept': {
@@ -90,6 +113,7 @@ function body(
               </p>
             </div>
           )}
+          {said(notes)}
         </>
       )
     }
@@ -98,11 +122,14 @@ function body(
     // would destroy the thing itself, so the card is as tall as saying it takes.
     case 'claim': {
       return (
-        <div className="px-3.5 py-3">
-          <p className="font-reading text-[0.8125rem] leading-relaxed text-ink">
-            {node.name}
-          </p>
-        </div>
+        <>
+          <div className="px-3.5 py-3">
+            <p className="font-reading text-[0.8125rem] leading-relaxed text-ink">
+              {node.name}
+            </p>
+          </div>
+          {said(notes)}
+        </>
       )
     }
     // Provenance reads as a link, the way a link preview does anywhere else.

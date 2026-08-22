@@ -46,7 +46,7 @@ export interface NodeStyle {
  * A hierarchy hangs off a trunk its siblings share, and everything else runs
  * from one card to another.
  */
-export type EdgeKin = 'tree' | 'curve' | 'straight'
+export type EdgeKin = 'tree' | 'curve'
 
 /**
  * What a relation is, said in colour.
