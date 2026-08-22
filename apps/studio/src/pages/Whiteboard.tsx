@@ -223,21 +223,26 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
 
   // Where the cards actually are right now, which is what a family tree has to
   // be drawn from, since a reader may have moved any of them since it opened.
-  // Where each card is, and how big. The position is live, since a reader may
-  // be moving it, and the size is the one the arrangement was built from
-  // rather than one measured by the browser, which arrives too late to lay a
-  // board out with and never reaches this state at all.
+  /**
+   * Where each card is, and how big.
+   * The measured size once the browser has one, since a line has to meet a
+   * card's real edge and an estimate leaves it hanging in the air. The
+   * estimate stands in until then, because a board has to be laid out before
+   * anything has been drawn.
+   */
   const boxes = useMemo(() => new Map(drawn
     .filter(node => node.type === 'card')
     .flatMap((node) => {
       const graphNode = byId.get(node.id)
-      return graphNode === undefined
-        ? []
-        : [[node.id, {
-            x: node.position.x,
-            y: node.position.y,
-            ...cardExtent(graphNode, hangsOff.has(node.id)),
-          }] as const]
+      if (graphNode === undefined)
+        return []
+      const guessed = cardExtent(graphNode, hangsOff.has(node.id))
+      return [[node.id, {
+        x: node.position.x,
+        y: node.position.y,
+        width: node.measured?.width ?? guessed.width,
+        height: node.measured?.height ?? guessed.height,
+      }] as const]
     })), [drawn, byId, hangsOff])
 
   const kin = useMemo(() => {
