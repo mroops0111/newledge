@@ -108,10 +108,14 @@ export async function firstArrangement(
     groups: [...broods, ...[...named.keys()].map(id => ({ id, inset: { width: 0, height: 24 } }))],
   })
 
-  const cards: Card[] = nodes.flatMap((node) => {
-    const at = placed.nodes.get(node.id)
-    return at === undefined ? [] : [{ nodeId: node.id, x: onGrid(at.x), y: onGrid(at.y) }]
-  })
+  const cards: Card[] = tidied(
+    nodes.flatMap((node) => {
+      const at = placed.nodes.get(node.id)
+      return at === undefined ? [] : [{ nodeId: node.id, x: at.x, y: at.y }]
+    }),
+    partOf,
+    new Map(nodes.map(node => [node.id, node])),
+  ).map(card => ({ ...card, x: onGrid(card.x), y: onGrid(card.y) }))
   const sections: Section[] = [...placed.groups]
     .filter(([id]) => !isBrood(id))
     .map(([id, box]) => ({
@@ -152,4 +156,61 @@ function filing(
       filed.set(edge.fromNodeId, new Set(borrowed))
   }
   return filed
+}
+
+/**
+ * How far apart siblings sit, which is the same for every pair of them.
+ * The step from one to the next is put on the grid here rather than left to be
+ * rounded later, since rounding each of them on its own turns one even row
+ * into gaps that differ by a rounding.
+ */
+const SIBLING_GAP = 56
+
+/**
+ * Even out a family after the layout has placed it.
+ * A layout spaces siblings by whatever its own placement worked out, so the
+ * gaps come back uneven and the parent lands wherever its edges pulled it,
+ * which reads as carelessness however sound the reasoning behind it. Siblings
+ * on one row are spaced alike and the parent is centred over them.
+ */
+function tidied(
+  cards: readonly Card[],
+  partOf: ReadonlyMap<string, string>,
+  extents: ReadonlyMap<string, LayoutNode>,
+): Card[] {
+  const at = new Map(cards.map(card => [card.nodeId, { ...card }]))
+
+  for (const brood of new Set(partOf.values())) {
+    const parentId = brood.slice(BROOD.length)
+    const members = [...partOf].filter(([, id]) => id === brood).map(([member]) => member)
+    const children = members.filter(member => member !== parentId)
+
+    for (const row of rows(children, at)) {
+      let left = onGrid(at.get(row[0]!)!.x)
+      for (const childId of row) {
+        at.get(childId)!.x = left
+        left += onGrid((extents.get(childId)?.width ?? 0) + SIBLING_GAP)
+      }
+      const last = at.get(row[row.length - 1]!)!
+      const span = { from: at.get(row[0]!)!.x, to: last.x + (extents.get(last.nodeId)?.width ?? 0) }
+      const parent = at.get(parentId)
+      if (parent !== undefined && row.length > 0)
+        parent.x = (span.from + span.to) / 2 - (extents.get(parentId)?.width ?? 0) / 2
+    }
+  }
+  return [...at.values()]
+}
+
+/** Siblings sharing a line, since a family too wide for one sits on several. */
+function rows(children: readonly string[], at: ReadonlyMap<string, Card>): string[][] {
+  const byRow = new Map<number, string[]>()
+  for (const childId of children) {
+    const card = at.get(childId)
+    if (card === undefined)
+      continue
+    byRow.set(card.y, [...(byRow.get(card.y) ?? []), childId])
+  }
+  return [...byRow]
+    .sort(([one], [other]) => one - other)
+    .map(([, row]) => row.sort((one, other) => at.get(one)!.x - at.get(other)!.x))
 }
