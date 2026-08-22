@@ -1,5 +1,6 @@
 import type { Board, Card, Section } from '@newledge/board'
 import type { LayoutEdge, LayoutNode, Placement } from '@newledge/board-layout'
+import { orderedByPull } from '@newledge/board-layout'
 import { nodeStyle } from './boardStyle.js'
 import type { GraphEdge, GraphNode } from './graph.js'
 import { cardExtent } from './measure.js'
@@ -115,6 +116,7 @@ export async function firstArrangement(
     }),
     partOf,
     new Map(nodes.map(node => [node.id, node])),
+    edges,
   ).map(card => ({ ...card, x: onGrid(card.x), y: onGrid(card.y) }))
   const sections: Section[] = [...placed.groups]
     .filter(([id]) => !isBrood(id))
@@ -177,8 +179,13 @@ function tidied(
   cards: readonly Card[],
   partOf: ReadonlyMap<string, string>,
   extents: ReadonlyMap<string, LayoutNode>,
+  edges: readonly LayoutEdge[],
 ): Card[] {
   const at = new Map(cards.map(card => [card.nodeId, { ...card }]))
+  const boxes = new Map(cards.flatMap((card) => {
+    const size = extents.get(card.nodeId)
+    return size === undefined ? [] : [[card.nodeId, { ...card, width: size.width, height: size.height }] as const]
+  }))
 
   for (const brood of new Set(partOf.values())) {
     const parentId = brood.slice(BROOD.length)
@@ -186,15 +193,18 @@ function tidied(
     const children = members.filter(member => member !== parentId)
 
     for (const row of rows(children, at)) {
+      // Which sibling is drawn leftmost says nothing about it, so the order is
+      // spent on putting each of them nearest whatever pulls on it.
+      const pulled = orderedByPull(row, edges, boxes)
       let left = onGrid(at.get(row[0]!)!.x)
-      for (const childId of row) {
+      for (const childId of pulled) {
         at.get(childId)!.x = left
         left += onGrid((extents.get(childId)?.width ?? 0) + SIBLING_GAP)
       }
-      const last = at.get(row[row.length - 1]!)!
-      const span = { from: at.get(row[0]!)!.x, to: last.x + (extents.get(last.nodeId)?.width ?? 0) }
+      const last = at.get(pulled[pulled.length - 1]!)!
+      const span = { from: at.get(pulled[0]!)!.x, to: last.x + (extents.get(last.nodeId)?.width ?? 0) }
       const parent = at.get(parentId)
-      if (parent !== undefined && row.length > 0)
+      if (parent !== undefined && pulled.length > 0)
         parent.x = (span.from + span.to) / 2 - (extents.get(parentId)?.width ?? 0) / 2
     }
   }

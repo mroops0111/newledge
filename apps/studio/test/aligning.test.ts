@@ -69,3 +69,32 @@ describe('lining one thing up with another', () => {
     expect(lined.guides).toEqual([])
   })
 })
+
+describe('continuing a rhythm two others have set', () => {
+  // Even spacing is something a reader arranges for deliberately, and no edge
+  // or middle can express it, so it has to be offered on its own.
+  const spaced = [box(0, 0), box(300, 0)]
+
+  it('pulls a third onto the gap the first two already set', () => {
+    const lined = align(box(596, 0), spaced)
+    expect(lined.at.x).toBe(600)
+  })
+
+  it('offers the same rhythm on the other side of them', () => {
+    const lined = align(box(-304, 0), spaced)
+    expect(lined.at.x).toBe(-300)
+  })
+
+  it('says it is a gap it matched, not an edge two things share', () => {
+    expect(align(box(596, 0), spaced).guides[0]?.kind).toBe('gap')
+  })
+
+  it('prefers an edge it can share to a rhythm it can continue', () => {
+    const lined = align(box(598, 4), [...spaced, box(600, 0)])
+    expect(lined.guides.some(one => one.kind === 'edge')).toBe(true)
+  })
+
+  it('leaves a drop nowhere near a rhythm alone', () => {
+    expect(align(box(900, 0), spaced).at.x).toBe(900)
+  })
+})
