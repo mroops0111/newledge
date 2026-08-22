@@ -1,0 +1,21 @@
+{
+  "name": "@newledge/board-layout",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run --coverage",
+    "clean": "rm -rf dist .turbo *.tsbuildinfo coverage"
+  },
+  "dependencies": {}
+}

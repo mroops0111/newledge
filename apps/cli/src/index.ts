@@ -12,7 +12,7 @@ process.env.BRAID_LOCAL_TRUST ??= 'true'
 
 // An ingestion run and a served reader both listen, so the port is settable,
 // otherwise a nightly run cannot start while the reader is open.
-const PORT = Number(process.env.NEWLEDGE_PORT ?? 4321)
+const PORT = Number(process.env.NEWLEDGE_PORT ?? 4399)
 const API_URL = `http://localhost:${PORT}`
 
 // A local corpus directory stands in until the real web fetcher lands,
