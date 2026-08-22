@@ -14,8 +14,8 @@ export function Guides({ guides }: { guides: readonly Guide[] }): React.JSX.Elem
     <ViewportPortal>
       {guides.map(guide => (
         <div
-          key={`${guide.axis}-${guide.at}`}
-          className="pointer-events-none absolute bg-guide"
+          key={`${guide.axis}-${guide.kind}-${guide.at}`}
+          className={`pointer-events-none absolute ${guide.kind === 'gap' ? 'bg-guide/60' : 'bg-guide'}`}
           style={guide.axis === 'x'
             ? { left: guide.at, top: guide.from, width: THICKNESS, height: guide.to - guide.from }
             : { left: guide.from, top: guide.at, width: guide.to - guide.from, height: THICKNESS }}
