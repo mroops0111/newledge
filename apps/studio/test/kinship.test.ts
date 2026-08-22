@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GraphEdge } from '../src/lib/graph.js'
-import { FAMILY_COLOURS, familyColours, familyOfRoot, lineageLabel, lineages } from '../src/lib/kinship.js'
+import { EDGE_STYLES, edgeStyle } from '../src/lib/boardStyle.js'
+import { FAMILY_COLOURS, familyColours, familyOfRoot, kinColour, KINSHIP_KEYS, lineageLabel, lineages, LINE_PAINTS, lineColour, NO_FAMILY } from '../src/lib/kinship.js'
 import { cardExtent } from '../src/lib/measure.js'
 
 function edge(type: string, from: string, to: string): GraphEdge {
@@ -147,5 +148,22 @@ describe('a card that hangs off more than one thing', () => {
 
   it('names being part of something before being a kind of something', () => {
     expect(lineages(both).get('dottedSign')![0]!.type).toBe('contains')
+  })
+})
+
+describe('the colours lines are drawn in', () => {
+  // A line takes its colour by a key, and the end it points with is cut from
+  // the same table. A key with no colour draws nothing at all, so the line
+  // vanishes and only its end is left standing in open space.
+  it('answers every key a relation can ask by', () => {
+    const asked = new Set<string>([...KINSHIP_KEYS])
+    for (const type of Object.keys(EDGE_STYLES))
+      asked.add(edgeStyle(type).tone)
+    for (const key of asked)
+      expect(LINE_PAINTS.get(key), key).toBeDefined()
+  })
+
+  it('gives a key it does not know the colour of no family', () => {
+    expect(lineColour('nothing defines this')).toBe(kinColour(NO_FAMILY))
   })
 })

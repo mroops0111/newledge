@@ -17,7 +17,7 @@ import type { DrawnEdge } from '../lib/drawing.js'
 import { drawnCards, drawnRelations } from '../lib/drawing.js'
 import { cardExtent } from '../lib/measure.js'
 import { kinship } from '../lib/family.js'
-import { familyColours, familyOfRoot, kinColour, lineageLabel, lineages, NO_FAMILY } from '../lib/kinship.js'
+import { familyColours, familyOfRoot, kinColour, lineageLabel, lineages, lineColour, NO_FAMILY } from '../lib/kinship.js'
 import type { Box } from '../lib/path.js'
 import { borderRun } from '../lib/path.js'
 import type { GraphEdge, GraphNode } from '../lib/graph.js'
@@ -438,7 +438,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
           curved: edge.style.kin === 'curve',
         } satisfies RoutedEdgeData,
         style: {
-          stroke: kinColour(paintOf(edge)),
+          stroke: lineColour(paintOf(edge)),
           strokeWidth: edge.style.strokeWidth,
           ...(edge.style.dash === undefined ? {} : { strokeDasharray: edge.style.dash }),
           ...(emphasis === 'dimmed' ? { opacity: DIMMED } : {}),

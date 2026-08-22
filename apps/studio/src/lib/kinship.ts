@@ -1,4 +1,4 @@
-import { edgeStyle } from './boardStyle.js'
+import { edgeStyle, TONE_COLOURS } from './boardStyle.js'
 import type { GraphEdge, GraphNode } from './graph.js'
 
 /** What a card hangs off, said on the card so it need not be traced. */
@@ -79,6 +79,24 @@ export const KINSHIP_KEYS: readonly string[] = [...FAMILY_COLOURS, NO_FAMILY]
 /** A key names a colour rather than being one, so a marker can be cut for it. */
 export function kinColour(key: string): string {
   return `var(--${key})`
+}
+
+/**
+ * Every colour a line can be drawn in, under the key the line asks for it by.
+ * A line takes its colour from the family it belongs to when it has one and
+ * from the kind of relation it is when it does not, and the end it points with
+ * is cut from the same table, so both have to be answered from one place. Read
+ * from the kinship table alone, a tone's name gives back a variable no
+ * stylesheet defines, and the line disappears while its end stays.
+ */
+export const LINE_PAINTS: ReadonlyMap<string, string> = new Map([
+  ...Object.entries(TONE_COLOURS),
+  ...KINSHIP_KEYS.map(key => [key, kinColour(key)] as const),
+])
+
+/** The colour a line drawn under this key takes. */
+export function lineColour(key: string): string {
+  return LINE_PAINTS.get(key) ?? kinColour(NO_FAMILY)
 }
 
 /**

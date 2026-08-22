@@ -19,6 +19,21 @@ function onGrid(value: number): number {
   return Math.round(value / GRID) * GRID
 }
 
+/**
+ * A box on the grid, put there by both its edges rather than by one and a size.
+ * Rounding a position and a size on their own moves the far edge by the two
+ * roundings together, which on a section can close a gap the layout left.
+ */
+function boxOnGrid(box: { x: number, y: number, width: number, height: number }): typeof box {
+  const [left, top] = [onGrid(box.x), onGrid(box.y)]
+  return {
+    x: left,
+    y: top,
+    width: onGrid(box.x + box.width) - left,
+    height: onGrid(box.y + box.height) - top,
+  }
+}
+
 // A node nobody filed sits with whatever it is about, so a claim lands beside
 // its concept and a source beside what it introduced.
 const STANDS_IN_FOR = ['concerns', 'introduces', 'belongsTo']
@@ -28,6 +43,13 @@ export interface Arrangement {
   /** Where each line runs, when the placement worked that out as it placed. */
   readonly routes: ReadonlyMap<string, readonly { x: number, y: number }[]>
 }
+
+/**
+ * How much of a section is kept clear for the name it carries.
+ * The name is part of the section rather than a label floating over the gap
+ * above it, so the section has to be tall enough to hold it.
+ */
+const SECTION_HEADER = 28
 
 const BROOD = 'brood-'
 
@@ -106,7 +128,7 @@ export async function firstArrangement(
     edges,
     // The broods come first, since a group has to be whole before the one
     // holding it can be built round it.
-    groups: [...broods, ...[...named.keys()].map(id => ({ id, inset: { width: 0, height: 24 } }))],
+    groups: [...broods, ...[...named.keys()].map(id => ({ id, inset: { width: 0, height: SECTION_HEADER } }))],
   })
 
   const cards: Card[] = tidied(
@@ -127,13 +149,7 @@ export async function firstArrangement(
     board: {
       ...FIRST_BOARD,
       cards: shuffled.cards.map(card => ({ ...card, x: onGrid(card.x), y: onGrid(card.y) })),
-      sections: shuffled.sections.map(section => ({
-        ...section,
-        x: onGrid(section.x),
-        y: onGrid(section.y),
-        width: onGrid(section.width),
-        height: onGrid(section.height),
-      })),
+      sections: shuffled.sections.map(section => ({ ...section, ...boxOnGrid(section) })),
     },
     routes: placed.edges ?? new Map(),
   }
