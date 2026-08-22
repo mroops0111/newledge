@@ -71,7 +71,9 @@ describe('handing a board to the layout kernel', () => {
   it('sends only the relations that are meant to decide where things go', async () => {
     const { sent, place } = asked()
     await place(request)
-    expect(sent[0]?.edges?.map(one => one.id)).toEqual(['e1'])
+    const held = sent[0]?.children?.find(child => child.id === 'g1')
+    const all = [...(held?.edges ?? []), ...(sent[0]?.edges ?? [])]
+    expect(all.some(one => one.id.includes('e2'))).toBe(false)
   })
 
   it('hands kinds over in band order, which is what keeps kinds together', async () => {
@@ -145,8 +147,11 @@ describe('handing a board to the layout kernel', () => {
   })
 
   it('reads back where each line starts, bends, and ends', async () => {
-    const placed = await asked().place(request)
-    expect(placed.edges?.get('e1')).toEqual([{ x: 0, y: 0 }, { x: 50, y: 0 }, { x: 50, y: 90 }])
+    const placed = await asked().place({
+      ...request,
+      edges: [{ id: 'e1', type: 'uses', from: 'rag', to: 'faster' }],
+    })
+    expect(placed.edges?.get('e1')).toEqual([{ x: 1, y: 2 }, { x: 3, y: 4 }])
   })
 
   it('hands a relation to whichever container can see both of its ends', async () => {
@@ -160,7 +165,7 @@ describe('handing a board to the layout kernel', () => {
     })
     const section = sent[0]?.children?.find(child => child.id === 'g1')
     expect(section?.edges?.map(one => one.id)).toEqual(['inside'])
-    expect(sent[0]?.edges?.map(one => one.id)).toEqual(['across'])
+    expect(sent[0]?.edges?.[0]?.sources).toEqual(['g1'])
   })
 
   it('carries a line drawn inside a section out to where the board sees it', async () => {
@@ -173,5 +178,40 @@ describe('handing a board to the layout kernel', () => {
       { x: group.x + 1, y: group.y + 2 },
       { x: group.x + 3, y: group.y + 4 },
     ])
+  })
+})
+
+describe('keeping grounds that are related together', () => {
+  // A group is opaque to the board, so an edge into a card inside one places
+  // nothing. Merged onto the groups, it asks the board to keep them near.
+  it('lays a relation that crosses groups out between the groups themselves', async () => {
+    const { sent, place } = asked()
+    await place({
+      nodes: [
+        { id: 'a', type: 'Concept', width: 240, height: 100, groupId: 'g1' },
+        { id: 'b', type: 'Concept', width: 240, height: 100, groupId: 'empty' },
+      ],
+      edges: [{ id: 'e1', type: 'uses', from: 'a', to: 'b' }],
+      groups: [{ id: 'g1' }, { id: 'empty' }],
+    })
+    expect(sent[0]?.edges?.map(one => [one.sources[0], one.targets[0]]))
+      .toEqual([['empty', 'g1']])
+  })
+
+  it('asks harder the more relations run between the same two grounds', async () => {
+    const { sent, place } = asked()
+    await place({
+      nodes: [
+        { id: 'a', type: 'Concept', width: 240, height: 100, groupId: 'g1' },
+        { id: 'b', type: 'Concept', width: 240, height: 100, groupId: 'g1' },
+        { id: 'c', type: 'Concept', width: 240, height: 100, groupId: 'empty' },
+      ],
+      edges: [
+        { id: 'e1', type: 'uses', from: 'a', to: 'c' },
+        { id: 'e2', type: 'uses', from: 'b', to: 'c' },
+      ],
+      groups: [{ id: 'g1' }, { id: 'empty' }],
+    })
+    expect(sent[0]?.edges?.[0]?.layoutOptions?.['elk.layered.priority.shortness']).toBe('2')
   })
 })

@@ -43,6 +43,9 @@ const ROUTING = orthogonalRouting()
 const MIN_NAME_WIDTH = 10
 const DIMMED = 0.22
 const GRID = 24
+/** How far a line may run before a reader loses it, and how far it may wander. */
+const FAR = 1600
+const WANDERS = 2.5
 const NOTHING: readonly Guide[] = []
 
 interface SectionDrag {
@@ -197,18 +200,17 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
         node: card.node,
         form: nodeStyle(card.node.type).form,
         colour: colourOf(card.node),
-        ...(hangsOff.get(card.nodeId) === undefined
-          ? {}
-          : { lineage: {
-              label: lineageLabel(hangsOff.get(card.nodeId)!, byId),
-              type: hangsOff.get(card.nodeId)!.type,
-            } }),
+        lineages: (hangsOff.get(card.nodeId) ?? []).map(one => ({
+          label: lineageLabel(one, byId),
+          type: one.type,
+          colour: kinColour(familyLed.get(one.parentId) ?? NO_FAMILY),
+        })),
       },
       style: { width: card.width },
       zIndex: 3,
     }))
     setDrawn([...sections, ...cards])
-  }, [membership, byId, colourOf, hangsOff, rename, keepLatest, setDrawn])
+  }, [membership, byId, colourOf, hangsOff, familyLed, rename, keepLatest, setDrawn])
 
   const selected = useMemo(
     () => new Set(drawn.filter(node => node.selected === true).map(node => node.id)),
@@ -239,7 +241,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       const graphNode = byId.get(node.id)
       if (graphNode === undefined)
         return []
-      const guessed = cardExtent(graphNode, hangsOff.has(node.id))
+      const guessed = cardExtent(graphNode, (hangsOff.get(node.id) ?? []).length)
       return [[node.id, {
         x: node.position.x,
         y: node.position.y,
@@ -296,6 +298,12 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     }
   }, [boxes, board])
 
+  /** The section a topic is drawn as, so a relation reaching it has an end. */
+  const sectionFor = useMemo(
+    () => new Map((board?.sections ?? []).map(section => [section.id.replace(/^topic-/, ''), section.id])),
+    [board],
+  )
+
   const laidOut = board !== undefined
     && board.cards.length > 0
     && measured.length === drawnCards(board, byId).length
@@ -336,7 +344,35 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
 
   const edges: Edge[] = useMemo(() => {
     const onBoard = new Set(drawn.filter(node => node.type === 'card').map(node => node.id))
-    const relations = drawnRelations(graph.edges, onBoard, groundOf, selected)
+    /**
+     * Where a relation's end attaches.
+     * A card when the node is on the board as one, and the ground itself when
+     * the node is the topic that ground stands for, since a section is a topic
+     * and a relation reaching a topic reaches the section.
+     */
+    const endpointOf = (nodeId: string): string | undefined =>
+      onBoard.has(nodeId) ? nodeId : sectionFor.get(nodeId)
+
+    /**
+     * Whether a relation is worth drawing between its two cards.
+     * Not whether it crosses a section, which is a fact about filing rather
+     * than about what a reader can follow. A line that wanders far enough is
+     * lost whether or not it stays on one ground, and a short line across two
+     * grounds is perfectly readable.
+     */
+    const drawable = (edgeId: string): boolean => {
+      const route = kin.edges.get(edgeId) ?? routes.get(edgeId)
+      if (route === undefined || route.length < 2)
+        return true
+      const ends = [route[0]!, route[route.length - 1]!]
+      const direct = Math.hypot(ends[1]!.x - ends[0]!.x, ends[1]!.y - ends[0]!.y)
+      let run = 0
+      for (let index = 1; index < route.length; index += 1)
+        run += Math.abs(route[index]!.x - route[index - 1]!.x) + Math.abs(route[index]!.y - route[index - 1]!.y)
+      return run <= FAR && run <= direct * WANDERS
+    }
+
+    const relations = drawnRelations(graph.edges, endpointOf, groundOf, drawable, selected)
 
     /**
      * The route a line takes.
@@ -372,8 +408,22 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       return familyLed.get(parent) ?? NO_FAMILY
     }
 
-    return [...relations.withinSections, ...relations.betweenSections].flatMap((edge) => {
-      const emphasis = emphasisOf(edge.id, near.edges, attention)
+    /**
+     * How prominent a line is.
+     * A line between two grounds is not any of the relations it stands for, so
+     * it is asked about those instead, or a reader picking a card would dim
+     * the only line carrying what they picked.
+     */
+    const emphasisFor = (edge: DrawnEdge): ReturnType<typeof emphasisOf> => {
+      if (edge.standsFor === undefined)
+        return emphasisOf(edge.id, near.edges, attention)
+      return edge.standsFor.some(end => near.nodes.has(end))
+        ? 'plain'
+        : emphasisOf(edge.id, new Set(), attention)
+    }
+
+    return [...relations.lines, ...relations.summaries].flatMap((edge) => {
+      const emphasis = emphasisFor(edge)
       if (emphasis === 'gone')
         return []
       const points = pointsFor(edge)
@@ -398,7 +448,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
         zIndex: 2,
       }]
     })
-  }, [graph, drawn, selected, routes, kin, boxes, near, attention, familyLed, groundOf, board])
+  }, [graph, drawn, selected, routes, kin, boxes, near, attention, familyLed, groundOf, board, sectionFor])
 
   // A section is the shape of a thought, so moving one moves the thought,
   // and what sits inside keeps its arrangement rather than being relaid out.

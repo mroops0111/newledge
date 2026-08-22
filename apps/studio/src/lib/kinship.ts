@@ -8,13 +8,22 @@ export interface Lineage {
 }
 
 /**
- * What each card hangs off, and how.
- * A colour says which family a card is in but not which card it answers to,
- * and a line says that only to a reader willing to follow it, so the card
- * carries the answer as well.
+ * Which relation a card names first when it names more than one.
+ * Being part of something is a stronger claim about where a card belongs than
+ * being a kind of something, so it leads, and the rest follow in the order the
+ * ontology declares them.
  */
-export function lineages(edges: readonly GraphEdge[]): Map<string, Lineage> {
-  const held = new Map<string, Lineage>()
+const NAMED_FIRST = ['contains', 'extends', 'instantiates']
+
+/**
+ * What each card hangs off, and how, all of it.
+ * A card can be part of one thing and a kind of another, and naming only the
+ * first leaves the second with nowhere to be said at all. A colour says which
+ * family a card is in but not which card it answers to, and a line says that
+ * only to a reader willing to follow it, so the card carries the answer too.
+ */
+export function lineages(edges: readonly GraphEdge[]): Map<string, Lineage[]> {
+  const held = new Map<string, Lineage[]>()
   for (const edge of edges) {
     const style = edgeStyle(edge.type)
     if (style.kin !== 'tree')
@@ -22,10 +31,19 @@ export function lineages(edges: readonly GraphEdge[]): Map<string, Lineage> {
     const [parentId, child] = style.rootAt === 'from'
       ? [edge.fromNodeId, edge.toNodeId]
       : [edge.toNodeId, edge.fromNodeId]
-    if (!held.has(child))
-      held.set(child, { parentId, type: edge.type })
+    held.set(child, [...(held.get(child) ?? []), { parentId, type: edge.type }])
+  }
+
+  for (const [child, all] of held) {
+    held.set(child, [...all].sort((one, other) =>
+      rankOf(one.type) - rankOf(other.type) || one.parentId.localeCompare(other.parentId)))
   }
   return held
+}
+
+function rankOf(type: string): number {
+  const rank = NAMED_FIRST.indexOf(type)
+  return rank === -1 ? NAMED_FIRST.length : rank
 }
 
 /** How a lineage is written on a card, in the vocabulary its line already uses. */
@@ -90,23 +108,16 @@ function worthWearing(edges: readonly GraphEdge[]): {
   byNode: Map<string, string>
   byRoot: Map<string, string>
 } {
+  // Taken from the same choice a card writes on itself, since a card wearing
+  // one family and naming another says two things and settles neither.
   const rootOf = new Map<string, string>()
-
-  for (const edge of edges) {
-    if (edgeStyle(edge.type).kin !== 'tree')
-      continue
-    // A whole holds its parts and a kind extends what it is a kind of, so the
-    // two are written in opposite directions and only one end is the root.
-    const [root, member] = edgeStyle(edge.type).rootAt === 'from'
-      ? [edge.fromNodeId, edge.toNodeId]
-      : [edge.toNodeId, edge.fromNodeId]
-    rootOf.set(member, root)
-    rootOf.set(root, root)
+  for (const [child, all] of lineages(edges)) {
+    for (const lineage of all)
+      rootOf.set(lineage.parentId, lineage.parentId)
+    rootOf.set(child, all[0]!.parentId)
   }
 
-  // A card that leads a family of its own wears that one rather than the one
-  // above it, since the card already says which whole it is part of, and a
-  // colour worn by one card alone announces a group that is not there.
+  // A colour worn by one card alone announces a group that is not there.
   const wearers = new Map<string, number>()
   for (const root of rootOf.values())
     wearers.set(root, (wearers.get(root) ?? 0) + 1)
