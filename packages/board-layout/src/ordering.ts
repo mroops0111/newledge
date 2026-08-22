@@ -4,7 +4,7 @@ import type { Box, LayoutEdge } from './ports.js'
  * Order things whose order carries no meaning by where what they relate to sits.
  *
  * This is the barycentre heuristic, which is what a layered layout uses to
- * reduce crossings between one layer and the next: give each thing the average
+ * reduce crossings between one layer and the next. Give each thing the average
  * position of what it is attached to, then sort by that. It is the standard
  * answer to this exact question, it needs nothing tuned, and it gives the same
  * answer every time.
