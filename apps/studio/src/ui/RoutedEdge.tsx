@@ -40,11 +40,17 @@ export function RoutedEdge(props: EdgeProps): React.JSX.Element {
 function pathFor(props: EdgeProps, data: RoutedEdgeData | undefined): [string, number, number] {
   const points = data?.points
   if (points !== undefined && points.length > 1) {
+    // More than two points means something worked out a way round the cards in
+    // between, and bowing straight from one end to the other instead would run
+    // through them and leave the line hidden under one.
+    if (points.length > 2) {
+      const middle = points[Math.floor(points.length / 2)]!
+      return [orthogonalPath(points), middle.x, middle.y]
+    }
     const [first, last] = [points[0]!, points[points.length - 1]!]
-    if (data?.curved === true)
-      return [curvePath(first, last), (first.x + last.x) / 2, (first.y + last.y) / 2]
-    const middle = points[Math.floor(points.length / 2)]!
-    return [orthogonalPath(points), middle.x, middle.y]
+    return data?.curved === true
+      ? [curvePath(first, last), (first.x + last.x) / 2, (first.y + last.y) / 2]
+      : [orthogonalPath(points), (first.x + last.x) / 2, (first.y + last.y) / 2]
   }
   const ends = {
     sourceX: props.sourceX,

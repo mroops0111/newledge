@@ -293,12 +293,18 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
 
   const edges: Edge[] = useMemo(() => {
     const onBoard = new Set(drawn.filter(node => node.type === 'card').map(node => node.id))
-    // A hierarchy and an association are both drawn from where the cards are,
-    // so both survive a reader moving one. An association runs border to
-    // border, which is the short way round rather than handle to handle.
+    /**
+     * The route a line takes.
+     * A hierarchy is drawn from where its cards are now, so it survives a
+     * reader moving one. Everything else follows the route the placement
+     * worked out, which is what goes round the cards in between, and falls
+     * back to running border to border once a reader has moved something and
+     * that route no longer describes where things are.
+     */
     const pointsFor = (edge: DrawnEdge): readonly { x: number, y: number }[] | undefined => {
-      if (edge.style.kin !== 'curve')
-        return kin.edges.get(edge.id) ?? routes.get(edge.id)
+      const routed = kin.edges.get(edge.id) ?? routes.get(edge.id)
+      if (routed !== undefined)
+        return routed
       const [from, to] = [boxes.get(edge.source), boxes.get(edge.target)]
       return from === undefined || to === undefined ? undefined : borderRun(from, to)
     }
