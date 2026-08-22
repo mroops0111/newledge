@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { GraphEdge } from '../src/lib/graph.js'
+import type { GraphEdge, GraphNode } from '../src/lib/graph.js'
+import type { Note } from '../src/lib/drawing.js'
 import { EDGE_STYLES, edgeStyle } from '../src/lib/boardStyle.js'
-import { FAMILY_COLOURS, familyColours, familyOfRoot, kinColour, KINSHIP_KEYS, lineageLabel, lineages, LINE_PAINTS, lineColour, NO_FAMILY } from '../src/lib/kinship.js'
+import { FAMILY_COLOURS, familyColours, familyOfRoot, kinColour, KINSHIP_KEYS, lineages, LINE_PAINTS, lineColour, NO_FAMILY, saidOnCard } from '../src/lib/kinship.js'
 import { cardExtent } from '../src/lib/measure.js'
 
 function edge(type: string, from: string, to: string): GraphEdge {
@@ -60,12 +61,20 @@ describe('what a card says it hangs off', () => {
   ])
   const held = lineages(edges)
 
+  const grey = (): string => 'grey'
+
   it('names the whole a part belongs to', () => {
-    expect(lineageLabel(held.get('editor')![0]!, byId)).toBe('Part of Suite')
+    expect(saidOnCard(held.get('editor')!, [], byId, grey))
+      .toEqual([{
+        phrase: 'Part of',
+        glyph: '\u25C6',
+        colour: 'grey',
+        names: ['Suite'],
+      }])
   })
 
   it('names what a kind is a kind of, which is the other end of how it is written', () => {
-    expect(lineageLabel(held.get('graphRag')![0]!, byId)).toBe('Kind of RAG')
+    expect(saidOnCard(held.get('graphRag')!, [], byId, grey)[0]!.phrase).toBe('Kind of')
   })
 
   it('says nothing on a card that hangs off nothing', () => {
@@ -165,5 +174,60 @@ describe('the colours lines are drawn in', () => {
 
   it('gives a key it does not know the colour of no family', () => {
     expect(lineColour('nothing defines this')).toBe(kinColour(NO_FAMILY))
+  })
+})
+
+describe('everything a card says about itself, gathered by how it says it', () => {
+  const byId = new Map<string, GraphNode>([
+    ['rag', { id: 'rag', type: 'Concept', name: 'RAG' }],
+    ['faster', { id: 'faster', type: 'Concept', name: 'GraphRAG' }],
+    ['other', { id: 'other', type: 'Concept', name: 'Embedding' }],
+  ])
+  const grey = (): string => 'grey'
+  const note = (type: string, otherId: string, end: 'from' | 'to'): Note =>
+    ({ edgeId: `${type}-${otherId}`, type, otherId, end })
+
+  it('reads a relation one way from one end and the other way from the other', () => {
+    expect(saidOnCard([], [note('uses', 'faster', 'from')], byId, grey)[0]!.phrase).toBe('Uses')
+    expect(saidOnCard([], [note('uses', 'rag', 'to')], byId, grey)[0]!.phrase).toBe('Used by')
+  })
+
+  it('says one thing once and names everything it says it about', () => {
+    const said = saidOnCard(
+      [],
+      [note('uses', 'faster', 'from'), note('uses', 'other', 'from')],
+      byId,
+      grey,
+    )
+    expect(said).toHaveLength(1)
+    expect(said[0]!.names).toEqual(['GraphRAG', 'Embedding'])
+  })
+
+  it('keeps two families apart, since a colour has to mean one of them', () => {
+    const held = lineages([
+      edge('contains', 'one', 'card'),
+      edge('contains', 'other', 'card'),
+    ])
+    const said = saidOnCard(held.get('card')!, [], byId, parentId => parentId)
+    expect(said.map(one => one.colour)).toEqual(['one', 'other'])
+  })
+
+  it('says what the board drew and what it could not in the one place', () => {
+    const held = lineages([edge('contains', 'rag', 'card')])
+    const said = saidOnCard(held.get('card')!, [note('uses', 'faster', 'from')], byId, grey)
+    expect(said.map(one => one.phrase)).toEqual(['Part of', 'Uses'])
+  })
+
+  it('reads a relation nobody has chosen words for off its own name', () => {
+    expect(saidOnCard([], [note('dependsOn', 'rag', 'from')], byId, grey)[0]!.phrase)
+      .toBe('Depends on')
+  })
+
+  it('names a card the graph no longer holds by the only name it has left', () => {
+    expect(saidOnCard([], [note('uses', 'gone', 'from')], byId, grey)[0]!.names).toEqual(['gone'])
+  })
+
+  it('carries no mark on what was never drawn, since no line ends in one', () => {
+    expect(saidOnCard([], [note('uses', 'rag', 'from')], byId, grey)[0]!.glyph).toBeUndefined()
   })
 })

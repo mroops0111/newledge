@@ -67,22 +67,68 @@ const SAID_AS: Readonly<Record<string, { readonly from: string, readonly to: str
   contradicts: { from: 'Contradicts', to: 'Contradicted by' },
 }
 
-/** What a card says about a relation the board could not draw for it. */
-export function noteLabel(note: Note, byId: ReadonlyMap<string, GraphNode>): string {
-  const name = byId.get(note.otherId)?.name ?? note.otherId
-  return `${SAID_AS[note.type]?.[note.end] ?? asWords(note.type)} ${name}`
+/**
+ * The same shapes the lines end in, so one vocabulary says one thing.
+ * A relation the board could not draw carries none, since there is no line
+ * whose end a mark could be echoing.
+ */
+const PART_OF = '\u25C6'
+const KIND_OF = '\u25B7'
+
+/** One thing a card says about itself, and everything it says it about. */
+export interface Said {
+  readonly phrase: string
+  readonly names: readonly string[]
+  readonly glyph?: string
+  readonly colour?: string
+}
+
+/**
+ * Everything a card says about itself, gathered by how it says it.
+ * A card that is part of two things says so once and names both, since three
+ * lines beginning with the same two words is a list a reader has to read twice
+ * to find out it was one thing all along.
+ *
+ * What the board drew and what it could not are said in the same place. They
+ * are the same kind of statement about the same card, and putting the second
+ * in a footer of its own made the board look as though it held two sorts of
+ * card.
+ */
+export function saidOnCard(
+  held: readonly Lineage[],
+  notes: readonly Note[],
+  byId: ReadonlyMap<string, GraphNode>,
+  colourOf: (parentId: string) => string,
+): Said[] {
+  const named = (id: string): string => byId.get(id)?.name ?? id
+  const rows = [
+    ...held.map(lineage => ({
+      phrase: lineage.type === 'contains' ? 'Part of' : 'Kind of',
+      glyph: lineage.type === 'contains' ? PART_OF : KIND_OF,
+      colour: colourOf(lineage.parentId),
+      name: named(lineage.parentId),
+    })),
+    ...notes.map(note => ({
+      phrase: SAID_AS[note.type]?.[note.end] ?? asWords(note.type),
+      name: named(note.otherId),
+    })),
+  ]
+
+  const gathered = new Map<string, Said>()
+  for (const { name, ...row } of rows) {
+    const key = `${row.phrase}|${'colour' in row ? row.colour : ''}`
+    const already = gathered.get(key)
+    gathered.set(key, already === undefined
+      ? { ...row, names: [name] }
+      : { ...already, names: [...already.names, name] })
+  }
+  return [...gathered.values()]
 }
 
 /** A type read off its own name, so an unnamed relation still says something. */
 function asWords(type: string): string {
   const spaced = type.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
-}
-
-/** How a lineage is written on a card, in the vocabulary its line already uses. */
-export function lineageLabel(lineage: Lineage, byId: ReadonlyMap<string, GraphNode>): string {
-  const name = byId.get(lineage.parentId)?.name ?? lineage.parentId
-  return lineage.type === 'contains' ? `Part of ${name}` : `Kind of ${name}`
 }
 
 /**

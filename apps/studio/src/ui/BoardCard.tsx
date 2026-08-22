@@ -1,40 +1,37 @@
 import { Handle, Position } from '@xyflow/react'
 import type { GraphNode } from '../lib/graph.js'
 import type { NodeForm } from '../lib/boardStyle.js'
+import type { Said } from '../lib/kinship.js'
 
 export interface BoardCardData {
   readonly node: GraphNode
   readonly form: NodeForm
   readonly colour: string
-  /** What this card hangs off, written on it so it need not be traced. */
-  readonly lineages?: readonly { readonly label: string, readonly type: string, readonly colour: string }[]
-  /** Relations the board could not draw, which the card says in words instead. */
-  readonly notes?: readonly string[]
+  /**
+   * What this card says about itself, so nothing has to be traced.
+   * What it hangs off and what the board could not draw between it and
+   * somewhere else are the same kind of statement, so they are one list.
+   */
+  readonly says?: readonly Said[]
   [key: string]: unknown
 }
 
-/** The same shapes the lines end in, so one vocabulary says one thing. */
-const PART_OF = '\u25C6'
-const KIND_OF = '\u25B7'
-
 /**
- * What the board could not draw, said on the card instead.
- * Set apart from the card's own words, since these are about what is elsewhere
- * on the board rather than about the thing the card names. A reader who cannot
- * find the line has to be able to find this without looking for it.
+ * One line per way a card has of saying something about itself.
+ * A relation the board drew is worn in the colour of the family it belongs to,
+ * and one it could not draw has no family and no mark, so it is set quieter
+ * without being set anywhere else.
  */
-function said(notes: readonly string[]): React.JSX.Element | null {
-  if (notes.length === 0)
-    return null
-  return (
-    <ul className="border-t border-line bg-canvas px-3.5 py-2">
-      {notes.map(note => (
-        <li key={note} className="truncate py-px font-ui text-[0.6875rem] leading-tight text-ink-subtle">
-          {note}
-        </li>
-      ))}
-    </ul>
-  )
+function lines(says: readonly Said[]): React.JSX.Element[] {
+  return says.map(one => (
+    <li
+      key={`${one.phrase}-${one.colour ?? ''}`}
+      className={`truncate py-px font-ui text-[0.6875rem] leading-tight ${one.colour === undefined ? 'text-ink-subtle' : ''}`}
+      {...(one.colour === undefined ? {} : { style: { color: one.colour } })}
+    >
+      {`${one.glyph === undefined ? '' : `${one.glyph}\u00A0`}${one.phrase} ${one.names.join(', ')}`}
+    </li>
+  ))
 }
 
 /** Where a source came from, which is the only part of a URL worth drawing. */
@@ -59,7 +56,7 @@ export function BoardCard({ data, selected }: {
   data: BoardCardData
   selected: boolean
 }): React.JSX.Element {
-  const { node, form, colour, lineages, notes } = data
+  const { node, form, colour, says } = data
   const lift = selected ? 'shadow-lifted ring-1 ring-ink/25' : 'shadow-card'
 
   // The family colour runs the whole height of the card rather than beside its
@@ -71,7 +68,7 @@ export function BoardCard({ data, selected }: {
       style={{ borderLeftColor: colour }}
     >
       <Handle type="target" position={Position.Top} className="!opacity-0" />
-      {body(node, form, colour, lineages ?? [], notes ?? [])}
+      {body(node, form, colour, says ?? [])}
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />
     </div>
   )
@@ -81,8 +78,7 @@ function body(
   node: GraphNode,
   form: NodeForm,
   colour: string,
-  lineages: NonNullable<BoardCardData['lineages']>,
-  notes: readonly string[],
+  says: readonly Said[],
 ): React.JSX.Element {
   switch (form) {
     case 'concept': {
@@ -90,21 +86,7 @@ function body(
         <>
           <div className="px-3.5 pt-2.5">
             <p className="truncate font-ui text-xs font-semibold text-ink">{node.name}</p>
-            {lineages.length === 0
-              ? <div className="pb-2.5" />
-              : (
-                  <ul className="pb-2 pt-1">
-                    {lineages.map(one => (
-                      <li
-                        key={`${one.type}-${one.label}`}
-                        className="truncate py-px font-ui text-[0.6875rem] leading-tight"
-                        style={{ color: one.colour }}
-                      >
-                        {`${one.type === 'contains' ? PART_OF : KIND_OF}\u00A0${one.label}`}
-                      </li>
-                    ))}
-                  </ul>
-                )}
+            {says.length === 0 ? <div className="pb-2.5" /> : <ul className="pb-2 pt-1">{lines(says)}</ul>}
           </div>
           {node.description !== undefined && (
             <div className="px-3.5 pb-3.5">
@@ -113,7 +95,6 @@ function body(
               </p>
             </div>
           )}
-          {said(notes)}
         </>
       )
     }
@@ -128,7 +109,6 @@ function body(
               {node.name}
             </p>
           </div>
-          {said(notes)}
         </>
       )
     }

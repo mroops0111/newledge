@@ -2,7 +2,6 @@ import type { Board } from '@newledge/board'
 import { describe, expect, it } from 'vitest'
 import { edgeStyle, nodeStyle } from '../src/lib/boardStyle.js'
 import { drawnCards, drawnRelations } from '../src/lib/drawing.js'
-import { noteLabel } from '../src/lib/kinship.js'
 import type { GraphEdge, GraphNode } from '../src/lib/graph.js'
 
 function edge(id: string, type: string, from: string, to: string): GraphEdge {
@@ -161,29 +160,5 @@ describe('the visual language', () => {
   it('makes a topic the ground rather than another card among its members', () => {
     expect(nodeStyle('Topic').ground).toBe(true)
     expect(nodeStyle('Concept').ground).toBe(false)
-  })
-})
-
-describe('what a card says about a relation the board could not draw', () => {
-  const byId = new Map<string, GraphNode>([
-    ['rag', { id: 'rag', type: 'Concept', name: 'RAG' }],
-    ['faster', { id: 'faster', type: 'Concept', name: 'GraphRAG answers faster' }],
-  ])
-
-  it('reads one way from one end and the other way from the other', () => {
-    expect(noteLabel({ edgeId: 'x', type: 'uses', otherId: 'faster', end: 'from' }, byId))
-      .toBe('Uses GraphRAG answers faster')
-    expect(noteLabel({ edgeId: 'x', type: 'uses', otherId: 'rag', end: 'to' }, byId))
-      .toBe('Used by RAG')
-  })
-
-  it('reads a relation nobody has chosen words for off its own name', () => {
-    expect(noteLabel({ edgeId: 'x', type: 'dependsOn', otherId: 'rag', end: 'from' }, byId))
-      .toBe('Depends on RAG')
-  })
-
-  it('names a card the graph no longer holds by the only name it has left', () => {
-    expect(noteLabel({ edgeId: 'x', type: 'uses', otherId: 'gone', end: 'from' }, byId))
-      .toBe('Uses gone')
   })
 })
