@@ -28,11 +28,14 @@ export interface DrawnEdge {
  * What a line between two grounds looks like, whatever it stands for.
  * Heavier than a relation between two cards, because it carries several, and
  * dashed because it is a summary rather than a relation anyone asserted. It
- * carries no end, since what it stands for runs both ways.
+ * carries no end, since what it stands for runs both ways. Straight, because
+ * it is a tie between two grounds and not an association between two things,
+ * and because bowed over the short gap between two grounds a heavy dashed line
+ * reads as a stray mark rather than as a connector.
  */
 export const BETWEEN_GROUNDS: EdgeStyle = {
   shapes: 'drawn',
-  kin: 'curve',
+  kin: 'straight',
   tone: 'structure',
   strokeWidth: 3.5,
   dash: '10 6',
