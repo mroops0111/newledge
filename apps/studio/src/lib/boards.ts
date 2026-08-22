@@ -1,4 +1,6 @@
 import type { Board, BoardState } from '@newledge/board'
+import { nodeStyle } from './boardStyle.js'
+import type { GraphNode } from './graph.js'
 
 export interface BoardClientOptions {
   readonly apiUrl: string
@@ -33,6 +35,46 @@ export function createBoardClient(options: BoardClientOptions): BoardClient {
         throw new Error(`Keeping your arrangement failed with ${response.status}`)
     },
   }
+}
+
+/**
+ * The boards a workspace opens on, which are three readings of one graph.
+ * A board is a view and which kinds it shows is the first thing that makes one
+ * view differ from another, so the three differ in nothing else. One shows the
+ * terms alone, one adds what is asserted about them, and one holds everything
+ * the graph has. Reading them side by side is how a reader finds out which
+ * reading their work actually wants.
+ *
+ * Which kinds the last one holds is read off the graph rather than written
+ * down, so an ontology that grows does not leave a board behind. A ground is
+ * left out of all three, since a topic is drawn as the section itself, and so
+ * is any reading that would come out the same as one already there.
+ */
+export function openingBoards(nodes: readonly GraphNode[]): readonly {
+  readonly id: string
+  readonly name: string
+  readonly holds: readonly string[]
+}[] {
+  const kinds = [...new Set(nodes.map(node => node.type))]
+    .filter(type => !nodeStyle(type).ground)
+    .sort((one, other) => nodeStyle(one).band - nodeStyle(other).band || one.localeCompare(other))
+
+  // Only the readings that actually differ. A graph of one kind read three
+  // ways is the same board three times, and a reading with nothing in it says
+  // nothing about the graph it was meant to be a reading of.
+  const already = new Set<string>()
+  return [
+    { id: 'board-terms', name: 'Terms', holds: ['Concept'] },
+    { id: 'board-claims', name: 'Terms and claims', holds: ['Concept', 'Claim'] },
+    { id: 'board-everything', name: 'Everything', holds: kinds },
+  ].flatMap((board) => {
+    const holds = board.holds.filter(type => kinds.includes(type))
+    const key = [...holds].sort().join('|')
+    if (holds.length === 0 || already.has(key))
+      return []
+    already.add(key)
+    return [{ ...board, holds }]
+  })
 }
 
 /** Replace one board within the state, leaving the others as they were. */

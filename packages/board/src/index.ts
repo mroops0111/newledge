@@ -44,6 +44,14 @@ export type Section = z.infer<typeof Section>
 export const Board = z.object({
   id: z.string().min(1),
   name: z.string(),
+  /**
+   * The kinds of node this board is about.
+   * A board is a view, and which kinds it shows is the first thing that makes
+   * one view differ from another. Left unsaid, a board holds whatever the
+   * drawing rules say is worth placing, which is what every board did before
+   * any of them was asked to hold something else.
+   */
+  holds: z.array(z.string().min(1)).min(1).optional(),
   cards: z.array(Card).default([]),
   sections: z.array(Section).default([]),
 })

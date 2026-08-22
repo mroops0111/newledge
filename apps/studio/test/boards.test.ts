@@ -2,6 +2,7 @@ import type { Board, BoardState } from '@newledge/board'
 import { describe, expect, it } from 'vitest'
 import {
   createBoardClient,
+  openingBoards,
   renameSection,
   withBoard,
   withCard,
@@ -113,5 +114,45 @@ describe('talking to the workspace about boards', () => {
   it('says so when an arrangement was refused', async () => {
     const client = createBoardClient({ ...options, fetcher: async () => new Response('', { status: 400 }) })
     await expect(client.keep({ boards: [] })).rejects.toThrow('400')
+  })
+})
+
+describe('the boards a workspace opens on', () => {
+  const nodes = [
+    { id: 'a', type: 'Concept', name: 'A' },
+    { id: 'b', type: 'Claim', name: 'B' },
+    { id: 'c', type: 'Source', name: 'C' },
+    { id: 'd', type: 'Topic', name: 'D' },
+  ]
+
+  it('reads one graph three ways', () => {
+    expect(openingBoards(nodes).map(board => board.name))
+      .toEqual(['Terms', 'Terms and claims', 'Everything'])
+  })
+
+  it('differs in nothing but which kinds each one holds', () => {
+    const [terms, claims, everything] = openingBoards(nodes)
+    expect(terms!.holds).toEqual(['Concept'])
+    expect(claims!.holds).toEqual(['Concept', 'Claim'])
+    expect(everything!.holds).toEqual(['Concept', 'Claim', 'Source'])
+  })
+
+  it('reads the last one off the graph, so a growing ontology is not left behind', () => {
+    const richer = [...nodes, { id: 'e', type: 'Question', name: 'E' }]
+    expect(openingBoards(richer).at(-1)!.holds).toContain('Question')
+  })
+
+  it('leaves a ground out, since a topic is drawn as the section itself', () => {
+    expect(openingBoards(nodes).flatMap(board => board.holds)).not.toContain('Topic')
+  })
+
+  it('drops a board with nothing to hold rather than opening it empty', () => {
+    expect(openingBoards([{ id: 'd', type: 'Topic', name: 'D' }])).toEqual([])
+  })
+
+  it('opens one board on a graph of one kind, not the same board three times', () => {
+    const plain = openingBoards([{ id: 'a', type: 'Concept', name: 'A' }])
+    expect(plain).toHaveLength(1)
+    expect(plain[0]!.holds).toEqual(['Concept'])
   })
 })
