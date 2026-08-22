@@ -4,7 +4,7 @@ import type { GraphEdge, GraphNode } from './graph.js'
 /** What a card hangs off, said on the card so it need not be traced. */
 export interface Lineage {
   readonly parentId: string
-  readonly kin: 'family' | 'brood'
+  readonly type: string
 }
 
 /**
@@ -16,14 +16,14 @@ export interface Lineage {
 export function lineages(edges: readonly GraphEdge[]): Map<string, Lineage> {
   const held = new Map<string, Lineage>()
   for (const edge of edges) {
-    const kin = edgeStyle(edge.type).kin
-    if (kin === 'curve')
+    const style = edgeStyle(edge.type)
+    if (style.kin !== 'tree')
       continue
-    const [parentId, child] = kin === 'brood'
+    const [parentId, child] = style.rootAt === 'from'
       ? [edge.fromNodeId, edge.toNodeId]
       : [edge.toNodeId, edge.fromNodeId]
     if (!held.has(child))
-      held.set(child, { parentId, kin })
+      held.set(child, { parentId, type: edge.type })
   }
   return held
 }
@@ -31,7 +31,7 @@ export function lineages(edges: readonly GraphEdge[]): Map<string, Lineage> {
 /** How a lineage is written on a card, in the vocabulary its line already uses. */
 export function lineageLabel(lineage: Lineage, byId: ReadonlyMap<string, GraphNode>): string {
   const name = byId.get(lineage.parentId)?.name ?? lineage.parentId
-  return lineage.kin === 'brood' ? `Part of ${name}` : `Kind of ${name}`
+  return lineage.type === 'contains' ? `Part of ${name}` : `Kind of ${name}`
 }
 
 /**
@@ -93,12 +93,11 @@ function worthWearing(edges: readonly GraphEdge[]): {
   const rootOf = new Map<string, string>()
 
   for (const edge of edges) {
-    const kin = edgeStyle(edge.type).kin
-    if (kin === 'curve')
+    if (edgeStyle(edge.type).kin !== 'tree')
       continue
     // A whole holds its parts and a kind extends what it is a kind of, so the
     // two are written in opposite directions and only one end is the root.
-    const [root, member] = kin === 'brood'
+    const [root, member] = edgeStyle(edge.type).rootAt === 'from'
       ? [edge.fromNodeId, edge.toNodeId]
       : [edge.toNodeId, edge.fromNodeId]
     rootOf.set(member, root)

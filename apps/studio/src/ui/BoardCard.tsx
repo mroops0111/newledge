@@ -7,12 +7,13 @@ export interface BoardCardData {
   readonly form: NodeForm
   readonly colour: string
   /** What this card hangs off, written on it so it need not be traced. */
-  readonly lineage?: { readonly label: string, readonly kin: 'family' | 'brood' }
+  readonly lineage?: { readonly label: string, readonly type: string }
   [key: string]: unknown
 }
 
-/** The same two shapes the lines end in, so one vocabulary says one thing. */
-const KIN_GLYPH = { brood: '\u25C6', family: '\u25B7' } as const
+/** The same shapes the lines end in, so one vocabulary says one thing. */
+const PART_OF = '\u25C6'
+const KIND_OF = '\u25B7'
 
 /** Where a source came from, which is the only part of a URL worth drawing. */
 function domainOf(node: GraphNode): string | undefined {
@@ -67,7 +68,7 @@ function body(
                     className="truncate pb-2 pt-1 font-ui text-[0.6875rem] leading-none"
                     style={{ color: colour }}
                   >
-                    {`${KIN_GLYPH[lineage.kin]}\u00A0${lineage.label}`}
+                    {`${lineage.type === 'contains' ? PART_OF : KIND_OF}\u00A0${lineage.label}`}
                   </p>
                 )}
           </div>

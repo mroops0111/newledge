@@ -4,18 +4,8 @@ import { edgeStyle } from './boardStyle.js'
 /** How far under a parent the shared bar runs, when there is room for it. */
 const TRUNK = 26
 
-/** How far outside the parts a bracket sits. */
-const BRACKET = 16
-
 export interface Kinship {
   readonly edges: ReadonlyMap<string, readonly Point[]>
-  /**
-   * A box round what each card contains.
-   * It is worked out from where the parts are now, so it follows a reader who
-   * moves one and it survives a board being reopened. Keeping the parts
-   * together in the first place is the layout's job, not this one's.
-   */
-  readonly broods: readonly (Box & { readonly id: string })[]
 }
 
 /**
@@ -30,7 +20,6 @@ export function kinship(
   at: ReadonlyMap<string, Box>,
 ): Kinship {
   const drawn = new Map<string, readonly Point[]>()
-  const broods: (Box & { id: string })[] = []
 
   for (const [, group] of familiesIn(edges, at)) {
     const parent = at.get(group.parentId)!
@@ -50,17 +39,13 @@ export function kinship(
         { x: centre(parent), y: parent.y + parent.height },
       ])
     }
-
-    if (group.kin === 'brood')
-      broods.push({ id: `brood-${group.parentId}`, ...enclosing(children.map(child => child.box)) })
   }
 
-  return { edges: drawn, broods }
+  return { edges: drawn }
 }
 
 interface Family {
   readonly parentId: string
-  readonly kin: 'family' | 'brood'
   readonly edgeIds: string[]
   readonly childOf: Map<string, string>
 }
@@ -77,13 +62,13 @@ function familiesIn(
 ): Map<string, Family> {
   const families = new Map<string, Family>()
   for (const edge of edges) {
-    const kin = edgeStyle(edge.type).kin
-    if (kin === 'curve' || !at.has(edge.from) || !at.has(edge.to))
+    const style = edgeStyle(edge.type)
+    if (style.kin !== 'tree' || !at.has(edge.from) || !at.has(edge.to))
       continue
-    const [parentId, childId] = kin === 'brood' ? [edge.from, edge.to] : [edge.to, edge.from]
+    const [parentId, childId] = style.rootAt === 'from' ? [edge.from, edge.to] : [edge.to, edge.from]
     const key = `${parentId}:${edge.type}`
     const family = families.get(key)
-      ?? { parentId, kin, edgeIds: [], childOf: new Map<string, string>() }
+      ?? { parentId, edgeIds: [], childOf: new Map<string, string>() }
     family.edgeIds.push(edge.id)
     family.childOf.set(edge.id, childId)
     families.set(key, family)
@@ -116,15 +101,4 @@ function leaving(child: Box, bar: number): number {
 
 function centre(box: Box): number {
   return box.x + box.width / 2
-}
-
-function enclosing(boxes: readonly Box[]): Box {
-  const left = Math.min(...boxes.map(box => box.x)) - BRACKET
-  const top = Math.min(...boxes.map(box => box.y)) - BRACKET
-  return {
-    x: left,
-    y: top,
-    width: Math.max(...boxes.map(box => box.x + box.width)) + BRACKET - left,
-    height: Math.max(...boxes.map(box => box.y + box.height)) + BRACKET - top,
-  }
 }
