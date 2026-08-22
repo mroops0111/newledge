@@ -18,8 +18,8 @@ import { drawnCards, drawnRelations } from '../lib/drawing.js'
 import { cardExtent } from '../lib/measure.js'
 import { kinship } from '../lib/family.js'
 import { familyColours, familyOfRoot, kinColour, lineageLabel, lineages, lineColour, NO_FAMILY } from '../lib/kinship.js'
-import type { Box } from '../lib/path.js'
-import { borderRun } from '../lib/path.js'
+import type { Box, Facing } from '../lib/path.js'
+import { borderRun, facing } from '../lib/path.js'
 import type { GraphEdge, GraphNode } from '../lib/graph.js'
 import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
@@ -313,12 +313,16 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   const obstacles = useMemo(
     () => [
       ...[...boxes].map(([id, box]) => ({ id, ...box })),
+      // Given as ground rather than as something to avoid, since a section is
+      // drawn under every line and a line crossing one is not hidden by it.
+      // A line still has to be able to end on one, which is why it is here.
       ...(board?.sections ?? []).map(section => ({
         id: section.id,
         x: section.x,
         y: section.y,
         width: section.width,
         height: section.height,
+        ground: true,
       })),
     ],
     [boxes, board],
@@ -389,6 +393,25 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       return from === undefined || to === undefined ? undefined : borderRun(from, to)
     }
 
+    /**
+     * Which way the line runs as it leaves each of its two cards.
+     * Taken from the border each end sits on, so a curve leaves square on to
+     * that border instead of at whatever angle the two centres happen to make.
+     */
+    const sidesOf = (
+      edge: DrawnEdge,
+      points: readonly { x: number, y: number }[] | undefined,
+    ): { leaves?: Facing, arrives?: Facing } => {
+      if (points === undefined || points.length < 2)
+        return {}
+      const from = extentOfEnd(edge.source)
+      const to = extentOfEnd(edge.target)
+      return {
+        ...(from === undefined ? {} : { leaves: facing(from, points[0]!) }),
+        ...(to === undefined ? {} : { arrives: facing(to, points[points.length - 1]!) }),
+      }
+    }
+
     const extentOfEnd = (id: string): Box | undefined => {
       const card = boxes.get(id)
       if (card !== undefined)
@@ -436,6 +459,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
         data: {
           ...(points === undefined ? {} : { points }),
           curved: edge.style.kin === 'curve',
+          ...sidesOf(edge, points),
         } satisfies RoutedEdgeData,
         style: {
           stroke: lineColour(paintOf(edge)),

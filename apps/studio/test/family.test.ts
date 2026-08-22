@@ -153,3 +153,79 @@ describe('a family whose children sit above its root', () => {
     expect(bar).toBeLessThan(250)
   })
 })
+
+describe('a bar long enough to reach cards outside its own family', () => {
+  // A family spread wide has a bar that runs past cards with nothing to do
+  // with it. A card is drawn over the lines that reach it, so a bar through
+  // one reads as two lines with a gap where the card sits.
+  const stranger = box(300, 300)
+
+  it('runs clear of a card that has nothing to do with it', () => {
+    const wide = kinship(
+      [edge('p1', 'contains', 'whole', 'part')],
+      new Map([
+        ['whole', box(0, 0)],
+        ['part', box(900, 500)],
+        ['stranger', stranger],
+      ]),
+    )
+    const bar = wide.edges.get('p1')![2]!.y
+    expect(bar < stranger.y || bar > stranger.y + stranger.height).toBe(true)
+  })
+
+  it('leaves the bar where it wanted when nothing is in the way', () => {
+    const clear = kinship(
+      [edge('p1', 'contains', 'whole', 'part')],
+      new Map([['whole', box(0, 0)], ['part', box(900, 500)]]),
+    )
+    const bar = clear.edges.get('p1')![2]!.y
+    expect(bar).toBeGreaterThan(100)
+    expect(bar).toBeLessThan(500)
+  })
+
+  it('ignores a card that stands beside the bar rather than under it', () => {
+    const beside = kinship(
+      [edge('p1', 'contains', 'whole', 'part')],
+      new Map([
+        ['whole', box(0, 0)],
+        ['part', box(300, 500)],
+        ['far', box(2000, 300)],
+      ]),
+    )
+    const clear = kinship(
+      [edge('p1', 'contains', 'whole', 'part')],
+      new Map([['whole', box(0, 0)], ['part', box(300, 500)]]),
+    )
+    expect(beside.edges.get('p1')![2]!.y).toBe(clear.edges.get('p1')![2]!.y)
+  })
+})
+
+describe('a bar squeezed by a card in the middle of its reach', () => {
+  it('goes to whichever side of it leaves the bar nearest where it wanted', () => {
+    // The card blocking the bar sits low, so passing above it is the shorter
+    // move. Sent only further from the root, the bar would go the long way.
+    const squeezed = kinship(
+      [edge('p1', 'contains', 'whole', 'part')],
+      new Map([
+        ['whole', box(0, 0)],
+        ['part', box(900, 1000)],
+        ['stranger', box(300, 560)],
+      ]),
+    )
+    const bar = squeezed.edges.get('p1')![2]!.y
+    expect(bar).toBeLessThan(560)
+    expect(bar).toBeGreaterThan(100)
+  })
+
+  it('never comes back past the face it leaves the root by', () => {
+    const crowded = kinship(
+      [edge('p1', 'contains', 'whole', 'part')],
+      new Map([
+        ['whole', box(0, 0)],
+        ['part', box(900, 1000)],
+        ['stranger', box(300, 120)],
+      ]),
+    )
+    expect(crowded.edges.get('p1')![2]!.y).toBeGreaterThan(100)
+  })
+})

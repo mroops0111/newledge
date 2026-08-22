@@ -120,7 +120,10 @@ export function drawnRelations(
       id: `between-${id}`,
       source: pair.source,
       target: pair.target,
-      ...([...pair.ends].some(end => selected.has(end)) ? { label: `${pair.ends.size}` } : {}),
+      // Always said, since this is the one line whose shape does not carry
+      // what it is. Every other line says its kind by the end it points with,
+      // and a reader who cannot tell what a line means cannot use it.
+      label: `${pair.ends.size} across`,
       style: BETWEEN_GROUNDS,
       standsFor: [...pair.ends],
     })),

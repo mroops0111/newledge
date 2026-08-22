@@ -8,17 +8,41 @@ export interface Box extends Point {
   readonly height: number
 }
 
-/** How far a curve bows out from the straight line between two cards. */
-const BOW = 0.11
+/**
+ * How far out a curve reaches before it turns, as a share of the run.
+ * A half puts both handles at the middle of the run, which is the furthest
+ * either can reach without the curve doubling back on itself.
+ */
+const REACH = 0.5
+
+/** How far it reaches when the run is too short for a share of it to show. */
+const LEAST_REACH = 30
 
 /**
- * How far a curve may bow out however long it is.
- * Kept a share of the run, a curve across the board sweeps a long way off it,
- * which reads as a line that has wandered rather than one that is associative,
- * and it leaves the run the router cleared for it. Past this the bow stops
- * growing, so a long relation is all but straight and a short one still bows.
+ * How far it reaches however long the run is.
+ * A router clears the straight run between two cards, not the curve drawn
+ * along it, so a curve that leaves that run by half its length is not on
+ * cleared ground at all and passes through whatever the router went to the
+ * trouble of avoiding. Held to this, the curve is the straight run with its
+ * two ends turned to meet their borders square on.
  */
-const MOST_BOW = 48
+const MOST_REACH = 60
+
+/** The axis a line runs along as it leaves a card, set by the border it left by. */
+export type Facing = 'x' | 'y'
+
+/**
+ * Which way a line runs as it leaves a card at this point.
+ * A point on the left or right border is left along x, one on the top or
+ * bottom along y. Read from whichever pair of borders the point is nearer,
+ * since a point put on a border by an intersection sits exactly on one pair
+ * and somewhere between the other.
+ */
+export function facing(box: Box, at: Point): Facing {
+  const sideways = Math.min(Math.abs(at.x - box.x), Math.abs(at.x - (box.x + box.width)))
+  const upright = Math.min(Math.abs(at.y - box.y), Math.abs(at.y - (box.y + box.height)))
+  return sideways <= upright ? 'x' : 'y'
+}
 
 /**
  * Where a line between two cards should leave and arrive.
@@ -34,23 +58,29 @@ export function borderRun(from: Box, to: Box): [Point, Point] {
 }
 
 /**
- * A gentle arc between two points.
- * A straight line reads as a diagram and a whiteboard is not one, so an
- * association bows slightly, which also keeps two lines between the same
- * neighbours from lying on top of each other. The bow is a share of the run
- * up to a limit, so it is the same gentle thing at any length rather than a
- * sweep that grows with the distance it has to cover.
+ * An S between two points, leaving each card square on to the border it crosses.
+ * A straight line reads as a diagram and a whiteboard is not one. Bowed
+ * sideways instead, a line leaves its card at whatever angle the two centres
+ * happen to sit at, and the end it points with arrives across the corner
+ * rather than into the card. Leaving square on and turning in the middle is
+ * what a reader has seen everywhere else, and it says which border a relation
+ * belongs to without anything having to be drawn there.
  */
-export function curvePath(from: Point, to: Point): string {
+export function curvePath(from: Point, to: Point, leaves?: Facing, arrives?: Facing): string {
   const dx = to.x - from.x
   const dy = to.y - from.y
-  const run = Math.hypot(dx, dy)
-  const lean = run === 0 ? 0 : Math.min(run * BOW, MOST_BOW) / run
-  const control = {
-    x: (from.x + to.x) / 2 - dy * lean,
-    y: (from.y + to.y) / 2 + dx * lean,
-  }
-  return `M ${from.x},${from.y} Q ${control.x},${control.y} ${to.x},${to.y}`
+  const across: Facing = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y'
+  const reach = (axis: Facing): number =>
+    Math.min(Math.max(Math.abs(axis === 'x' ? dx : dy) * REACH, LEAST_REACH), MOST_REACH)
+
+  const out = leaves ?? across
+  const held = (at: Point, axis: Facing, way: number): Point => axis === 'x'
+    ? { x: at.x + way * (Math.sign(dx) || 1) * reach('x'), y: at.y }
+    : { x: at.x, y: at.y + way * (Math.sign(dy) || 1) * reach('y') }
+
+  const first = held(from, out, 1)
+  const second = held(to, arrives ?? across, -1)
+  return `M ${from.x},${from.y} C ${first.x},${first.y} ${second.x},${second.y} ${to.x},${to.y}`
 }
 
 export function centreOf(box: Box): Point {
