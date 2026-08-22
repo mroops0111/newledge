@@ -1,19 +1,12 @@
 import type { MarkerKind } from '../lib/boardStyle.js'
-import { TONE_COLOURS } from '../lib/boardStyle.js'
-import { kinColour, KINSHIP_KEYS } from '../lib/kinship.js'
+import { LINE_PAINTS } from '../lib/kinship.js'
 
 const KINDS: readonly Exclude<MarkerKind, 'none'>[] = ['triangleHollow', 'diamond', 'arrow', 'dot']
 
-/**
- * Every colour a line can end in.
- * A relation drawn in the colour of the family it belongs to needs an end in
- * that colour too, since an end in another colour would say it belongs
- * somewhere else.
- */
-const PAINTS: readonly (readonly [string, string])[] = [
-  ...Object.entries(TONE_COLOURS),
-  ...KINSHIP_KEYS.map(key => [key, kinColour(key)] as const),
-]
+// A relation drawn in the colour of the family it belongs to needs an end in
+// that colour too, since an end in another colour would say it belongs
+// somewhere else, so both are read off the one table.
+const PAINTS: readonly (readonly [string, string])[] = [...LINE_PAINTS]
 
 /**
  * What an edge points its end at, or nothing when it has no direction.

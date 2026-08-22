@@ -19,12 +19,26 @@ const CORE_OPTIONS: Record<string, string> = {
   'elk.layered.spacing.edgeNodeBetweenLayers': '24',
 }
 
+/**
+ * How far apart two sections stand, which is further than two cards do.
+ * A section is ground, and two grounds set end to end read as one. The gap is
+ * what says where one ends, so it has to be wider than the gaps inside them.
+ */
+const SECTION_GAP = '96'
+
 const BOARD_OPTIONS: Record<string, string> = {
   ...CORE_OPTIONS,
   'elk.padding': '[top=40.0,left=40.0,bottom=40.0,right=40.0]',
+  'elk.spacing.nodeNode': SECTION_GAP,
+  'elk.layered.spacing.nodeNodeBetweenLayers': SECTION_GAP,
+  // Sections with no relation between them are not laid out at all, they are
+  // packed, and packing answers to a spacing of its own. Left at its default
+  // of 20 the board set two sections all but touching however far apart the
+  // layout had been told to keep things.
+  'elk.spacing.componentComponent': SECTION_GAP,
 }
 
-const GROUP_PADDING = '[top=20.0,left=20.0,bottom=20.0,right=20.0]'
+const GROUP_PADDING = 20
 
 /**
  * How many relations a section needs before laying it out in layers is worth it.
@@ -36,14 +50,18 @@ const DENSE_ENOUGH = 0.6
 
 // A section lays itself out, and ELK asks each container for its own options
 // rather than reading them off the one above, so they are given again here.
-function groupOptions(cards: number, relations: number): Record<string, string> {
+// What the group asked to keep clear is kept clear at the top, which is where
+// a section carries its name.
+function groupOptions(cards: number, relations: number, header: number): Record<string, string> {
   const dense = cards > 0 && relations / cards >= DENSE_ENOUGH
+  const padding = `[top=${(GROUP_PADDING + header).toFixed(1)},left=${GROUP_PADDING}.0,`
+    + `bottom=${GROUP_PADDING}.0,right=${GROUP_PADDING}.0]`
   return dense
-    ? { ...CORE_OPTIONS, 'elk.padding': GROUP_PADDING }
+    ? { ...CORE_OPTIONS, 'elk.padding': padding }
     : {
         ...CORE_OPTIONS,
         'elk.algorithm': 'rectpacking',
-        'elk.padding': GROUP_PADDING,
+        'elk.padding': padding,
         'elk.aspectRatio': '1.6',
       }
 }
@@ -137,7 +155,11 @@ function write(request: PlacementRequest): ElkNode {
       id: group.id,
       children,
       edges: within.get(group.id) ?? [],
-      layoutOptions: groupOptions(children.length, (within.get(group.id) ?? []).length),
+      layoutOptions: groupOptions(
+        children.length,
+        (within.get(group.id) ?? []).length,
+        group.inset?.height ?? 0,
+      ),
     })
   }
   for (const [id, group] of built) {

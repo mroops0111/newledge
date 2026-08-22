@@ -137,12 +137,25 @@ function trimmed(route: readonly Point[], from: Box, to: Box): Point[] {
   return points
 }
 
-/** Where a run out of a box's centre crosses its border. */
+/**
+ * Where a run out of a box's centre crosses its border.
+ * Worked out as an intersection rather than by pinning one coordinate and
+ * moving the other. Every corridor leaves a box square on, where the two come
+ * to the same answer, but the straight run across leaves at whatever angle the
+ * two centres happen to sit at. Pinned, both ends of that run kept the height
+ * of their own card, so a line between two cards at different heights arrived
+ * bent and its arrow head came in at an angle nothing accounted for.
+ */
 function leaving(inside: Point, towards: Point, box: Box): Point {
-  if (towards.x === inside.x) {
-    return { x: inside.x, y: towards.y > inside.y ? box.y + box.height : box.y }
-  }
-  return { x: towards.x > inside.x ? box.x + box.width : box.x, y: inside.y }
+  const dx = towards.x - inside.x
+  const dy = towards.y - inside.y
+  if (dx === 0 && dy === 0)
+    return inside
+  const reach = Math.min(
+    dx === 0 ? Number.POSITIVE_INFINITY : (box.width / 2) / Math.abs(dx),
+    dy === 0 ? Number.POSITIVE_INFINITY : (box.height / 2) / Math.abs(dy),
+  )
+  return { x: inside.x + dx * reach, y: inside.y + dy * reach }
 }
 
 function centre(box: Box): Point {
