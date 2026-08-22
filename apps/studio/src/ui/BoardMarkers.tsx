@@ -35,8 +35,8 @@ export function BoardMarkers(): React.JSX.Element {
             viewBox="0 0 12 12"
             refX={kind === 'dot' ? 6 : 11}
             refY={6}
-            markerWidth={9}
-            markerHeight={9}
+            markerWidth={13}
+            markerHeight={13}
             orient="auto-start-reverse"
             markerUnits="userSpaceOnUse"
           >
@@ -53,9 +53,11 @@ function shapeOf(kind: Exclude<MarkerKind, 'none'>, colour: string): React.JSX.E
     case 'triangleHollow':
       return <path d="M1 1 L11 6 L1 11 z" fill="var(--surface)" stroke={colour} strokeWidth={1.4} />
     case 'diamond':
-      return <path d="M1 6 L6 2 L11 6 L6 10 z" fill={colour} stroke={colour} strokeWidth={1} />
+      return <path d="M0 6 L6 1.5 L12 6 L6 10.5 z" fill={colour} stroke={colour} strokeWidth={1} strokeLinejoin="round" />
+    // Filled, and closed. Drawn as two strokes meeting at a point it read as a
+    // scratch beside the line rather than as the end of it.
     case 'arrow':
-      return <path d="M2 2 L11 6 L2 10" fill="none" stroke={colour} strokeWidth={1.6} strokeLinecap="round" />
+      return <path d="M1.5 1.5 L11.5 6 L1.5 10.5 z" fill={colour} stroke={colour} strokeWidth={1} strokeLinejoin="round" />
     case 'dot':
       return <circle cx={6} cy={6} r={3} fill={colour} />
     default: {

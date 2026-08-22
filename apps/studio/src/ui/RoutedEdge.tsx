@@ -29,7 +29,7 @@ export function RoutedEdge(props: EdgeProps): React.JSX.Element {
       {props.label !== undefined && (
         <EdgeLabelRenderer>
           <div
-            className="pointer-events-none absolute rounded bg-canvas px-1 font-ui text-[0.625rem] text-ink-subtle"
+            className="pointer-events-none absolute whitespace-nowrap rounded-full border border-line bg-surface px-2 py-0.5 font-ui text-[0.6875rem] font-semibold text-ink shadow-card"
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
           >
             {props.label}

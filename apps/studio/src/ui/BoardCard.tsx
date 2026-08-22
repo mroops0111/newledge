@@ -40,8 +40,14 @@ export function BoardCard({ data, selected }: {
   const { node, form, colour, lineages } = data
   const lift = selected ? 'shadow-lifted ring-1 ring-ink/25' : 'shadow-card'
 
+  // The family colour runs the whole height of the card rather than beside its
+  // heading, since a board is looked at before it is read and two pixels of
+  // colour against a heading is not something a reader sees from across one.
   return (
-    <div className={`rounded-card border border-line bg-surface ${lift}`}>
+    <div
+      className={`overflow-hidden rounded-card border border-line border-l-[5px] bg-surface ${lift}`}
+      style={{ borderLeftColor: colour }}
+    >
       <Handle type="target" position={Position.Top} className="!opacity-0" />
       {body(node, form, colour, lineages ?? [])}
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />
@@ -59,7 +65,7 @@ function body(
     case 'concept': {
       return (
         <>
-          <div className="rounded-t-card border-l-2 px-3.5 pt-2.5" style={{ borderLeftColor: colour }}>
+          <div className="px-3.5 pt-2.5">
             <p className="truncate font-ui text-xs font-semibold text-ink">{node.name}</p>
             {lineages.length === 0
               ? <div className="pb-2.5" />
@@ -92,7 +98,7 @@ function body(
     // would destroy the thing itself, so the card is as tall as saying it takes.
     case 'claim': {
       return (
-        <div className="border-l-2 px-3.5 py-3" style={{ borderLeftColor: colour }}>
+        <div className="px-3.5 py-3">
           <p className="font-reading text-[0.8125rem] leading-relaxed text-ink">
             {node.name}
           </p>

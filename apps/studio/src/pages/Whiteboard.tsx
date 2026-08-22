@@ -188,7 +188,15 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       position: { x: section.x, y: section.y },
       // A section is ground, so it is drawn under the cards and never selects,
       // which keeps a click on the board about the cards a reader put there.
-      data: { section, onRename: name => rename(section.id, name), onRenamed: keepLatest },
+      // Taking hold of one is not selecting it, and is kept here rather than
+      // handed to the canvas, so what a section does to the rest of the board
+      // when a reader picks a card is left alone.
+      data: {
+        section,
+        onRename: name => rename(section.id, name),
+        onRenamed: keepLatest,
+        grabbed: false,
+      },
       selectable: false,
       zIndex: 0,
     }))
@@ -217,6 +225,14 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     [drawn],
   )
   const [pickedId] = [...selected]
+
+  /**
+   * The section a reader has taken hold of, which is the only one that moves.
+   * Held apart from what the canvas calls selection, since selecting a section
+   * would tell the rest of the board to stand back from a thing the graph has
+   * no relations for, and everything else on the board would go quiet.
+   */
+  const [grabbed, setGrabbed] = useState<string | undefined>(undefined)
   const attention = pickedId === undefined ? IDLE : { selectedId: pickedId, focused }
   const near = useMemo(
     () => neighbourhood(
@@ -259,14 +275,26 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   }, [boxes, graph])
   // A reader who picked something wants the rest out of the way, gently while
   // they glance and entirely once they ask to focus.
+  /**
+   * The cards as the canvas is given them.
+   * A card moves only once it has been picked. Movable the moment it is under
+   * the pointer, every card is a hole in the board a reader trying to move the
+   * whole thing falls into, and a board is moved far more often than a card is.
+   * Picking first also makes moving a card something a reader means to do.
+   */
   const attended: Node[] = useMemo(() => drawn.flatMap((node) => {
-    if (node.type !== 'card')
-      return [node]
+    if (node.type !== 'card') {
+      const held = node.id === grabbed
+      return [{ ...node, draggable: held, data: { ...node.data, grabbed: held } }]
+    }
     const emphasis = emphasisOf(node.id, near.nodes, attention)
     if (emphasis === 'gone')
       return []
-    return [emphasis === 'dimmed' ? { ...node, style: { ...node.style, opacity: DIMMED } } : node]
-  }), [drawn, near, attention])
+    const picked = { ...node, draggable: node.selected === true }
+    return [emphasis === 'dimmed'
+      ? { ...picked, style: { ...picked.style, opacity: DIMMED } }
+      : picked]
+  }), [drawn, near, attention, grabbed])
 
   const extent = useMemo(
     () => [...boxes.values(), ...(board?.sections ?? []).map(section => ({
@@ -598,6 +626,8 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
               nodeTypes={NODE_TYPES}
               edgeTypes={EDGE_TYPES}
               onNodesChange={onNodesChange}
+              onNodeClick={(_, node) => setGrabbed(node.type === 'section' ? node.id : undefined)}
+              onPaneClick={() => setGrabbed(undefined)}
               onNodeDragStart={onNodeDragStart}
               onNodeDragStop={onNodeDragStop}
               nodesConnectable={false}
