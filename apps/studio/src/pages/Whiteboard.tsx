@@ -17,7 +17,7 @@ import type { DrawnEdge } from '../lib/drawing.js'
 import { drawnCards, drawnRelations } from '../lib/drawing.js'
 import { cardExtent } from '../lib/measure.js'
 import { kinship } from '../lib/family.js'
-import { familyColours, familyOfRoot, kinColour, lineageLabel, lineages, lineColour, NO_FAMILY, noteLabel } from '../lib/kinship.js'
+import { familyColours, familyOfRoot, kinColour, lineages, lineColour, NO_FAMILY, saidOnCard } from '../lib/kinship.js'
 import type { Box, Facing } from '../lib/path.js'
 import { borderRun, facing } from '../lib/path.js'
 import type { GraphEdge, GraphNode } from '../lib/graph.js'
@@ -220,11 +220,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
         node: card.node,
         form: nodeStyle(card.node.type).form,
         colour: colourOf(card.node),
-        lineages: (hangsOff.get(card.nodeId) ?? []).map(one => ({
-          label: lineageLabel(one, byId),
-          type: one.type,
-          colour: kinColour(familyLed.get(one.parentId) ?? NO_FAMILY),
-        })),
+        says: [],
       },
       style: { width: card.width },
       zIndex: 3,
@@ -414,19 +410,25 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     const emphasis = emphasisOf(node.id, near.nodes, attention)
     if (emphasis === 'gone')
       return []
-    const said = relations.notes.get(node.id)
+    // Gathered here rather than where the card is built, since what the board
+    // could not draw is only known once the lines have been worked out.
     const picked: Node = {
       ...node,
       draggable: node.selected === true,
       data: {
         ...node.data,
-        notes: (said ?? []).map(note => noteLabel(note, byId)),
+        says: saidOnCard(
+          hangsOff.get(node.id) ?? [],
+          relations.notes.get(node.id) ?? [],
+          byId,
+          parentId => kinColour(familyLed.get(parentId) ?? NO_FAMILY),
+        ),
       },
     }
     return [emphasis === 'dimmed'
       ? { ...picked, style: { ...picked.style, opacity: DIMMED } }
       : picked]
-  }), [drawn, near, attention, grabbed, relations, byId])
+  }), [drawn, near, attention, grabbed, relations, byId, hangsOff, familyLed])
 
   const edges: Edge[] = useMemo(() => {
 
