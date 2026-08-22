@@ -10,7 +10,7 @@ import type { Guide } from '../lib/aligning.js'
 import { emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { elkPlacement } from '../lib/elkPlacement.js'
 import type { BoardClient } from '../lib/boards.js'
-import { renameSection, withBoard, withCard, withSection } from '../lib/boards.js'
+import { openingBoards, renameSection, withBoard, withCard, withSection } from '../lib/boards.js'
 import { edgeStyle, nodeStyle } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import type { DrawnEdge } from '../lib/drawing.js'
@@ -60,8 +60,8 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   nav: Nav
 }): React.JSX.Element {
   const [graph, setGraph] = useState<{ nodes: readonly GraphNode[], edges: readonly GraphEdge[] }>({ nodes: [], edges: [] })
-  const [board, setBoard] = useState<Board | undefined>(undefined)
-  const [others, setOthers] = useState<readonly Board[]>([])
+  const [boards, setBoards] = useState<readonly Board[]>([])
+  const [openId, setOpenId] = useState<string | undefined>(undefined)
   /**
    * Where each line runs, worked out from where the cards are now.
    * It cannot be kept from the arrangement, because a reader moving one card
@@ -84,7 +84,6 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   const latestBoard = useRef<Board | undefined>(undefined)
   const sectionDrag = useRef<SectionDrag | undefined>(undefined)
   const zoom = useRef(1)
-  latestBoard.current = board
 
   useEffect(() => {
     void (async () => {
@@ -94,18 +93,22 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
           boardClient.read(),
         ])
         setGraph(loaded)
-        const [kept] = state.boards
-        setOthers(state.boards.slice(1))
-        if (kept !== undefined) {
-          setBoard(kept)
+        if (state.boards.length > 0) {
+          setBoards(state.boards)
+          setOpenId(state.boards[0]!.id)
           return
         }
         // A workspace nobody has arranged opens on a first arrangement rather
         // than on an empty canvas, written down at once so a reader is editing
-        // their own board from then on and is never laid out again.
-        const opening = await firstArrangement(loaded, PLACEMENT)
-        setBoard(opening.board)
-        await boardClient.keep({ boards: [opening.board] })
+        // their own boards from then on and is never laid out again.
+        const opening = await Promise.all(openingBoards(loaded.nodes).map(async board => ({
+          ...board,
+          holds: [...board.holds],
+          ...(await firstArrangement(loaded, PLACEMENT, board.holds)).board,
+        })))
+        setBoards(opening)
+        setOpenId(opening[0]?.id)
+        await boardClient.keep({ boards: opening })
       }
       catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause))
@@ -113,12 +116,18 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     })()
   }, [graphClient, boardClient])
 
+  const board = boards.find(one => one.id === openId)
+  latestBoard.current = board
+
   const persist = useCallback((next: Board) => {
-    setBoard(next)
-    void boardClient
-      .keep(withBoard({ boards: [...others] }, next))
-      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
-  }, [boardClient, others])
+    setBoards((kept) => {
+      const updated = withBoard({ boards: [...kept] }, next).boards
+      void boardClient
+        .keep({ boards: updated })
+        .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
+      return updated
+    })
+  }, [boardClient])
 
   /**
    * What a card wears down its side, which is what it belongs to.
@@ -142,9 +151,12 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   const rearrange = useCallback(() => {
     void (async () => {
       try {
-        const again = await firstArrangement(graph, PLACEMENT)
+        const current = latestBoard.current
+        if (current === undefined)
+          return
+        const again = await firstArrangement(graph, PLACEMENT, current.holds)
         setGeneration(count => count + 1)
-        persist({ ...again.board, name: latestBoard.current?.name ?? again.board.name })
+        persist({ ...current, ...again.board })
       }
       catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause))
@@ -163,7 +175,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     if (current === undefined)
       return
     const next = renameSection(current, sectionId, name)
-    setBoard(next)
+    setBoards(kept => kept.map(one => (one.id === next.id ? next : one)))
     setDrawn(nodes => nodes.map(node => (node.id === sectionId
       ? { ...node, data: { ...node.data, section: next.sections.find(one => one.id === sectionId) } }
       : node)))
@@ -600,7 +612,10 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
         <header className="flex items-center gap-3 border-b border-line px-6 py-3">
           <input
             value={board.name}
-            onChange={event => setBoard({ ...board, name: event.target.value })}
+            onChange={(event) => {
+              const renamed = { ...board, name: event.target.value }
+              setBoards(kept => kept.map(one => (one.id === renamed.id ? renamed : one)))
+            }}
             onBlur={() => persist(board)}
             aria-label="Board name"
             // A board is named for a thought, which is longer than a word,
@@ -608,6 +623,25 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
             style={{ width: `${Math.max(board.name.length, MIN_NAME_WIDTH)}ch` }}
             className="rounded-control bg-transparent px-2 py-1 font-ui text-sm font-semibold text-ink outline-none focus:bg-raised"
           />
+          {/*
+            One graph read three ways, so the readings sit beside each other
+            and a reader moves between them without losing where they were in
+            any of them.
+          */}
+          <nav className="ml-auto flex gap-1">
+            {boards.map(one => (
+              <button
+                key={one.id}
+                type="button"
+                onClick={() => setOpenId(one.id)}
+                className={`rounded-control px-2.5 py-1 font-ui text-xs transition-colors ${one.id === openId
+                  ? 'bg-raised font-semibold text-ink'
+                  : 'text-ink-subtle hover:bg-raised hover:text-ink-muted'}`}
+              >
+                {one.name}
+              </button>
+            ))}
+          </nav>
         </header>
 
         {/*

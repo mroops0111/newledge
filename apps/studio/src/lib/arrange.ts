@@ -6,8 +6,6 @@ import type { GraphEdge, GraphNode } from './graph.js'
 import { cardExtent } from './measure.js'
 import { lineages } from './kinship.js'
 
-const FIRST_BOARD = { id: 'board-1', name: 'My board' }
-
 /**
  * The grid the canvas draws, which the first arrangement lands on.
  * A layout answers in whatever coordinates suit it, and a board that opens
@@ -39,7 +37,11 @@ function boxOnGrid(box: { x: number, y: number, width: number, height: number })
 const STANDS_IN_FOR = ['concerns', 'introduces', 'belongsTo']
 
 export interface Arrangement {
-  readonly board: Board
+  /**
+   * Where everything goes, which is all an arrangement decides. Whose board it
+   * is and what it is called belong to the board, not to laying it out.
+   */
+  readonly board: Pick<Board, 'cards' | 'sections'>
   /** Where each line runs, when the placement worked that out as it placed. */
   readonly routes: ReadonlyMap<string, readonly { x: number, y: number }[]>
 }
@@ -64,15 +66,20 @@ export function isBrood(groupId: string): boolean {
 
 /**
  * What a board opens on before a reader has touched it.
- * Every node the graph holds is placed, filed under the topic it belongs to,
- * and a topic becomes the section rather than a card sitting among its members.
+ * Every node of a kind the board holds is placed, filed under the topic it
+ * belongs to, and a topic becomes the section rather than a card sitting among
+ * its members. A board that has not said which kinds it holds takes whatever
+ * the drawing rules say is worth placing.
  */
 export async function firstArrangement(
   graph: { nodes: readonly GraphNode[], edges: readonly GraphEdge[] },
   placement: Placement,
+  holds?: readonly string[],
 ): Promise<Arrangement> {
   const topics = graph.nodes.filter(node => nodeStyle(node.type).ground)
-  const placeable = graph.nodes.filter(node => nodeStyle(node.type).placed)
+  const placeable = graph.nodes.filter(node => (holds === undefined
+    ? nodeStyle(node.type).placed
+    : holds.includes(node.type)))
   const filedUnder = filing(graph, new Set(topics.map(topic => topic.id)))
   const named = new Map(topics.map(topic => [`topic-${topic.id}`, topic.name]))
 
@@ -150,7 +157,6 @@ export async function firstArrangement(
   const shuffled = shuffledSections(sections, cards, edges, sectionOf)
   return {
     board: {
-      ...FIRST_BOARD,
       cards: shuffled.cards.map(card => ({ ...card, x: onGrid(card.x), y: onGrid(card.y) })),
       sections: shuffled.sections.map(section => ({ ...section, ...boxOnGrid(section) })),
     },
