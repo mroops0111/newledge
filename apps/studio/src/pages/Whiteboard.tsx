@@ -3,6 +3,7 @@ import { sectionHolding } from '@newledge/board'
 import type { Edge, Node, NodeChange, NodeTypes, XYPosition } from '@xyflow/react'
 import { Background, ReactFlow, ReactFlowProvider, useNodesState } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { orthogonalRouting } from '@newledge/board-layout'
 import { firstArrangement } from '../lib/arrange.js'
 import { align, TOLERANCE } from '../lib/aligning.js'
 import type { Guide } from '../lib/aligning.js'
@@ -10,7 +11,7 @@ import { emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { elkPlacement } from '../lib/elkPlacement.js'
 import type { BoardClient } from '../lib/boards.js'
 import { renameSection, withBoard, withCard, withSection } from '../lib/boards.js'
-import { nodeStyle } from '../lib/boardStyle.js'
+import { edgeStyle, nodeStyle } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import type { DrawnEdge } from '../lib/drawing.js'
 import { drawnCards, drawnEdges } from '../lib/drawing.js'
@@ -39,6 +40,7 @@ import '@xyflow/react/dist/style.css'
 const NODE_TYPES: NodeTypes = { card: BoardCard, section: SectionBox, brood: BroodBox }
 const EDGE_TYPES = { routed: RoutedEdge }
 const PLACEMENT = elkPlacement()
+const ROUTING = orthogonalRouting()
 const MIN_NAME_WIDTH = 10
 const DIMMED = 0.22
 const GRID = 24
@@ -58,9 +60,13 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   const [graph, setGraph] = useState<{ nodes: readonly GraphNode[], edges: readonly GraphEdge[] }>({ nodes: [], edges: [] })
   const [board, setBoard] = useState<Board | undefined>(undefined)
   const [others, setOthers] = useState<readonly Board[]>([])
-  // Where each line runs, worked out when the board was arranged. A reader who
-  // moves a card leaves its lines behind, so those fall back to a plain curve
-  // until a router runs again.
+  /**
+   * Where each line runs, worked out from where the cards are now.
+   * It cannot be kept from the arrangement, because a reader moving one card
+   * makes every route that went round it wrong, and it cannot be asked of the
+   * placement again, because that would move the cards a reader put where they
+   * wanted them.
+   */
   const [routes, setRoutes] = useState<ReadonlyMap<string, readonly { x: number, y: number }[]>>(new Map())
   const [focused, setFocused] = useState(false)
   const [guides, setGuides] = useState<readonly Guide[]>([])
@@ -97,7 +103,6 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
         // their own board from then on and is never laid out again.
         const opening = await firstArrangement(loaded, PLACEMENT)
         setBoard(opening.board)
-        setRoutes(opening.routes)
         await boardClient.keep({ boards: [opening.board] })
       }
       catch (cause) {
@@ -136,7 +141,6 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     void (async () => {
       try {
         const again = await firstArrangement(graph, PLACEMENT)
-        setRoutes(again.routes)
         setGeneration(count => count + 1)
         persist({ ...again.board, name: latestBoard.current?.name ?? again.board.name })
       }
@@ -273,7 +277,50 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     [boxes, board],
   )
 
-  const laidOut = board !== undefined && boxes.size > 0
+  /**
+   * Whether the browser has drawn every card yet.
+   * Fitting to estimated sizes fits to a board that is not the one about to
+   * appear, since a card turns out about half as tall again as it was guessed.
+   * Counted rather than asked of an empty list, which answers yes to anything.
+   */
+  const measured = drawn.filter(node => node.type === 'card' && node.measured?.height !== undefined)
+  const laidOut = board !== undefined
+    && board.cards.length > 0
+    && measured.length === drawnCards(board, byId).length
+
+  // Lines are worked out again whenever a card settles somewhere new, since a
+  // route that went round a card is wrong the moment that card moves.
+  const obstacles = useMemo(
+    () => [
+      ...[...boxes].map(([id, box]) => ({ id, ...box })),
+      ...(board?.sections ?? []).map(section => ({
+        id: section.id,
+        x: section.x,
+        y: section.y,
+        width: section.width,
+        height: section.height,
+      })),
+    ],
+    [boxes, board],
+  )
+
+  useEffect(() => {
+    if (obstacles.length === 0)
+      return
+    let asking = true
+    void ROUTING
+      .route({
+        obstacles,
+        edges: graph.edges
+          .filter(edge => edgeStyle(edge.type).kin === 'curve')
+          .map(edge => ({ id: edge.id, type: edge.type, from: edge.fromNodeId, to: edge.toNodeId })),
+      })
+      .then((routed) => {
+        if (asking)
+          setRoutes(routed.edges)
+      })
+    return () => { asking = false }
+  }, [obstacles, graph])
 
   const broods: Node<BroodBoxData>[] = useMemo(() => kin.broods.map(brood => ({
     id: brood.id,
@@ -417,7 +464,6 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   const onNodeDragStop = useCallback(() => {
     sectionDrag.current = undefined
     setGuides(NOTHING)
-    setRoutes(new Map())
     const current = latestBoard.current
     if (current === undefined)
       return
