@@ -101,3 +101,59 @@ describe('what a board opens on', () => {
     expect(partial.board.cards.map(card => card.nodeId)).toEqual(['rag'])
   })
 })
+
+describe('a family after the layout has placed it', () => {
+  const family = {
+    nodes: [
+      node('whole', 'Concept', 'Whole'),
+      node('one', 'Concept', 'One'),
+      node('two', 'Concept', 'Two'),
+      node('three', 'Concept', 'Three'),
+    ],
+    edges: [
+      edge('contains', 'whole', 'one'),
+      edge('contains', 'whole', 'two'),
+      edge('contains', 'whole', 'three'),
+    ],
+  }
+
+  /** Placed in a row with gaps a layout worked out rather than gaps that match. */
+  const uneven = {
+    id: 'uneven',
+    place: async () => ({
+      nodes: new Map([
+        ['whole', { x: 0, y: 0 }],
+        ['one', { x: 0, y: 400 }],
+        ['two', { x: 500, y: 400 }],
+        ['three', { x: 1200, y: 400 }],
+      ]),
+      groups: new Map(),
+    }),
+  }
+
+  // Uneven gaps read as carelessness however sound the reasoning behind them.
+  it('spaces siblings on a row alike', async () => {
+    const { board } = await firstArrangement(family, uneven)
+    const at = (id: string): number => board.cards.find(card => card.nodeId === id)!.x
+    expect(at('two') - at('one')).toBe(at('three') - at('two'))
+  })
+
+  it('centres a parent over the children it holds', async () => {
+    const { board } = await firstArrangement(family, uneven)
+    const at = (id: string): number => board.cards.find(card => card.nodeId === id)!.x
+    const span = { from: at('one'), to: at('three') }
+    expect(Math.abs(at('whole') - (span.from + span.to) / 2)).toBeLessThan(24)
+  })
+
+  it('leaves a card that is in no family exactly where it was placed', async () => {
+    const loner = {
+      nodes: [node('alone', 'Concept', 'Alone')],
+      edges: [],
+    }
+    const { board } = await firstArrangement(loner, {
+      id: 'fixed',
+      place: async () => ({ nodes: new Map([['alone', { x: 240, y: 480 }]]), groups: new Map() }),
+    })
+    expect(board.cards[0]).toEqual({ nodeId: 'alone', x: 240, y: 480 })
+  })
+})
