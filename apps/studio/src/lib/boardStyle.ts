@@ -41,21 +41,12 @@ export interface NodeStyle {
   readonly band: number
 }
 
-/** Where a line is drawn, or whether the arrangement says it instead. */
-export type EdgeShown =
-  /** Always drawn, because position cannot say it. */
-  | 'always'
-  /** Drawn while one of its ends is selected, because position already says it. */
-  | 'onSelect'
-  /** Never drawn on a board, because it is read inside a card instead. */
-  | 'never'
-
 /**
- * How a relation is shaped when it is drawn.
- * Kinds of a thing hang off a shared trunk, parts of a thing are bracketed
- * under it, and everything else is a curve between two cards.
+ * How a relation is shaped.
+ * A hierarchy hangs off a trunk its siblings share, and everything else runs
+ * from one card to another.
  */
-export type EdgeKin = 'family' | 'brood' | 'curve'
+export type EdgeKin = 'tree' | 'curve'
 
 /**
  * What a relation is, said in colour.
@@ -82,11 +73,23 @@ export interface EdgeStyle {
    */
   readonly shapes: 'layout' | 'drawn'
   readonly kin: EdgeKin
+  /**
+   * Which end of a hierarchy is its root.
+   * A whole contains its parts and a kind extends what it is a kind of, so
+   * the two are written in opposite directions.
+   */
+  readonly rootAt?: 'from' | 'to'
   readonly tone: EdgeTone
   readonly strokeWidth: number
   readonly dash?: string
   readonly marker: MarkerKind
-  readonly shown: EdgeShown
+  /**
+   * Whether this relation belongs on a board at all.
+   * One about a concept rather than between two is read inside the concept.
+   * Whether a board relation is actually drawn is decided from where its ends
+   * turn out to be, not declared here, since that is not knowable in advance.
+   */
+  readonly onBoard: boolean
 }
 
 export const TONE_COLOURS: Readonly<Record<EdgeTone, string>> = {
@@ -118,34 +121,28 @@ export function nodeStyle(typeId: string): NodeStyle {
 }
 
 export const EDGE_STYLES: Readonly<Record<string, EdgeStyle>> = {
-  // A hierarchy says three things and needs all three channels. Colour says
-  // which family, so several trees can be followed through each other.
-  // Enclosure says a part from a kind. The line says which way it runs, which
-  // neither of the others can.
-  extends: { shapes: 'layout', kin: 'family', tone: 'structure', strokeWidth: STROKE, marker: 'triangleHollow', shown: 'always' },
-  instantiates: { shapes: 'layout', kin: 'family', tone: 'structure', strokeWidth: STROKE, dash: '6 4', marker: 'triangleHollow', shown: 'always' },
+  // A hierarchy. Which of the three it is comes from the end it carries and
+  // from what the card says it hangs off, since both are read at a glance and
+  // a trunk on its own is not.
+  extends: { shapes: 'layout', kin: 'tree', rootAt: 'to', tone: 'structure', strokeWidth: STROKE, marker: 'triangleHollow', onBoard: true },
+  instantiates: { shapes: 'layout', kin: 'tree', rootAt: 'to', tone: 'structure', strokeWidth: STROKE, dash: '6 4', marker: 'triangleHollow', onBoard: true },
+  contains: { shapes: 'layout', kin: 'tree', rootAt: 'from', tone: 'structure', strokeWidth: STROKE, marker: 'diamond', onBoard: true },
 
-  // Parts of a thing share that colour and are enclosed as well, which is the
-  // whole difference between a part and a kind, said in a different channel
-  // rather than in a different arrow head.
-  contains: { shapes: 'layout', kin: 'brood', tone: 'structure', strokeWidth: STROKE, marker: 'diamond', shown: 'always' },
+  // How solid a curve is drawn tracks how much it claims. A named dependency
+  // says one thing needs another, so it is solid and points. The catch-all
+  // says only that something is there, so it is faint and says no direction.
+  uses: { shapes: 'layout', kin: 'curve', tone: 'structure', strokeWidth: STROKE, marker: 'arrow', onBoard: true },
+  relatesTo: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, dash: '1 4', marker: 'none', onBoard: true },
 
-  // How much a curve claims is how solid it is drawn. A named dependency
-  // asserts that one thing needs another, so it is solid and points.
-  uses: { shapes: 'layout', kin: 'curve', tone: 'structure', strokeWidth: STROKE, marker: 'arrow', shown: 'always' },
-  // The catch-all asserts only that something is there, so it is faint and
-  // says nothing about which way it runs.
-  relatesTo: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, dash: '1 4', marker: 'none', shown: 'always' },
+  // Filing is the section a card sits in, so drawing it repeats the board.
+  belongsTo: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, dash: '2 4', marker: 'none', onBoard: false },
 
-  // Filing is the section a card sits in, so drawing it would repeat the board.
-  belongsTo: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, dash: '2 4', marker: 'none', shown: 'never' },
-
-  // Provenance, aboutness, and argument are all about a concept rather than
-  // between two, so they are read inside the concept and never drawn out here.
-  introduces: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, marker: 'none', shown: 'never' },
-  concerns: { shapes: 'drawn', kin: 'curve', tone: 'structure', strokeWidth: STROKE, marker: 'dot', shown: 'never' },
-  supports: { shapes: 'drawn', kin: 'curve', tone: 'supports', strokeWidth: STROKE, marker: 'arrow', shown: 'never' },
-  contradicts: { shapes: 'drawn', kin: 'curve', tone: 'contradicts', strokeWidth: STROKE, dash: '5 3', marker: 'arrow', shown: 'never' },
+  // Provenance, aboutness, and argument are each about a concept rather than
+  // between two, so they are read inside it and never drawn out here.
+  introduces: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, marker: 'none', onBoard: false },
+  concerns: { shapes: 'drawn', kin: 'curve', tone: 'structure', strokeWidth: STROKE, marker: 'dot', onBoard: false },
+  supports: { shapes: 'drawn', kin: 'curve', tone: 'supports', strokeWidth: STROKE, marker: 'arrow', onBoard: false },
+  contradicts: { shapes: 'drawn', kin: 'curve', tone: 'contradicts', strokeWidth: STROKE, dash: '5 3', marker: 'arrow', onBoard: false },
 }
 
 const UNKNOWN_EDGE: EdgeStyle = {
@@ -154,7 +151,7 @@ const UNKNOWN_EDGE: EdgeStyle = {
   tone: 'quiet',
   strokeWidth: STROKE,
   marker: 'arrow',
-  shown: 'always',
+  onBoard: true,
 }
 
 /** An edge type the ontology adds is still drawn, quietly, rather than dropped. */

@@ -14,10 +14,11 @@ import { renameSection, withBoard, withCard, withSection } from '../lib/boards.j
 import { edgeStyle, nodeStyle } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import type { DrawnEdge } from '../lib/drawing.js'
-import { drawnCards, drawnEdges } from '../lib/drawing.js'
+import { drawnCards, drawnRelations } from '../lib/drawing.js'
 import { cardExtent } from '../lib/measure.js'
 import { kinship } from '../lib/family.js'
 import { familyColours, familyOfRoot, kinColour, lineageLabel, lineages, NO_FAMILY } from '../lib/kinship.js'
+import type { Box } from '../lib/path.js'
 import { borderRun } from '../lib/path.js'
 import type { GraphEdge, GraphNode } from '../lib/graph.js'
 import type { Nav } from '../ui/AppShell.js'
@@ -25,8 +26,6 @@ import { AppShell } from '../ui/AppShell.js'
 import type { BoardCardData } from '../ui/BoardCard.js'
 import { BoardCard } from '../ui/BoardCard.js'
 import { BoardMarkers, markerId } from '../ui/BoardMarkers.js'
-import { BroodBox } from '../ui/BroodBox.js'
-import type { BroodBoxData } from '../ui/BroodBox.js'
 import { ConceptPanel, inside } from '../ui/ConceptPanel.js'
 import type { RoutedEdgeData } from '../ui/RoutedEdge.js'
 import { RoutedEdge } from '../ui/RoutedEdge.js'
@@ -37,7 +36,7 @@ import type { SectionBoxData } from '../ui/SectionBox.js'
 import { SectionBox } from '../ui/SectionBox.js'
 import '@xyflow/react/dist/style.css'
 
-const NODE_TYPES: NodeTypes = { card: BoardCard, section: SectionBox, brood: BroodBox }
+const NODE_TYPES: NodeTypes = { card: BoardCard, section: SectionBox }
 const EDGE_TYPES = { routed: RoutedEdge }
 const PLACEMENT = elkPlacement()
 const ROUTING = orthogonalRouting()
@@ -202,7 +201,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
           ? {}
           : { lineage: {
               label: lineageLabel(hangsOff.get(card.nodeId)!, byId),
-              kin: hangsOff.get(card.nodeId)!.kin,
+              type: hangsOff.get(card.nodeId)!.type,
             } }),
       },
       style: { width: card.width },
@@ -284,6 +283,19 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
    * Counted rather than asked of an empty list, which answers yes to anything.
    */
   const measured = drawn.filter(node => node.type === 'card' && node.measured?.height !== undefined)
+  /**
+   * Which ground each card is standing on.
+   * Asked of where it is rather than of what it was filed under, so a reader
+   * who drags a card into another section has moved it there.
+   */
+  const groundOf = useMemo(() => {
+    const sections = board?.sections ?? []
+    return (nodeId: string): string | undefined => {
+      const box = boxes.get(nodeId)
+      return box === undefined ? undefined : sectionHolding(box, sections)?.id
+    }
+  }, [boxes, board])
+
   const laidOut = board !== undefined
     && board.cards.length > 0
     && measured.length === drawnCards(board, byId).length
@@ -322,51 +334,45 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     return () => { asking = false }
   }, [obstacles, graph])
 
-  const broods: Node<BroodBoxData>[] = useMemo(() => kin.broods.map(brood => ({
-    id: brood.id,
-    type: 'brood',
-    position: { x: brood.x, y: brood.y },
-    data: {
-      width: brood.width,
-      height: brood.height,
-      // The bracket wears the family it encloses, so enclosure and colour say
-      // the same thing rather than two unrelated things.
-      colour: kinColour(familyOf.get(brood.id.replace(/^brood-/, '')) ?? NO_FAMILY),
-    },
-    draggable: false,
-    selectable: false,
-    zIndex: 1,
-  })), [kin, familyOf])
-
   const edges: Edge[] = useMemo(() => {
     const onBoard = new Set(drawn.filter(node => node.type === 'card').map(node => node.id))
+    const relations = drawnRelations(graph.edges, onBoard, groundOf, selected)
+
     /**
      * The route a line takes.
      * A hierarchy is drawn from where its cards are now, so it survives a
-     * reader moving one. Everything else follows the route the placement
-     * worked out, which is what goes round the cards in between, and falls
-     * back to running border to border once a reader has moved something and
-     * that route no longer describes where things are.
+     * reader moving one. Everything else follows the route that was worked out
+     * to go round the cards in between, and falls back to running border to
+     * border when there is no route for it.
      */
     const pointsFor = (edge: DrawnEdge): readonly { x: number, y: number }[] | undefined => {
       const routed = kin.edges.get(edge.id) ?? routes.get(edge.id)
       if (routed !== undefined)
         return routed
-      const [from, to] = [boxes.get(edge.source), boxes.get(edge.target)]
+      const [from, to] = [extentOfEnd(edge.source), extentOfEnd(edge.target)]
       return from === undefined || to === undefined ? undefined : borderRun(from, to)
     }
 
-    // A hierarchy is drawn in its family's colour, so several trees can be
-    // followed through each other rather than read as one mass of grey. A
-    // relation that belongs to no family keeps the tone its kind carries.
+    const extentOfEnd = (id: string): Box | undefined => {
+      const card = boxes.get(id)
+      if (card !== undefined)
+        return card
+      const section = (board?.sections ?? []).find(one => one.id === id)
+      return section === undefined
+        ? undefined
+        : { x: section.x, y: section.y, width: section.width, height: section.height }
+    }
+
+    // A relation drawn between two grounds belongs to neither family, so it
+    // keeps the tone its own kind carries.
     const paintOf = (edge: DrawnEdge): string => {
-      if (edge.style.kin === 'curve')
+      if (edge.style.kin !== 'tree')
         return edge.style.tone
-      const parent = edge.style.kin === 'brood' ? edge.source : edge.target
+      const parent = edge.style.rootAt === 'from' ? edge.source : edge.target
       return familyLed.get(parent) ?? NO_FAMILY
     }
 
-    return drawnEdges(graph.edges, onBoard, selected).flatMap((edge) => {
+    return [...relations.withinSections, ...relations.betweenSections].flatMap((edge) => {
       const emphasis = emphasisOf(edge.id, near.edges, attention)
       if (emphasis === 'gone')
         return []
@@ -392,7 +398,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
         zIndex: 2,
       }]
     })
-  }, [graph, drawn, selected, routes, kin, boxes, near, attention, familyLed])
+  }, [graph, drawn, selected, routes, kin, boxes, near, attention, familyLed, groundOf, board])
 
   // A section is the shape of a thought, so moving one moves the thought,
   // and what sits inside keeps its arrangement rather than being relaid out.
@@ -513,7 +519,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
           <div className="relative min-h-0 flex-1">
             <BoardMarkers />
             <ReactFlow
-              nodes={[...attended, ...broods]}
+              nodes={attended}
               edges={edges}
               nodeTypes={NODE_TYPES}
               edgeTypes={EDGE_TYPES}

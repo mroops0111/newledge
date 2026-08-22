@@ -53,17 +53,26 @@ export async function firstArrangement(
   const filedUnder = filing(graph, new Set(topics.map(topic => topic.id)))
   const named = new Map(topics.map(topic => [`topic-${topic.id}`, topic.name]))
 
-  // What a card contains is kept in a group of its own, so a layout cannot
-  // scatter the parts of one thing among the parts of another.
-  const partOf = new Map<string, string>()
-  for (const edge of graph.edges) {
-    if (edge.type === 'contains' && !partOf.has(edge.toNodeId))
-      partOf.set(edge.toNodeId, broodOf(edge.fromNodeId))
-  }
-
   const sectionOf = (nodeId: string): string | undefined => {
     const [topicId] = [...(filedUnder.get(nodeId) ?? [])]
     return topicId === undefined ? undefined : `topic-${topicId}`
+  }
+
+  /**
+   * A whole and its parts, kept together as a group of their own.
+   * The whole goes in with them rather than sitting outside, which is what
+   * kept a parent a whole board away from what it contained. A part filed
+   * under another topic stays where it was filed, since the section is ground
+   * and a relation does not move a card off the ground it belongs to.
+   */
+  const partOf = new Map<string, string>()
+  for (const edge of graph.edges) {
+    if (edge.type !== 'contains' || partOf.has(edge.toNodeId))
+      continue
+    if (sectionOf(edge.toNodeId) !== sectionOf(edge.fromNodeId))
+      continue
+    partOf.set(edge.toNodeId, broodOf(edge.fromNodeId))
+    partOf.set(edge.fromNodeId, broodOf(edge.fromNodeId))
   }
 
   const hangsOff = lineages(graph.edges)
@@ -77,12 +86,10 @@ export async function firstArrangement(
     }
   })
 
-  const broods = [...new Set(partOf.values())].map(id => ({
-    id,
-    ...(sectionOf(id.slice(BROOD.length)) === undefined
-      ? {}
-      : { groupId: sectionOf(id.slice(BROOD.length))! }),
-  }))
+  const broods = [...new Set(partOf.values())].map((id) => {
+    const seat = sectionOf(id.slice(BROOD.length))
+    return { id, ...(seat === undefined ? {} : { groupId: seat }) }
+  })
   const edges: LayoutEdge[] = graph.edges.map(edge => ({
     id: edge.id,
     type: edge.type,

@@ -9,29 +9,54 @@ export interface DrawnEdge {
   readonly target: string
   readonly label?: string
   readonly style: EdgeStyle
+  /** How many relations this one line stands for, when it stands for several. */
+  readonly standsFor?: number
+}
+
+/** What a line between two sections looks like, whatever it stands for. */
+export const BETWEEN_SECTIONS: EdgeStyle = {
+  shapes: 'drawn',
+  kin: 'curve',
+  tone: 'quiet',
+  strokeWidth: 2,
+  marker: 'none',
+  onBoard: true,
+}
+
+export interface DrawnRelations {
+  /** Drawn from one card to another, because both are on the same ground. */
+  readonly withinSections: readonly DrawnEdge[]
+  /** One line for every pair of sections that any relation crosses between. */
+  readonly betweenSections: readonly DrawnEdge[]
 }
 
 /**
- * Which relations the board draws, out of every relation the graph holds.
- * A relation the arrangement already says is only drawn while one of its ends
- * is selected, so asking about one card is what brings its structure out,
- * and the board is not a wall of lines the rest of the time.
+ * Which relations the board draws, and at what level.
+ * A relation whose ends sit on the same ground is drawn between those two
+ * cards. One that crosses from one ground to another is drawn between the two
+ * grounds instead, and every relation crossing the same pair becomes that one
+ * line, since a card cannot be next to everything it relates to and a board
+ * covered in lines that cross it says less than a board with a few that do
+ * not. The card still names what it is related to.
  */
-export function drawnEdges(
+export function drawnRelations(
   edges: readonly GraphEdge[],
   onBoard: ReadonlySet<string>,
+  groundOf: (nodeId: string) => string | undefined,
   selected: ReadonlySet<string>,
-): DrawnEdge[] {
-  return edges
-    .filter(edge => onBoard.has(edge.fromNodeId) && onBoard.has(edge.toNodeId))
-    .flatMap((edge) => {
-      const style = edgeStyle(edge.type)
-      if (style.shown === 'never')
-        return []
+): DrawnRelations {
+  const withinSections: DrawnEdge[] = []
+  const crossing = new Map<string, { source: string, target: string, count: number }>()
+
+  for (const edge of edges) {
+    const style = edgeStyle(edge.type)
+    if (!style.onBoard || !onBoard.has(edge.fromNodeId) || !onBoard.has(edge.toNodeId))
+      continue
+
+    const [from, to] = [groundOf(edge.fromNodeId), groundOf(edge.toNodeId)]
+    if (from === to) {
       const asked = selected.has(edge.fromNodeId) || selected.has(edge.toNodeId)
-      if (style.shown === 'onSelect' && !asked)
-        return []
-      return [{
+      withinSections.push({
         id: edge.id,
         source: edge.fromNodeId,
         target: edge.toNodeId,
@@ -39,8 +64,32 @@ export function drawnEdges(
         // spelled out only when a reader has asked about one of its ends.
         ...(asked ? { label: edge.type } : {}),
         style,
-      }]
-    })
+      })
+      continue
+    }
+    if (from === undefined || to === undefined)
+      continue
+
+    const [one, other] = [from, to].sort() as [string, string]
+    const pair = crossing.get(`${one}|${other}`)
+      ?? { source: one, target: other, count: 0 }
+    pair.count += 1
+    crossing.set(`${one}|${other}`, pair)
+  }
+
+  return {
+    withinSections,
+    betweenSections: [...crossing].map(([id, pair]) => ({
+      id: `between-${id}`,
+      source: pair.source,
+      target: pair.target,
+      ...(selected.has(pair.source) || selected.has(pair.target)
+        ? { label: `${pair.count}` }
+        : {}),
+      style: BETWEEN_SECTIONS,
+      standsFor: pair.count,
+    })),
+  }
 }
 
 export interface DrawnCard {

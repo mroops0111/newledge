@@ -1,7 +1,7 @@
 import type { Board } from '@newledge/board'
 import { describe, expect, it } from 'vitest'
 import { edgeStyle, nodeStyle } from '../src/lib/boardStyle.js'
-import { drawnCards, drawnEdges } from '../src/lib/drawing.js'
+import { drawnCards, drawnRelations } from '../src/lib/drawing.js'
 import type { GraphEdge, GraphNode } from '../src/lib/graph.js'
 
 function edge(id: string, type: string, from: string, to: string): GraphEdge {
@@ -18,35 +18,77 @@ const edges: GraphEdge[] = [
 ]
 const onBoard = new Set(['faster', 'cheaper', 'rag', 'embedding', 'graphRag'])
 
-describe('which relations the board draws', () => {
-  // A hierarchy says three things and needs all three channels, so its line is
-  // drawn as well as its colour and its enclosure rather than instead of them.
-  it('draws the relations between the things a reader thinks with', () => {
-    const drawn = drawnEdges(edges, onBoard, new Set())
-    expect(drawn.map(one => one.id).sort()).toEqual(['e2', 'e3', 'e6'])
+// Ground is asked of the card, since a reader who drags a card into another
+// section has moved it there.
+const ground = (id: string): string | undefined =>
+  ({ rag: 'a', embedding: 'a', graphRag: 'a', faster: 'b', cheaper: 'b' })[id]
+
+describe('which relations the board draws, and at what level', () => {
+  it('draws a relation between two cards standing on the same ground', () => {
+    const drawn = drawnRelations(edges, onBoard, ground, new Set())
+    expect(drawn.withinSections.map(one => one.id).sort()).toEqual(['e2', 'e3', 'e6'])
   })
 
   it('never draws what is read inside a card instead of beside it', () => {
-    for (const id of ['e1', 'e4']) {
-      expect(drawnEdges(edges, onBoard, new Set(['faster', 'graphRag'])).some(one => one.id === id))
-        .toBe(false)
-    }
+    const drawn = drawnRelations(edges, onBoard, ground, new Set())
+    const all = [...drawn.withinSections, ...drawn.betweenSections].map(one => one.id)
+    expect(all).not.toContain('e1')
+    expect(all).not.toContain('e4')
+  })
+
+  // A card cannot be next to everything it relates to, and a board covered in
+  // lines that cross it says less than one with a few that do not.
+  it('draws a relation that crosses between two grounds as one line between them', () => {
+    const crossing = [
+      edge('x1', 'uses', 'rag', 'faster'),
+      edge('x2', 'uses', 'embedding', 'cheaper'),
+    ]
+    const drawn = drawnRelations(crossing, new Set([...onBoard]), ground, new Set())
+    expect(drawn.withinSections).toHaveLength(0)
+    expect(drawn.betweenSections).toHaveLength(1)
+  })
+
+  it('says how many relations that one line stands for', () => {
+    const crossing = [
+      edge('x1', 'uses', 'rag', 'faster'),
+      edge('x2', 'uses', 'embedding', 'cheaper'),
+    ]
+    const [between] = drawnRelations(crossing, onBoard, ground, new Set()).betweenSections
+    expect(between?.standsFor).toBe(2)
+  })
+
+  it('runs that line between the two grounds, not between two cards', () => {
+    const crossing = [edge('x1', 'uses', 'rag', 'faster')]
+    const [between] = drawnRelations(crossing, onBoard, ground, new Set()).betweenSections
+    expect([between?.source, between?.target]).toEqual(['a', 'b'])
   })
 
   it('leaves out a relation whose other end is not on this board', () => {
-    expect(drawnEdges(edges, onBoard, new Set()).some(one => one.id === 'e5')).toBe(false)
+    const drawn = drawnRelations(edges, onBoard, ground, new Set())
+    const all = [...drawn.withinSections, ...drawn.betweenSections].map(one => one.id)
+    expect(all).not.toContain('e5')
+  })
+
+  it('draws nothing between grounds when a card is standing on none', () => {
+    const loose = drawnRelations([edge('x1', 'uses', 'rag', 'nowhere')], new Set([...onBoard, 'nowhere']), ground, new Set())
+    expect(loose.betweenSections).toHaveLength(0)
   })
 
   it('spells out the verb only for the relation a reader asked about', () => {
-    const asked = drawnEdges(edges, onBoard, new Set(['rag']))
-    expect(asked.find(one => one.id === 'e2')?.label).toBe('contains')
-    expect(asked.find(one => one.id === 'e6')?.label).toBeUndefined()
+    const asked = drawnRelations(edges, onBoard, ground, new Set(['rag']))
+    expect(asked.withinSections.find(one => one.id === 'e2')?.label).toBe('contains')
+    expect(asked.withinSections.find(one => one.id === 'e6')?.label).toBeUndefined()
   })
 
-  it('shapes a kind as a family, a part as a brood, and the rest as a curve', () => {
-    expect(edgeStyle('extends').kin).toBe('family')
-    expect(edgeStyle('contains').kin).toBe('brood')
+  it('shapes a hierarchy as a tree and everything else as a curve', () => {
+    expect(edgeStyle('extends').kin).toBe('tree')
+    expect(edgeStyle('contains').kin).toBe('tree')
     expect(edgeStyle('uses').kin).toBe('curve')
+  })
+
+  it('roots a whole at the end it holds from, and a kind at what it extends', () => {
+    expect(edgeStyle('contains').rootAt).toBe('from')
+    expect(edgeStyle('extends').rootAt).toBe('to')
   })
 
   it('keeps the catch-all fainter and undirected, since it claims the least', () => {
@@ -78,7 +120,7 @@ describe('which cards the board draws', () => {
 describe('the visual language', () => {
   it('draws a type the ontology adds rather than dropping it', () => {
     expect(nodeStyle('Question').form).toBe('concept')
-    expect(edgeStyle('answers').shown).toBe('always')
+    expect(edgeStyle('answers').onBoard).toBe(true)
   })
 
   it('gives agreement and conflict a colour of their own, and nothing else', () => {
