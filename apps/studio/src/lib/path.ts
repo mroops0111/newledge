@@ -12,6 +12,15 @@ export interface Box extends Point {
 const BOW = 0.11
 
 /**
+ * How far a curve may bow out however long it is.
+ * Kept a share of the run, a curve across the board sweeps a long way off it,
+ * which reads as a line that has wandered rather than one that is associative,
+ * and it leaves the run the router cleared for it. Past this the bow stops
+ * growing, so a long relation is all but straight and a short one still bows.
+ */
+const MOST_BOW = 48
+
+/**
  * Where a line between two cards should leave and arrive.
  * A card is a rectangle, not a point, so a line is anchored where the run
  * between the two centres crosses each border. That is what keeps a line
@@ -28,14 +37,18 @@ export function borderRun(from: Box, to: Box): [Point, Point] {
  * A gentle arc between two points.
  * A straight line reads as a diagram and a whiteboard is not one, so an
  * association bows slightly, which also keeps two lines between the same
- * neighbours from lying on top of each other.
+ * neighbours from lying on top of each other. The bow is a share of the run
+ * up to a limit, so it is the same gentle thing at any length rather than a
+ * sweep that grows with the distance it has to cover.
  */
 export function curvePath(from: Point, to: Point): string {
   const dx = to.x - from.x
   const dy = to.y - from.y
+  const run = Math.hypot(dx, dy)
+  const lean = run === 0 ? 0 : Math.min(run * BOW, MOST_BOW) / run
   const control = {
-    x: (from.x + to.x) / 2 - dy * BOW,
-    y: (from.y + to.y) / 2 + dx * BOW,
+    x: (from.x + to.x) / 2 - dy * lean,
+    y: (from.y + to.y) / 2 + dx * lean,
   }
   return `M ${from.x},${from.y} Q ${control.x},${control.y} ${to.x},${to.y}`
 }

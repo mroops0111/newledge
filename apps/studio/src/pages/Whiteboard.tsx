@@ -332,7 +332,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       .route({
         obstacles,
         edges: graph.edges
-          .filter(edge => edgeStyle(edge.type).kin === 'curve')
+          .filter(edge => edgeStyle(edge.type).kin !== 'tree')
           .map(edge => ({ id: edge.id, type: edge.type, from: edge.fromNodeId, to: edge.toNodeId })),
       })
       .then((routed) => {
