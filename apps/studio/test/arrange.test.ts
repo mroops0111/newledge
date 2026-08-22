@@ -157,3 +157,49 @@ describe('a family after the layout has placed it', () => {
     expect(board.cards[0]).toEqual({ nodeId: 'alone', x: 240, y: 480 })
   })
 })
+
+describe('moving sections so what relates sits nearer', () => {
+  // Three sections in one row, with the outer two doing all the talking. A
+  // packing has no reason to put them together, and a relation stretched the
+  // width of the board is too long to be worth drawing.
+  const spread = {
+    nodes: [
+      node('left', 'Topic'),
+      node('middle', 'Topic'),
+      node('right', 'Topic'),
+      node('here', 'Concept'),
+      node('quiet', 'Concept'),
+      node('there', 'Concept'),
+    ],
+    edges: [
+      edge('belongsTo', 'here', 'left'),
+      edge('belongsTo', 'quiet', 'middle'),
+      edge('belongsTo', 'there', 'right'),
+      edge('relatesTo', 'here', 'there'),
+      edge('relatesTo', 'there', 'here'),
+    ],
+  }
+
+  it('shortens the reach between two sections that relate', async () => {
+    const { board } = await firstArrangement(spread, gridPlacement())
+    const at = (id: string): number => {
+      const section = board.sections.find(one => one.id === `topic-${id}`)!
+      return section.x + section.width / 2
+    }
+    expect(Math.abs(at('left') - at('right'))).toBeLessThan(Math.abs(at('left') - at('middle'))
+      + Math.abs(at('middle') - at('right')))
+  })
+
+  it('takes the cards standing on a section with it', async () => {
+    const { board } = await firstArrangement(spread, gridPlacement())
+    for (const card of board.cards)
+      expect(sectionHolding(card, board.sections)).toBeDefined()
+  })
+
+  it('leaves a board whose sections say nothing to each other where it was', async () => {
+    const quiet = { nodes: spread.nodes, edges: spread.edges.filter(one => one.type === 'belongsTo') }
+    const { board } = await firstArrangement(quiet, gridPlacement())
+    expect(board.sections.map(section => section.x))
+      .toEqual([...board.sections].sort((one, other) => one.x - other.x).map(section => section.x))
+  })
+})

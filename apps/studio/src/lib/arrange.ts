@@ -1,6 +1,6 @@
 import type { Board, Card, Section } from '@newledge/board'
 import type { LayoutEdge, LayoutNode, Placement } from '@newledge/board-layout'
-import { orderedByPull } from '@newledge/board-layout'
+import { orderedByPull, settledByPull } from '@newledge/board-layout'
 import { nodeStyle } from './boardStyle.js'
 import type { GraphEdge, GraphNode } from './graph.js'
 import { cardExtent } from './measure.js'
@@ -117,19 +117,91 @@ export async function firstArrangement(
     partOf,
     new Map(nodes.map(node => [node.id, node])),
     edges,
-  ).map(card => ({ ...card, x: onGrid(card.x), y: onGrid(card.y) }))
+  )
   const sections: Section[] = [...placed.groups]
     .filter(([id]) => !isBrood(id))
-    .map(([id, box]) => ({
-      id,
-      name: named.get(id) ?? id,
-      x: onGrid(box.x),
-      y: onGrid(box.y),
-      width: onGrid(box.width),
-      height: onGrid(box.height),
-    }))
+    .map(([id, box]) => ({ id, name: named.get(id) ?? id, ...box }))
 
-  return { board: { ...FIRST_BOARD, cards, sections }, routes: placed.edges ?? new Map() }
+  const shuffled = shuffledSections(sections, cards, edges, sectionOf)
+  return {
+    board: {
+      ...FIRST_BOARD,
+      cards: shuffled.cards.map(card => ({ ...card, x: onGrid(card.x), y: onGrid(card.y) })),
+      sections: shuffled.sections.map(section => ({
+        ...section,
+        x: onGrid(section.x),
+        y: onGrid(section.y),
+        width: onGrid(section.width),
+        height: onGrid(section.height),
+      })),
+    },
+    routes: placed.edges ?? new Map(),
+  }
+}
+
+/**
+ * How far apart two sections' tops may be and still be read as one row.
+ * A packing lines a row up on its tallest member, so the rest of the row can
+ * sit a little below without having left it.
+ */
+const SAME_ROW = 40
+
+/**
+ * Move whole sections along their rows so what relates sits nearer.
+ *
+ * A packing places a section by how well it fills a space, which says nothing
+ * about what the section is about. Two sections that talk to each other can
+ * end up at opposite ends of the board, and a relation that far apart is too
+ * long to be worth drawing, so the board loses it. Where a section sits in its
+ * row is free, in exactly the way the order of siblings in a family is free,
+ * so it is spent the same way.
+ *
+ * A card goes wherever the section holding it went, since a section is ground
+ * and moving it is moving everything standing on it.
+ */
+function shuffledSections(
+  sections: readonly Section[],
+  cards: readonly Card[],
+  edges: readonly LayoutEdge[],
+  sectionOf: (nodeId: string) => string | undefined,
+): { sections: Section[], cards: Card[] } {
+  const between: LayoutEdge[] = edges.flatMap((edge) => {
+    const from = sectionOf(edge.from)
+    const to = sectionOf(edge.to)
+    return from === undefined || to === undefined || from === to
+      ? []
+      : [{ ...edge, from, to }]
+  })
+  if (between.length === 0)
+    return { sections: [...sections], cards: [...cards] }
+
+  const was = new Map(sections.map(section => [section.id, section]))
+  const now = settledByPull(inRows(sections), between, was)
+  const moved = new Map([...now]
+    .map(([id, box]) => [id, box.x - was.get(id)!.x] as const)
+    .filter(([, by]) => by !== 0))
+
+  return {
+    sections: sections.map(section => ({ ...section, x: now.get(section.id)?.x ?? section.x })),
+    cards: cards.map((card) => {
+      const by = moved.get(sectionOf(card.nodeId) ?? '')
+      return by === undefined ? card : { ...card, x: card.x + by }
+    }),
+  }
+}
+
+/** The rows a packing left the sections in, each read from left to right. */
+function inRows(sections: readonly Section[]): string[][] {
+  const rows: Section[][] = []
+  for (const section of [...sections].sort((one, other) => one.y - other.y)) {
+    const row = rows[rows.length - 1]
+    if (row === undefined || section.y - row[0]!.y > SAME_ROW)
+      rows.push([section])
+    else row.push(section)
+  }
+  return rows.map(row => row
+    .sort((one, other) => one.x - other.x)
+    .map(section => section.id))
 }
 
 /**

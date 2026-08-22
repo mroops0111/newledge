@@ -1,5 +1,17 @@
 import type { Box, LayoutEdge } from './ports.js'
 
+export interface Pull {
+  /**
+   * Whether the things being ordered pull on one another as well.
+   *
+   * Off by default, since a set being ordered all at once out of nothing has
+   * no positions worth pulling towards, only the arbitrary ones it arrived
+   * with. On when they already sit somewhere and this is one pass of several,
+   * which is what lets a set that relates mostly to itself settle at all.
+   */
+  readonly feelEachOther?: boolean
+}
+
 /**
  * Order things whose order carries no meaning by where what they relate to sits.
  *
@@ -22,15 +34,14 @@ export function orderedByPull(
   interchangeable: readonly string[],
   edges: readonly LayoutEdge[],
   at: ReadonlyMap<string, Box>,
+  pull: Pull = {},
 ): string[] {
   const within = new Set(interchangeable)
   const pulls = new Map<string, number[]>()
 
   for (const edge of edges) {
     for (const [near, far] of [[edge.from, edge.to], [edge.to, edge.from]] as const) {
-      // A relation to one of its own siblings pulls nothing, since that sibling
-      // is being ordered by this same pass and has no position to be pulled to.
-      if (!within.has(near) || within.has(far))
+      if (!within.has(near) || (within.has(far) && pull.feelEachOther !== true))
         continue
       const other = at.get(far)
       if (other !== undefined)

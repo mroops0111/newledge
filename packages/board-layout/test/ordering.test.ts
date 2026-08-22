@@ -60,3 +60,18 @@ describe('ordering things whose order carries no meaning', () => {
     expect(orderedByPull(siblings, edges, placed)).toEqual(orderedByPull(siblings, edges, placed))
   })
 })
+
+describe('when the things being ordered pull on one another', () => {
+  const apart = new Map<string, Box>([['a', at(0)], ['b', at(200)], ['c', at(400)]])
+
+  it('ignores a sibling by default, so nothing pulled only from within moves', () => {
+    expect(orderedByPull(['a', 'b', 'c'], [link('a', 'c')], apart)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('feels a sibling once told to, which is what lets such a set settle at all', () => {
+    // Each of the pair aims at where the other is, so they cross, and the one
+    // nothing pulls on keeps the place it had between them.
+    expect(orderedByPull(['a', 'b', 'c'], [link('a', 'c')], apart, { feelEachOther: true }))
+      .toEqual(['c', 'b', 'a'])
+  })
+})

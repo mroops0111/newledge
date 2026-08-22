@@ -1,9 +1,9 @@
-import { useReactFlow } from '@xyflow/react'
+import { getViewportForBounds, useReactFlow, useStore } from '@xyflow/react'
 import { useCallback, useEffect, useRef } from 'react'
 import type { Box } from '../lib/path.js'
 import { GLYPHS, Toolkit } from './Toolkit.js'
 
-const PADDING = 0.08
+const PADDING = '8%'
 const NEAREST = 1
 const STEP = 250
 
@@ -39,13 +39,34 @@ export interface BoardToolsProps {
 export function BoardTools({ extent, laidOut, onAddSection, onRearrange, onFocus, focused, canFocus, zoom }: BoardToolsProps): React.JSX.Element {
   const flow = useReactFlow()
   const fitted = useRef(false)
+  const rail = useRef<HTMLDivElement>(null)
+  const canvas = useStore(state => ({
+    width: state.width,
+    height: state.height,
+    minZoom: state.minZoom,
+    maxZoom: state.maxZoom,
+  }), (one, other) => one.width === other.width
+    && one.height === other.height
+    && one.minZoom === other.minZoom
+    && one.maxZoom === other.maxZoom)
   zoom.current = flow.getZoom()
 
+  // Fitted by hand rather than by fitBounds, which takes one padding for all
+  // four sides. The rail stands over the left of the canvas, so a board fitted
+  // evenly puts its leftmost cards underneath it.
   const fit = useCallback((duration: number) => {
     const bounds = enclosing(extent)
-    if (bounds !== undefined)
-      flow.fitBounds(bounds, { padding: PADDING, duration })
-  }, [flow, extent])
+    if (bounds === undefined || canvas.width === 0)
+      return
+    flow.setViewport(
+      getViewportForBounds(bounds, canvas.width, canvas.height, canvas.minZoom, canvas.maxZoom, {
+        x: PADDING,
+        y: PADDING,
+        left: `${behind(rail.current)}px`,
+      }),
+      { duration },
+    )
+  }, [flow, extent, canvas])
 
   // The first fit waits for the browser to have laid the cards out, since
   // fitting before that takes in only the sections. It happens once, so a
@@ -59,6 +80,7 @@ export function BoardTools({ extent, laidOut, onAddSection, onRearrange, onFocus
 
   return (
     <Toolkit
+      ref={rail}
       groups={[
         [
           { id: 'fit', label: 'Fit the board', icon: GLYPHS.fit, onUse: () => fit(STEP) },
@@ -87,6 +109,15 @@ export function BoardTools({ extent, laidOut, onAddSection, onRearrange, onFocus
       ]}
     />
   )
+}
+
+/**
+ * How much of the canvas the rail covers, plus as much again to sit clear of.
+ * The inset the rail keeps from the edge is the same one worth keeping between
+ * the rail and the board, so it is read off the rail rather than named twice.
+ */
+function behind(rail: HTMLElement | null): number {
+  return rail === null ? 0 : rail.offsetLeft * 2 + rail.offsetWidth
 }
 
 function enclosing(boxes: readonly Box[]): Box | undefined {

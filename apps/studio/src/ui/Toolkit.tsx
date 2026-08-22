@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 
 export interface Tool {
   readonly id: string
@@ -15,9 +15,13 @@ export interface Tool {
  * set of instruments a reader keeps returning to, not a header the board is
  * filed under, and because it will grow.
  */
-export function Toolkit({ groups }: { groups: readonly (readonly Tool[])[] }): React.JSX.Element {
+export function Toolkit({ groups, ref }: {
+  groups: readonly (readonly Tool[])[]
+  /** Held so a fit can leave the board room to stand clear of the rail. */
+  ref?: Ref<HTMLDivElement>
+}): React.JSX.Element {
   return (
-    <div className="absolute left-4 top-4 z-10 flex flex-col gap-2 rounded-card border border-line bg-surface p-1.5 shadow-card">
+    <div ref={ref} className="absolute left-4 top-4 z-10 flex flex-col gap-2 rounded-card border border-line bg-surface p-1.5 shadow-card">
       {groups.map((group, index) => (
         <div key={group[0]?.id ?? index} className="flex flex-col gap-0.5">
           {index > 0 && <div className="mx-1 mb-1.5 h-px bg-line" />}
