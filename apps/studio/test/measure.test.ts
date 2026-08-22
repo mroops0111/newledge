@@ -118,3 +118,19 @@ describe('how wide a card is', () => {
     expect(new Set(heights).size).toBeGreaterThan(1)
   })
 })
+
+describe('following a route rather than cutting across it', () => {
+  // A route with bends was worked out to go round the cards in between, so
+  // bowing from one end to the other instead runs through them and leaves the
+  // line hidden under one.
+  it('keeps every bend a router handed back', () => {
+    const path = orthogonalPath([{ x: 0, y: 0 }, { x: 0, y: 50 }, { x: 90, y: 50 }, { x: 90, y: 90 }])
+    expect(path).toContain('Q 0,50')
+    expect(path).toContain('Q 90,50')
+  })
+
+  it('has nothing to go round when a route is only its two ends', () => {
+    const path = curvePath({ x: 0, y: 0 }, { x: 100, y: 0 })
+    expect(path.split(' ').filter(part => part === 'Q')).toHaveLength(1)
+  })
+})
