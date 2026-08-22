@@ -58,9 +58,10 @@ export type EdgeTone = 'structure' | 'quiet' | 'supports' | 'contradicts'
 /**
  * How thick every line is drawn.
  * Weight is a weak signal and three of them were being used alongside dash,
- * end, and shape, which is noise rather than another distinction.
+ * end, and shape, which is noise rather than another distinction. Heavy enough
+ * to survive a board zoomed out, which is where most of a board is read.
  */
-export const STROKE = 1.5
+export const STROKE = 2.25
 
 /** UML says what these mean, so a reader who knows a diagram knows these. */
 export type MarkerKind = 'triangleHollow' | 'diamond' | 'arrow' | 'dot' | 'none'
@@ -134,8 +135,11 @@ export const EDGE_STYLES: Readonly<Record<string, EdgeStyle>> = {
   uses: { shapes: 'layout', kin: 'curve', tone: 'structure', strokeWidth: STROKE, marker: 'arrow', onBoard: true },
   relatesTo: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, dash: '1 4', marker: 'none', onBoard: true },
 
-  // Filing is the section a card sits in, so drawing it repeats the board.
-  belongsTo: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, dash: '2 4', marker: 'none', onBoard: false },
+  // Filing a card under a topic is the section it sits in, and drawing that
+  // repeats the board, which is caught by a relation whose end stands on its
+  // other end. Filing a topic under a topic is not, so it is drawn, between
+  // the two sections those topics are.
+  belongsTo: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, dash: '2 4', marker: 'none', onBoard: true },
 
   // Provenance, aboutness, and argument are each about a concept rather than
   // between two, so they are read inside it and never drawn out here.

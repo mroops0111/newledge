@@ -60,11 +60,11 @@ describe('what a card says it hangs off', () => {
   const held = lineages(edges)
 
   it('names the whole a part belongs to', () => {
-    expect(lineageLabel(held.get('editor')!, byId)).toBe('Part of Suite')
+    expect(lineageLabel(held.get('editor')![0]!, byId)).toBe('Part of Suite')
   })
 
   it('names what a kind is a kind of, which is the other end of how it is written', () => {
-    expect(lineageLabel(held.get('graphRag')!, byId)).toBe('Kind of RAG')
+    expect(lineageLabel(held.get('graphRag')![0]!, byId)).toBe('Kind of RAG')
   })
 
   it('says nothing on a card that hangs off nothing', () => {
@@ -76,7 +76,8 @@ describe('what a card says it hangs off', () => {
   // layout given the wrong height lays the board out wrong.
   it('costs a card a row, which the arrangement has to know about', () => {
     const node = { id: 'editor', type: 'Concept', name: 'Editor', description: 'A kit.' }
-    expect(cardExtent(node, true).height).toBeGreaterThan(cardExtent(node, false).height)
+    expect(cardExtent(node, 2).height).toBeGreaterThan(cardExtent(node, 1).height)
+    expect(cardExtent(node, 1).height).toBeGreaterThan(cardExtent(node, 0).height)
   })
 })
 
@@ -116,5 +117,35 @@ describe('what colour a relation is drawn in', () => {
 
   it('leaves a relation into a family of one uncoloured, as that family is', () => {
     expect(led.has('vendor')).toBe(false)
+  })
+})
+
+describe('a card in two families', () => {
+  // A card wearing one family and naming another says two things and settles
+  // nothing, so both come from the same choice.
+  const both = [
+    edge('contains', 'suite', 'signing'),
+    edge('instantiates', 'signing', 'electronicSignature'),
+  ]
+
+  it('wears the family it says it hangs off', () => {
+    const named = lineages(both).get('signing')![0]!.parentId
+    expect(familyColours(both).get('signing')).toBe(familyColours(both).get(named))
+  })
+})
+
+describe('a card that hangs off more than one thing', () => {
+  const both = [
+    edge('contains', 'suite', 'signing'),
+    edge('instantiates', 'signing', 'electronicSignature'),
+  ]
+
+  // Naming only the first leaves the second with nowhere to be said at all.
+  it('names every one of them', () => {
+    expect(lineages(both).get('signing')).toHaveLength(2)
+  })
+
+  it('names being part of something before being a kind of something', () => {
+    expect(lineages(both).get('signing')![0]!.type).toBe('contains')
   })
 })

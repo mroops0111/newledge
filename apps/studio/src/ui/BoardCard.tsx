@@ -7,7 +7,7 @@ export interface BoardCardData {
   readonly form: NodeForm
   readonly colour: string
   /** What this card hangs off, written on it so it need not be traced. */
-  readonly lineage?: { readonly label: string, readonly type: string }
+  readonly lineages?: readonly { readonly label: string, readonly type: string, readonly colour: string }[]
   [key: string]: unknown
 }
 
@@ -37,13 +37,13 @@ export function BoardCard({ data, selected }: {
   data: BoardCardData
   selected: boolean
 }): React.JSX.Element {
-  const { node, form, colour, lineage } = data
+  const { node, form, colour, lineages } = data
   const lift = selected ? 'shadow-lifted ring-1 ring-ink/25' : 'shadow-card'
 
   return (
     <div className={`rounded-card border border-line bg-surface ${lift}`}>
       <Handle type="target" position={Position.Top} className="!opacity-0" />
-      {body(node, form, colour, lineage)}
+      {body(node, form, colour, lineages ?? [])}
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />
     </div>
   )
@@ -53,7 +53,7 @@ function body(
   node: GraphNode,
   form: NodeForm,
   colour: string,
-  lineage: BoardCardData['lineage'],
+  lineages: NonNullable<BoardCardData['lineages']>,
 ): React.JSX.Element {
   switch (form) {
     case 'concept': {
@@ -61,15 +61,20 @@ function body(
         <>
           <div className="rounded-t-card border-l-2 px-3.5 pt-2.5" style={{ borderLeftColor: colour }}>
             <p className="truncate font-ui text-xs font-semibold text-ink">{node.name}</p>
-            {lineage === undefined
+            {lineages.length === 0
               ? <div className="pb-2.5" />
               : (
-                  <p
-                    className="truncate pb-2 pt-1 font-ui text-[0.6875rem] leading-none"
-                    style={{ color: colour }}
-                  >
-                    {`${lineage.type === 'contains' ? PART_OF : KIND_OF}\u00A0${lineage.label}`}
-                  </p>
+                  <ul className="pb-2 pt-1">
+                    {lineages.map(one => (
+                      <li
+                        key={`${one.type}-${one.label}`}
+                        className="truncate py-px font-ui text-[0.6875rem] leading-tight"
+                        style={{ color: one.colour }}
+                      >
+                        {`${one.type === 'contains' ? PART_OF : KIND_OF}\u00A0${one.label}`}
+                      </li>
+                    ))}
+                  </ul>
                 )}
           </div>
           {node.description !== undefined && (

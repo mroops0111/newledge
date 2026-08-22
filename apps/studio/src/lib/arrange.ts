@@ -69,7 +69,10 @@ export async function firstArrangement(
   for (const edge of graph.edges) {
     if (edge.type !== 'contains' || partOf.has(edge.toNodeId))
       continue
-    if (sectionOf(edge.toNodeId) !== sectionOf(edge.fromNodeId))
+    // Filed elsewhere, a part stays where it was filed, since the ground wins.
+    // Filed nowhere, there is nothing to lose by joining what holds it.
+    const filed = sectionOf(edge.toNodeId)
+    if (filed !== undefined && filed !== sectionOf(edge.fromNodeId))
       continue
     partOf.set(edge.toNodeId, broodOf(edge.fromNodeId))
     partOf.set(edge.fromNodeId, broodOf(edge.fromNodeId))
@@ -81,7 +84,7 @@ export async function firstArrangement(
     return {
       id: node.id,
       type: node.type,
-      ...cardExtent(node, hangsOff.has(node.id)),
+      ...cardExtent(node, (hangsOff.get(node.id) ?? []).length),
       ...(seat === undefined ? {} : { groupId: seat }),
     }
   })

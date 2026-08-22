@@ -97,19 +97,33 @@ function write(request: PlacementRequest): ElkNode {
     }
   }
 
-  // A relation is laid out by whichever container can see both of its ends,
-  // which is the section when both are filed there, and the board otherwise.
+  /**
+   * A relation is laid out by whichever container can see both of its ends.
+   * Both in one group, and that group lays it out between the two cards. Ends
+   * in different groups, and the board lays it out between the two **groups**,
+   * because a group is opaque to the board and an edge into a card it cannot
+   * see places nothing. Those are merged, and the more relations run between
+   * two groups the harder the board is asked to keep them together.
+   */
   const drawn = new Set(request.nodes.map(node => node.id))
   const within = new Map<string, ElkExtendedEdge[]>()
+  const crossing = new Map<string, { from: string, to: string, count: number }>()
+
   for (const edge of request.edges) {
     const style = edgeStyle(edge.type)
     if (style.shapes !== 'layout' || !drawn.has(edge.from) || !drawn.has(edge.to))
       continue
-    const from = seatOf.get(edge.from)
-    const owner = from !== undefined && from === seatOf.get(edge.to) ? from : ROOT
-    const kept = within.get(owner) ?? []
-    kept.push({ id: edge.id, sources: [edge.from], targets: [edge.to] })
-    within.set(owner, kept)
+    const [from, to] = [seatOf.get(edge.from), seatOf.get(edge.to)]
+    if (from !== undefined && from === to) {
+      const kept = within.get(from) ?? []
+      kept.push({ id: edge.id, sources: [edge.from], targets: [edge.to] })
+      within.set(from, kept)
+      continue
+    }
+    const [one, other] = [from ?? edge.from, to ?? edge.to].sort() as [string, string]
+    const pair = crossing.get(`${one}|${other}`) ?? { from: one, to: other, count: 0 }
+    pair.count += 1
+    crossing.set(`${one}|${other}`, pair)
   }
 
   // A group inside a group is built from the inside out, so a nested one is
@@ -144,7 +158,12 @@ function write(request: PlacementRequest): ElkNode {
     id: ROOT,
     layoutOptions: BOARD_OPTIONS,
     children: [...top, ...loose],
-    edges: within.get(ROOT) ?? [],
+    edges: [...crossing].map(([id, pair]) => ({
+      id: `between-${id}`,
+      sources: [pair.from],
+      targets: [pair.to],
+      layoutOptions: { 'elk.layered.priority.shortness': String(pair.count) },
+    })),
   }
 }
 

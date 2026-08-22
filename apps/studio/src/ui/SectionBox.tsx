@@ -1,4 +1,5 @@
 import type { Section } from '@newledge/board'
+import { Handle, Position } from '@xyflow/react'
 
 export interface SectionBoxData {
   readonly section: Section
@@ -18,6 +19,12 @@ export function SectionBox({ data }: { data: SectionBoxData }): React.JSX.Elemen
   const { section, onRename, onRenamed } = data
   return (
     <div className="relative" style={{ width: section.width, height: section.height }}>
+      {/*
+        A section is a topic, so a relation can run between two of them, and a
+        canvas drops an edge whose end has nowhere to attach.
+      */}
+      <Handle type="target" position={Position.Top} className="!opacity-0" />
+      <Handle type="source" position={Position.Bottom} className="!opacity-0" />
       <input
         value={section.name}
         onChange={event => onRename(event.target.value)}

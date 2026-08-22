@@ -9,85 +9,117 @@ export interface DrawnEdge {
   readonly target: string
   readonly label?: string
   readonly style: EdgeStyle
-  /** How many relations this one line stands for, when it stands for several. */
-  readonly standsFor?: number
+  /**
+   * The cards whose relations this one line stands for.
+   * A reader picking one of them has to see the line that carries what they
+   * picked, and the line is not any of the relations it stands for, so it
+   * cannot be found by asking for those.
+   */
+  readonly standsFor?: readonly string[]
 }
 
-/** What a line between two sections looks like, whatever it stands for. */
-export const BETWEEN_SECTIONS: EdgeStyle = {
+/**
+ * What a line between two grounds looks like, whatever it stands for.
+ * Heavier than a relation between two cards, because it carries several, and
+ * not the faintest thing on the board for the same reason. It carries no end,
+ * since the relations it stands for run in both directions.
+ */
+/**
+ * What a line between two grounds looks like, whatever it stands for.
+ * Heavier than a relation between two cards, because it carries several, and
+ * dashed because it is a summary rather than a relation anyone asserted. It
+ * carries no end, since what it stands for runs both ways.
+ */
+export const BETWEEN_GROUNDS: EdgeStyle = {
   shapes: 'drawn',
   kin: 'curve',
-  tone: 'quiet',
-  strokeWidth: 2,
+  tone: 'structure',
+  strokeWidth: 3.5,
+  dash: '10 6',
   marker: 'none',
   onBoard: true,
 }
 
+/** Where a relation's end attaches, which is a card or a ground. */
+export type EndpointOf = (nodeId: string) => string | undefined
+
+/** Whether a relation between two cards can be drawn without making a mess. */
+export type Drawable = (edgeId: string) => boolean
+
 export interface DrawnRelations {
-  /** Drawn from one card to another, because both are on the same ground. */
-  readonly withinSections: readonly DrawnEdge[]
-  /** One line for every pair of sections that any relation crosses between. */
-  readonly betweenSections: readonly DrawnEdge[]
+  readonly lines: readonly DrawnEdge[]
+  /** One line per pair of grounds, for the relations that could not be drawn. */
+  readonly summaries: readonly DrawnEdge[]
 }
 
 /**
- * Which relations the board draws, and at what level.
- * A relation whose ends sit on the same ground is drawn between those two
- * cards. One that crosses from one ground to another is drawn between the two
- * grounds instead, and every relation crossing the same pair becomes that one
- * line, since a card cannot be next to everything it relates to and a board
- * covered in lines that cross it says less than a board with a few that do
- * not. The card still names what it is related to.
+ * Which relations the board draws, and between what.
+ * An end attaches to the card it names, or to a ground when the node it names
+ * is that ground, since a topic is a section and a section is a thing a
+ * relation can honestly run between.
+ *
+ * A relation that cannot be drawn without a line long enough to be lost is
+ * left undrawn, and what it says is not thrown away. It joins one line between
+ * the two grounds, which says how many it stands for, and the card names it in
+ * words.
  */
 export function drawnRelations(
   edges: readonly GraphEdge[],
-  onBoard: ReadonlySet<string>,
-  groundOf: (nodeId: string) => string | undefined,
+  endpointOf: EndpointOf,
+  groundOf: EndpointOf,
+  drawable: Drawable,
   selected: ReadonlySet<string>,
 ): DrawnRelations {
-  const withinSections: DrawnEdge[] = []
-  const crossing = new Map<string, { source: string, target: string, count: number }>()
+  const lines: DrawnEdge[] = []
+  const crossing = new Map<string, { source: string, target: string, ends: Set<string> }>()
 
   for (const edge of edges) {
-    const style = edgeStyle(edge.type)
-    if (!style.onBoard || !onBoard.has(edge.fromNodeId) || !onBoard.has(edge.toNodeId))
+    if (!edgeStyle(edge.type).onBoard)
       continue
+    const [source, target] = [endpointOf(edge.fromNodeId), endpointOf(edge.toNodeId)]
+    if (source === undefined || target === undefined)
+      continue
+    // A relation whose one end stands on its other says only where a card
+    // already is, which the board said by putting it there.
+    if (source === target
+      || groundOf(edge.fromNodeId) === target
+      || groundOf(edge.toNodeId) === source) {
+      continue
+    }
 
-    const [from, to] = [groundOf(edge.fromNodeId), groundOf(edge.toNodeId)]
-    if (from === to) {
+    if (drawable(edge.id)) {
       const asked = selected.has(edge.fromNodeId) || selected.has(edge.toNodeId)
-      withinSections.push({
+      lines.push({
         id: edge.id,
-        source: edge.fromNodeId,
-        target: edge.toNodeId,
+        source,
+        target,
         // The line already says what kind of relation it is, so the verb is
         // spelled out only when a reader has asked about one of its ends.
         ...(asked ? { label: edge.type } : {}),
-        style,
+        style: edgeStyle(edge.type),
       })
       continue
     }
-    if (from === undefined || to === undefined)
-      continue
 
+    const [from, to] = [groundOf(edge.fromNodeId), groundOf(edge.toNodeId)]
+    if (from === undefined || to === undefined || from === to)
+      continue
     const [one, other] = [from, to].sort() as [string, string]
     const pair = crossing.get(`${one}|${other}`)
-      ?? { source: one, target: other, count: 0 }
-    pair.count += 1
+      ?? { source: one, target: other, ends: new Set<string>() }
+    pair.ends.add(edge.fromNodeId).add(edge.toNodeId)
     crossing.set(`${one}|${other}`, pair)
   }
 
   return {
-    withinSections,
-    betweenSections: [...crossing].map(([id, pair]) => ({
+    lines,
+    summaries: [...crossing].map(([id, pair]) => ({
       id: `between-${id}`,
       source: pair.source,
       target: pair.target,
-      ...(selected.has(pair.source) || selected.has(pair.target)
-        ? { label: `${pair.count}` }
-        : {}),
-      style: BETWEEN_SECTIONS,
-      standsFor: pair.count,
+      ...([...pair.ends].some(end => selected.has(end)) ? { label: `${pair.ends.size}` } : {}),
+      style: BETWEEN_GROUNDS,
+      standsFor: [...pair.ends],
     })),
   }
 }
