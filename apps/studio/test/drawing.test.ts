@@ -2,6 +2,7 @@ import type { Board } from '@newledge/board'
 import { describe, expect, it } from 'vitest'
 import { edgeStyle, nodeStyle } from '../src/lib/boardStyle.js'
 import { drawnCards, drawnRelations } from '../src/lib/drawing.js'
+import { noteLabel } from '../src/lib/kinship.js'
 import type { GraphEdge, GraphNode } from '../src/lib/graph.js'
 
 function edge(id: string, type: string, from: string, to: string): GraphEdge {
@@ -38,7 +39,7 @@ describe('which relations the board draws, and between what', () => {
 
   it('never draws what is read inside a card instead of beside it', () => {
     const drawn = drawnRelations(edges, endpoint, ground, always, new Set())
-    const all = [...drawn.lines, ...drawn.summaries].map(one => one.id)
+    const all = drawn.lines.map(one => one.id)
     expect(all).not.toContain('e1')
     expect(all).not.toContain('e4')
   })
@@ -56,33 +57,50 @@ describe('which relations the board draws, and between what', () => {
     const filed = [edge('t1', 'belongsTo', 'rag', 'topicA')]
     const drawn = drawnRelations(filed, endpoint, ground, always, new Set())
     expect(drawn.lines).toHaveLength(0)
-    expect(drawn.summaries).toHaveLength(0)
+    expect(drawn.notes.size).toBe(0)
   })
 
   // A line that wanders far enough is lost whether or not it stays on one
   // ground, and what it said has to go somewhere.
-  it('summarises what could not be drawn as one line between the two grounds', () => {
-    const crossing = [
-      edge('x1', 'uses', 'rag', 'faster'),
-      edge('x2', 'uses', 'embedding', 'cheaper'),
-    ]
+  it('has both cards name each other when it cannot draw between them', () => {
+    const crossing = [edge('x1', 'uses', 'rag', 'faster')]
     const drawn = drawnRelations(crossing, endpoint, ground, never, new Set())
     expect(drawn.lines).toHaveLength(0)
-    expect(drawn.summaries).toHaveLength(1)
-    expect([...drawn.summaries[0]!.standsFor!].sort())
-      .toEqual(['cheaper', 'embedding', 'faster', 'rag'])
+    expect(drawn.notes.get('rag')).toEqual([
+      { edgeId: 'x1', type: 'uses', otherId: 'faster', end: 'from' },
+    ])
+    expect(drawn.notes.get('faster')).toEqual([
+      { edgeId: 'x1', type: 'uses', otherId: 'rag', end: 'to' },
+    ])
   })
 
-  it('draws a short relation between two grounds rather than summarising it', () => {
+  // The child says what it hangs off whether or not the board drew the line,
+  // so a hierarchy the board could not draw leaves only its root to speak.
+  it('leaves a hierarchy to the end that does not already name the other', () => {
+    const held = [edge('x1', 'contains', 'rag', 'faster')]
+    const drawn = drawnRelations(held, endpoint, ground, never, new Set())
+    expect(drawn.notes.get('rag')).toEqual([
+      { edgeId: 'x1', type: 'contains', otherId: 'faster', end: 'from' },
+    ])
+    expect(drawn.notes.get('faster')).toBeUndefined()
+  })
+
+  it('says nothing on a card about a relation it did draw', () => {
     const crossing = [edge('x1', 'uses', 'rag', 'faster')]
     const drawn = drawnRelations(crossing, endpoint, ground, always, new Set())
     expect(drawn.lines).toHaveLength(1)
-    expect(drawn.summaries).toHaveLength(0)
+    expect(drawn.notes.size).toBe(0)
+  })
+
+  it('puts no note on a node the board never drew a card for', () => {
+    const away = [edge('x1', 'uses', 'rag', 'notHere')]
+    const drawn = drawnRelations(away, endpoint, ground, never, new Set())
+    expect(drawn.notes.get('notHere')).toBeUndefined()
   })
 
   it('leaves out a relation whose other end is not on this board', () => {
     const drawn = drawnRelations(edges, endpoint, ground, always, new Set())
-    expect([...drawn.lines, ...drawn.summaries].map(one => one.id)).not.toContain('e5')
+    expect(drawn.lines.map(one => one.id)).not.toContain('e5')
   })
 
   it('spells out the verb only for the relation a reader asked about', () => {
@@ -146,41 +164,26 @@ describe('the visual language', () => {
   })
 })
 
-describe('what a line between two grounds says it stands for', () => {
-  // The one line on the board whose shape does not carry what it is, so it has
-  // to say so, and say it in a way that needs nothing else to be read first.
-  const nothingFits = (): boolean => false
+describe('what a card says about a relation the board could not draw', () => {
+  const byId = new Map<string, GraphNode>([
+    ['rag', { id: 'rag', type: 'Concept', name: 'RAG' }],
+    ['faster', { id: 'faster', type: 'Concept', name: 'GraphRAG answers faster' }],
+  ])
 
-  it('counts relations, not the cards they run between', () => {
-    const drawn = drawnRelations(
-      [edge('u1', 'uses', 'here', 'there')],
-      id => id,
-      id => (id === 'here' ? 'left' : 'right'),
-      nothingFits,
-      new Set(),
-    )
-    expect(drawn.summaries[0]!.label).toBe('1 relation, too far to draw')
+  it('reads one way from one end and the other way from the other', () => {
+    expect(noteLabel({ edgeId: 'x', type: 'uses', otherId: 'faster', end: 'from' }, byId))
+      .toBe('Uses GraphRAG answers faster')
+    expect(noteLabel({ edgeId: 'x', type: 'uses', otherId: 'rag', end: 'to' }, byId))
+      .toBe('Used by RAG')
   })
 
-  it('counts every relation it stands for, not every pair of ends', () => {
-    const drawn = drawnRelations(
-      [edge('u1', 'uses', 'here', 'there'), edge('r1', 'relatesTo', 'here', 'there')],
-      id => id,
-      id => (id === 'here' ? 'left' : 'right'),
-      nothingFits,
-      new Set(),
-    )
-    expect(drawn.summaries[0]!.label).toBe('2 relations, too far to draw')
+  it('reads a relation nobody has chosen words for off its own name', () => {
+    expect(noteLabel({ edgeId: 'x', type: 'dependsOn', otherId: 'rag', end: 'from' }, byId))
+      .toBe('Depends on RAG')
   })
 
-  it('says so whether or not a reader has asked about either end', () => {
-    const drawn = drawnRelations(
-      [edge('u1', 'uses', 'here', 'there')],
-      id => id,
-      id => (id === 'here' ? 'left' : 'right'),
-      nothingFits,
-      new Set(['here']),
-    )
-    expect(drawn.summaries[0]!.label).toBe('1 relation, too far to draw')
+  it('names a card the graph no longer holds by the only name it has left', () => {
+    expect(noteLabel({ edgeId: 'x', type: 'uses', otherId: 'gone', end: 'from' }, byId))
+      .toBe('Uses gone')
   })
 })

@@ -1,4 +1,5 @@
 import { edgeStyle, TONE_COLOURS } from './boardStyle.js'
+import type { Note } from './drawing.js'
 import type { GraphEdge, GraphNode } from './graph.js'
 
 /** What a card hangs off, said on the card so it need not be traced. */
@@ -44,6 +45,38 @@ export function lineages(edges: readonly GraphEdge[]): Map<string, Lineage[]> {
 function rankOf(type: string): number {
   const rank = NAMED_FIRST.indexOf(type)
   return rank === -1 ? NAMED_FIRST.length : rank
+}
+
+/**
+ * How a relation reads when a card says it rather than the board drawing it.
+ * A relation reads one way from one end and the other way from the other, so
+ * both are written down. Anything the ontology adds that is not here is read
+ * off its own name, which is the honest answer for a relation nobody has
+ * chosen words for yet.
+ */
+const SAID_AS: Readonly<Record<string, { readonly from: string, readonly to: string }>> = {
+  uses: { from: 'Uses', to: 'Used by' },
+  relatesTo: { from: 'Related to', to: 'Related to' },
+  belongsTo: { from: 'Filed under', to: 'Holds' },
+  contains: { from: 'Contains', to: 'Part of' },
+  extends: { from: 'Kind of', to: 'Kinds include' },
+  instantiates: { from: 'Kind of', to: 'Kinds include' },
+  concerns: { from: 'About', to: 'Spoken about by' },
+  introduces: { from: 'Introduces', to: 'Introduced by' },
+  supports: { from: 'Supports', to: 'Supported by' },
+  contradicts: { from: 'Contradicts', to: 'Contradicted by' },
+}
+
+/** What a card says about a relation the board could not draw for it. */
+export function noteLabel(note: Note, byId: ReadonlyMap<string, GraphNode>): string {
+  const name = byId.get(note.otherId)?.name ?? note.otherId
+  return `${SAID_AS[note.type]?.[note.end] ?? asWords(note.type)} ${name}`
+}
+
+/** A type read off its own name, so an unnamed relation still says something. */
+function asWords(type: string): string {
+  const spaced = type.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
 
 /** How a lineage is written on a card, in the vocabulary its line already uses. */

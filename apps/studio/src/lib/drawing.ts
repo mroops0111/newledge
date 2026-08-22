@@ -9,38 +9,6 @@ export interface DrawnEdge {
   readonly target: string
   readonly label?: string
   readonly style: EdgeStyle
-  /**
-   * The cards whose relations this one line stands for.
-   * A reader picking one of them has to see the line that carries what they
-   * picked, and the line is not any of the relations it stands for, so it
-   * cannot be found by asking for those.
-   */
-  readonly standsFor?: readonly string[]
-}
-
-/**
- * What a line between two grounds looks like, whatever it stands for.
- * Heavier than a relation between two cards, because it carries several, and
- * not the faintest thing on the board for the same reason. It carries no end,
- * since the relations it stands for run in both directions.
- */
-/**
- * What a line between two grounds looks like, whatever it stands for.
- * Heavier than a relation between two cards, because it carries several, and
- * dashed because it is a summary rather than a relation anyone asserted. It
- * carries no end, since what it stands for runs both ways. Straight, because
- * it is a tie between two grounds and not an association between two things,
- * and because bowed over the short gap between two grounds a heavy dashed line
- * reads as a stray mark rather than as a connector.
- */
-export const BETWEEN_GROUNDS: EdgeStyle = {
-  shapes: 'drawn',
-  kin: 'straight',
-  tone: 'structure',
-  strokeWidth: 3.5,
-  dash: '10 6',
-  marker: 'none',
-  onBoard: true,
 }
 
 /** Where a relation's end attaches, which is a card or a ground. */
@@ -49,10 +17,23 @@ export type EndpointOf = (nodeId: string) => string | undefined
 /** Whether a relation between two cards can be drawn without making a mess. */
 export type Drawable = (edgeId: string) => boolean
 
+/**
+ * A relation a card names in words because the board could not draw it.
+ * Which end of it the card is matters, since a relation reads one way from one
+ * end and the other way from the other.
+ */
+export interface Note {
+  readonly edgeId: string
+  readonly type: string
+  /** The card at the other end, which is the one the note names. */
+  readonly otherId: string
+  readonly end: 'from' | 'to'
+}
+
 export interface DrawnRelations {
   readonly lines: readonly DrawnEdge[]
-  /** One line per pair of grounds, for the relations that could not be drawn. */
-  readonly summaries: readonly DrawnEdge[]
+  /** What each card says about the relations that could not be drawn. */
+  readonly notes: ReadonlyMap<string, readonly Note[]>
 }
 
 /**
@@ -62,9 +43,13 @@ export interface DrawnRelations {
  * relation can honestly run between.
  *
  * A relation that cannot be drawn without a line long enough to be lost is
- * left undrawn, and what it says is not thrown away. It joins one line between
- * the two grounds, which says in words how many relations it stands for and
- * why none of them is drawn, and the card names it too.
+ * left undrawn, and what it says is not thrown away. The cards at its two ends
+ * name each other in words instead. A line summarising several of them between
+ * two grounds said only that something was there, which a reader could not act
+ * on, while the words say which card and how.
+ *
+ * A child already names what it hangs off, whatever the board managed to draw,
+ * so only the other end of a hierarchy has anything left to say.
  */
 export function drawnRelations(
   edges: readonly GraphEdge[],
@@ -74,15 +59,17 @@ export function drawnRelations(
   selected: ReadonlySet<string>,
 ): DrawnRelations {
   const lines: DrawnEdge[] = []
-  const crossing = new Map<string, {
-    source: string
-    target: string
-    ends: Set<string>
-    relations: number
-  }>()
+  const notes = new Map<string, Note[]>()
+  const noted = (nodeId: string, note: Note): void => {
+    // Only a card can carry a note, and a node the board never drew has
+    // nowhere to put one.
+    if (endpointOf(nodeId) === nodeId)
+      notes.set(nodeId, [...(notes.get(nodeId) ?? []), note])
+  }
 
   for (const edge of edges) {
-    if (!edgeStyle(edge.type).onBoard)
+    const style = edgeStyle(edge.type)
+    if (!style.onBoard)
       continue
     const [source, target] = [endpointOf(edge.fromNodeId), endpointOf(edge.toNodeId)]
     if (source === undefined || target === undefined)
@@ -104,39 +91,23 @@ export function drawnRelations(
         // The line already says what kind of relation it is, so the verb is
         // spelled out only when a reader has asked about one of its ends.
         ...(asked ? { label: edge.type } : {}),
-        style: edgeStyle(edge.type),
+        style,
       })
       continue
     }
 
-    const [from, to] = [groundOf(edge.fromNodeId), groundOf(edge.toNodeId)]
-    if (from === undefined || to === undefined || from === to)
-      continue
-    const [one, other] = [from, to].sort() as [string, string]
-    const pair = crossing.get(`${one}|${other}`)
-      ?? { source: one, target: other, ends: new Set<string>(), relations: 0 }
-    pair.ends.add(edge.fromNodeId).add(edge.toNodeId)
-    pair.relations += 1
-    crossing.set(`${one}|${other}`, pair)
+    const ends = [
+      { on: edge.fromNodeId, other: edge.toNodeId, end: 'from' as const },
+      { on: edge.toNodeId, other: edge.fromNodeId, end: 'to' as const },
+    ]
+    for (const side of style.kin === 'tree'
+      ? ends.filter(one => one.end === style.rootAt)
+      : ends) {
+      noted(side.on, { edgeId: edge.id, type: edge.type, otherId: side.other, end: side.end })
+    }
   }
 
-  return {
-    lines,
-    summaries: [...crossing].map(([id, pair]) => ({
-      id: `between-${id}`,
-      source: pair.source,
-      target: pair.target,
-      // Always said, and said in full. This is the one line whose shape does
-      // not carry what it is, every other line says its kind by the end it
-      // points with, and a reader who cannot tell what a line means cannot
-      // use it. What it counts is relations, not the cards they run between.
-      label: pair.relations === 1
-        ? '1 relation, too far to draw'
-        : `${pair.relations} relations, too far to draw`,
-      style: BETWEEN_GROUNDS,
-      standsFor: [...pair.ends],
-    })),
-  }
+  return { lines, notes }
 }
 
 export interface DrawnCard {
