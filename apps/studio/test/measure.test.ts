@@ -54,8 +54,14 @@ describe('drawing a line along the route it was given', () => {
     expect(orthogonalPath([{ x: 0, y: 0 }, { x: 10, y: 0 }])).toBe('M 0,0 L 10,0')
   })
 
-  it('rounds a corner rather than turning it square', () => {
-    const path = orthogonalPath([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }])
+  // A hierarchy is read as a family tree, and a family tree turns square.
+  it('turns a corner square', () => {
+    expect(orthogonalPath([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }]))
+      .toBe('M 0,0 L 100,0 L 100,100')
+  })
+
+  it('rounds one off when it is asked to', () => {
+    const path = orthogonalPath([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }], 20)
     expect(path).toContain('Q 100,0')
   })
 
@@ -65,7 +71,7 @@ describe('drawing a line along the route it was given', () => {
   })
 
   it('leaves a corner where it is when a route doubles back on itself', () => {
-    const path = orthogonalPath([{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 10, y: 0 }])
+    const path = orthogonalPath([{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 10, y: 0 }], 10)
     expect(path).toContain('Q 0,0')
   })
 })
@@ -125,8 +131,7 @@ describe('following a route rather than cutting across it', () => {
   // line hidden under one.
   it('keeps every bend a router handed back', () => {
     const path = orthogonalPath([{ x: 0, y: 0 }, { x: 0, y: 50 }, { x: 90, y: 50 }, { x: 90, y: 90 }])
-    expect(path).toContain('Q 0,50')
-    expect(path).toContain('Q 90,50')
+    expect(path).toBe('M 0,0 L 0,50 L 90,50 L 90,90')
   })
 
   it('has nothing to go round when a route is only its two ends', () => {

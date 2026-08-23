@@ -33,7 +33,9 @@ export function BoardMarkers(): React.JSX.Element {
             key={`${kind}-${paint}`}
             id={`board-${kind}-${paint}`}
             viewBox="0 0 12 12"
-            refX={kind === 'dot' ? 6 : 11}
+            // Every end stands just outside the border it points at. Centred
+            // on it instead, the dot was cut in half by the card drawn over it.
+            refX={kind === 'dot' ? 9 : 11}
             refY={6}
             markerWidth={13}
             markerHeight={13}

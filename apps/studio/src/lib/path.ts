@@ -100,19 +100,18 @@ function onBorder(box: Box, from: Point, towards: Point): Point {
 }
 
 /**
- * How far back from a corner a route starts turning.
- * A rounded corner cuts inside the turn by under a third of this, so kept to
- * the clearance a route was given it cannot cut into whatever the route went
- * round. That is also as round as a corner can honestly be drawn, and a board
- * of nearly square corners reads as a circuit diagram rather than as something
- * drawn by hand.
+ * How far back from a corner a route starts turning, which is nowhere.
+ * A hierarchy is read as a family tree, and a family tree turns square. Rounded
+ * off, the same lines read as wiring, and the two runs meeting at a corner stop
+ * looking like one run that turned.
  */
-const CORNER = 20
+const CORNER = 0
 
 /**
  * An SVG path through the points a router handed back.
- * Corners are rounded rather than square, which is what keeps an orthogonal
- * route reading as a drawn line instead of as a circuit diagram.
+ * Corners turn square, so an orthogonal route reads as a hierarchy rather than
+ * as a cable. A radius can be asked for, and rounds the corner by cutting
+ * inside the turn, which is never more than a third of it.
  */
 export function orthogonalPath(points: readonly Point[], radius = CORNER): string {
   const [first, ...rest] = points
@@ -123,11 +122,13 @@ export function orthogonalPath(points: readonly Point[], radius = CORNER): strin
 
   let path = `M ${first.x},${first.y}`
   for (let index = 1; index < points.length - 1; index += 1) {
-    const before = points[index - 1]!
     const corner = points[index]!
-    const after = points[index + 1]!
-    const into = towards(corner, before, radius)
-    const outOf = towards(corner, after, radius)
+    if (radius === 0) {
+      path += ` L ${corner.x},${corner.y}`
+      continue
+    }
+    const into = towards(corner, points[index - 1]!, radius)
+    const outOf = towards(corner, points[index + 1]!, radius)
     path += ` L ${into.x},${into.y} Q ${corner.x},${corner.y} ${outOf.x},${outOf.y}`
   }
   const last = points[points.length - 1]!

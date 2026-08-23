@@ -86,15 +86,50 @@ function best(
   taken: ReadonlyMap<string, number>,
   used: ReadonlySet<string>,
 ): readonly Point[] {
-  const across = [
-    facingPort(from, centre(to), clearance, used).on,
-    facingPort(to, centre(from), clearance, used).on,
-  ]
-  if (!between.some(box => crosses(across[0]!, across[1]!, box)))
-    return across
+  const leaves = facingPort(from, centre(to), clearance, used)
+  const arrives = facingPort(to, centre(from), clearance, used)
+  const straight = clear(leaves, arrives)
+  if (!straight.some((point, index) =>
+    index > 0 && between.some(box => crosses(straight[index - 1]!, point, box)))) {
+    return straight
+  }
 
   const round = around(from, to, [...between, from, to], clearance, taken, used)
-  return round ?? across
+  return round ?? [leaves.on, arrives.on]
+}
+
+/**
+ * The way between two places when nothing is in between.
+ * Two ends given nothing but each other are handed back as they are, and the
+ * drawing bows them into an S. That reads as a line only while the two have
+ * more room along the way they face than they are offset across it. Given a
+ * pair almost stacked on top of each other and facing sideways, the same bow
+ * has to turn through most of a right angle within a few pixels of each end,
+ * and the line hooks into its own arrow head. Those turn square instead.
+ */
+function clear(leaves: Port, arrives: Port): Point[] {
+  const along = leaves.facing === 'x'
+    ? Math.abs(arrives.on.x - leaves.on.x)
+    : Math.abs(arrives.on.y - leaves.on.y)
+  const across = leaves.facing === 'x'
+    ? Math.abs(arrives.on.y - leaves.on.y)
+    : Math.abs(arrives.on.x - leaves.on.x)
+
+  if (leaves.facing !== arrives.facing) {
+    const corner = leaves.facing === 'x'
+      ? { x: arrives.on.x, y: leaves.on.y }
+      : { x: leaves.on.x, y: arrives.on.y }
+    return [leaves.on, corner, arrives.on]
+  }
+  if (along >= across)
+    return [leaves.on, arrives.on]
+
+  const turn = leaves.facing === 'x'
+    ? (leaves.off.x + arrives.off.x) / 2
+    : (leaves.off.y + arrives.off.y) / 2
+  return leaves.facing === 'x'
+    ? [leaves.on, { x: turn, y: leaves.on.y }, { x: turn, y: arrives.on.y }, arrives.on]
+    : [leaves.on, { x: leaves.on.x, y: turn }, { x: arrives.on.x, y: turn }, arrives.on]
 }
 
 interface Port {
@@ -130,9 +165,29 @@ function keyOf(point: Point): string {
 }
 
 /**
- * The place on the side facing something, nearest to it and not already taken.
+ * What a place costs a line beyond the run itself.
+ * How far off the middle of its side it is, since the middle is where a line
+ * meets a card when nothing is competing for the side and the others are only
+ * there to tell lines apart. Measured as a length, in the same units as the
+ * run, so it is never enough on its own to send a line round to another side.
+ * On top of that, ending where another line already ends.
+ */
+function priceOf(port: Port, box: Box, used: ReadonlySet<string>): number {
+  const middle = centre(box)
+  const off = port.facing === 'x'
+    ? Math.abs(port.on.y - middle.y)
+    : Math.abs(port.on.x - middle.x)
+  return off + (used.has(keyOf(port.on)) ? PORT_TAKEN_COST : 0)
+}
+
+/**
+ * The place on the side facing something, which is the middle of it unless
+ * that is taken.
  * Which side is settled first, by whichever way the other thing mostly lies,
- * so a line leaves by the face a reader would expect it to.
+ * so a line leaves by the face a reader would expect it to. Then the cheapest
+ * place on that side, and among places that cost the same the one nearest what
+ * the line is reaching for, which is what keeps two lines off the same side
+ * from crossing each other on their way out.
  */
 function facingPort(box: Box, towards: Point, clearance: number, used: ReadonlySet<string>): Port {
   const middle = centre(box)
@@ -141,12 +196,11 @@ function facingPort(box: Box, towards: Point, clearance: number, used: ReadonlyS
     ? (towards.x >= middle.x ? box.x + box.width : box.x)
     : (towards.y >= middle.y ? box.y + box.height : box.y)
 
-  const onSide = portsOf(box, clearance)
+  const reach = (port: Port): number => Math.hypot(port.on.x - towards.x, port.on.y - towards.y)
+  return portsOf(box, clearance)
     .filter(port => (sideways ? port.on.x === border : port.on.y === border))
     .sort((one, other) =>
-      Math.hypot(one.on.x - towards.x, one.on.y - towards.y)
-      - Math.hypot(other.on.x - towards.x, other.on.y - towards.y))
-  return onSide.find(port => !used.has(keyOf(port.on))) ?? onSide[0]!
+      priceOf(one, box, used) - priceOf(other, box, used) || reach(one) - reach(other))[0]!
 }
 
 /**
@@ -182,7 +236,7 @@ function around(
 
   const at = (spot: number): Point => ({ x: xs[spot % xs.length]!, y: ys[Math.floor(spot / xs.length)]! })
   const spotOf = (point: Point): number => ys.indexOf(point.y) * xs.length + xs.indexOf(point.x)
-  const stepOn = new Map(arrives.map(port => [spotOf(port.off), port.on]))
+  const stepOn = new Map(arrives.map(port => [spotOf(port.off), port]))
 
   const priced = new Map<number, number>()
   const cameFrom = new Map<number, number>()
@@ -191,7 +245,7 @@ function around(
   const steppedOff = new Map<number, Point>()
   for (const port of leaves) {
     const spot = spotOf(port.off)
-    const asked = used.has(keyOf(port.on)) ? PORT_TAKEN_COST : 0
+    const asked = priceOf(port, from, used)
     if (asked >= (priced.get(spot) ?? Number.POSITIVE_INFINITY))
       continue
     priced.set(spot, asked)
@@ -231,7 +285,7 @@ function around(
         + Math.abs(other.x - one.x) + Math.abs(other.y - one.y)
         + (facing.get(here) !== undefined && facing.get(here) !== way ? BEND_COST : 0)
         + COMPANY_COST * shared(one, other, taken)
-        + (arriving !== undefined && used.has(keyOf(arriving)) ? PORT_TAKEN_COST : 0)
+        + (arriving === undefined ? 0 : priceOf(arriving, to, used))
       if (asked < (priced.get(next) ?? Number.POSITIVE_INFINITY)) {
         priced.set(next, asked)
         cameFrom.set(next, here)
@@ -250,7 +304,7 @@ function around(
     back.push(at(spot))
     began = spot
   }
-  return straightened([steppedOff.get(began)!, ...back.reverse(), stepOn.get(last)!])
+  return straightened([steppedOff.get(began)!, ...back.reverse(), stepOn.get(last)!.on])
 }
 
 /** The lines worth turning on, being each card's borders held clear of it. */

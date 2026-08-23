@@ -112,7 +112,7 @@ describe('where a line meets the card it belongs to', () => {
   // run between two centres happened to cross its border, a line arrived at a
   // different height for every card it came from, and a reader saw a scatter
   // of ends down a side rather than places a line can be at.
-  it('meets each card at one of the places on the side facing the other', async () => {
+  it('meets each card in the middle of the side facing the other', async () => {
     const routed = await orthogonalRouting().route({
       edges: [{ id: 'across', type: 'uses', from: 'left', to: 'right' }],
       obstacles: [
@@ -121,8 +121,21 @@ describe('where a line meets the card it belongs to', () => {
       ],
     })
     const points = routed.edges.get('across')!
-    expect(points[0]).toEqual({ x: 200, y: 75 })
-    expect(points[points.length - 1]).toEqual({ x: 400, y: 225 })
+    expect(points[0]).toEqual({ x: 200, y: 50 })
+    expect(points[points.length - 1]).toEqual({ x: 400, y: 250 })
+  })
+
+  // The other two are only there to tell lines apart, so nothing takes one
+  // while the middle is free, however much nearer it looks.
+  it('keeps to the middle even when another place is nearer what it reaches for', async () => {
+    const routed = await orthogonalRouting().route({
+      edges: [{ id: 'down', type: 'uses', from: 'here', to: 'well below' }],
+      obstacles: [
+        { id: 'here', x: 0, y: 0, width: 600, height: 300 },
+        { id: 'well below', x: 900, y: 260, width: 100, height: 100 },
+      ],
+    })
+    expect(routed.edges.get('down')![0]).toEqual({ x: 600, y: 150 })
   })
 
   it('spaces those places evenly down the side, whatever the card is', async () => {
@@ -297,5 +310,49 @@ describe('ground a line may run over', () => {
       ],
     })
     expect(routed.edges.get('over')).toHaveLength(2)
+  })
+})
+
+describe('when a clear run is drawn as a curve and when it turns square', () => {
+  // A curve reads as one only while the two ends have more room along the way
+  // they face than they are offset across it. Almost stacked and facing
+  // sideways, the same curve turns through most of a right angle within a few
+  // pixels of each end and hooks into its own arrow head.
+  async function between(here: Box, there: Box): Promise<readonly { x: number, y: number }[]> {
+    const routed = await orthogonalRouting().route({
+      edges: [{ id: 'run', type: 'uses', from: 'here', to: 'there' }],
+      obstacles: [{ id: 'here', ...here }, { id: 'there', ...there }],
+    })
+    return routed.edges.get('run')!
+  }
+
+  it('hands back two ends when there is room along the way they face', async () => {
+    expect(await between(
+      { x: 0, y: 0, width: 200, height: 100 },
+      { x: 800, y: 60, width: 200, height: 100 },
+    )).toHaveLength(2)
+  })
+
+  // Side by side, so both face sideways, but their facing borders are 80
+  // apart with 214 of climb between them.
+  it('turns square when the offset across is the larger of the two', async () => {
+    const run = await between(
+      { x: 1080, y: 840, width: 400, height: 133 },
+      { x: 600, y: 624, width: 400, height: 137 },
+    )
+    expect(run.length).toBeGreaterThan(2)
+    for (let index = 1; index < run.length; index += 1) {
+      const square = run[index]!.x === run[index - 1]!.x || run[index]!.y === run[index - 1]!.y
+      expect(square).toBe(true)
+    }
+  })
+
+  it('meets both cards square on however it got there', async () => {
+    const run = await between(
+      { x: 1080, y: 840, width: 400, height: 133 },
+      { x: 600, y: 624, width: 400, height: 137 },
+    )
+    expect(run[0]!.y).toBe(run[1]!.y)
+    expect(run[run.length - 1]!.y).toBe(run[run.length - 2]!.y)
   })
 })
