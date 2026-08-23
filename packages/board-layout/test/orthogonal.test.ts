@@ -392,3 +392,48 @@ describe('a side offers its middle until that is taken', () => {
     expect(ends).toEqual([400, 600])
   })
 })
+
+describe('how often a line turns', () => {
+  // A turn costs more than crossing the whole board, so a line turns only when
+  // it has no way through without turning. Priced against length instead, it
+  // buys a turn whenever the turn saves more than the turn costs, which on a
+  // board of any size is most of the time.
+  function turns(run: readonly { x: number, y: number }[]): number {
+    let count = 0
+    for (let index = 2; index < run.length; index += 1) {
+      const before = run[index - 2]!
+      const corner = run[index - 1]!
+      const after = run[index]!
+      const straight = (before.x === corner.x && corner.x === after.x)
+        || (before.y === corner.y && corner.y === after.y)
+      if (!straight)
+        count += 1
+    }
+    return count
+  }
+
+  it('turns twice to get past one thing in the way, and no more', async () => {
+    const routed = await orthogonalRouting().route({
+      edges: [{ id: 'past', type: 'uses', from: 'here', to: 'there' }],
+      obstacles: [
+        { id: 'here', x: 0, y: 0, width: 200, height: 100 },
+        { id: 'there', x: 800, y: 0, width: 200, height: 100 },
+        { id: 'wall', x: 400, y: -200, width: 100, height: 400 },
+      ],
+    })
+    expect(turns(routed.edges.get('past')!)).toBeLessThanOrEqual(2)
+  })
+
+  it('would rather go a long way round than turn one more time', async () => {
+    const routed = await orthogonalRouting().route({
+      edges: [{ id: 'past', type: 'uses', from: 'here', to: 'there' }],
+      obstacles: [
+        { id: 'here', x: 0, y: 0, width: 200, height: 100 },
+        { id: 'there', x: 1400, y: 0, width: 200, height: 100 },
+        { id: 'one', x: 400, y: -300, width: 100, height: 400 },
+        { id: 'two', x: 900, y: -300, width: 100, height: 400 },
+      ],
+    })
+    expect(turns(routed.edges.get('past')!)).toBeLessThanOrEqual(2)
+  })
+})

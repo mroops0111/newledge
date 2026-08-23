@@ -2,8 +2,22 @@ import type { Box, Obstacle, Point, Routed, Routing, RoutingRequest } from './po
 
 /** How far a line stays clear of a card it is going round. */
 const CLEARANCE = 20
-/** A bend costs this much length, so a straighter route wins a longer one. */
-const BEND_COST = 140
+/**
+ * A bend costs as much as crossing the whole board.
+ * Priced against length, a line buys a turn whenever the turn saves more than
+ * the turn costs, and on a board of any size that is most of the time. Seven
+ * of twenty-one lines turned three or four times, and a reader following one
+ * of those has lost it. Priced above any distance there is, a line turns only
+ * when it has no way through without turning, so what it costs is worked out
+ * from the board rather than written down.
+ */
+function bendCost(obstacles: readonly Box[]): number {
+  if (obstacles.length === 0)
+    return 0
+  const width = Math.max(...obstacles.map(box => box.x + box.width)) - Math.min(...obstacles.map(box => box.x))
+  const height = Math.max(...obstacles.map(box => box.y + box.height)) - Math.min(...obstacles.map(box => box.y))
+  return width + height
+}
 /**
  * Running where another line already runs costs this much a unit.
  * Two lines lying on top of each other read as one, and the one underneath is
@@ -15,9 +29,10 @@ const BEND_COST = 140
 const COMPANY_COST = 1.6
 /**
  * Ending where another line already ends costs this much.
- * About what a bend costs, so a line takes the next slot along rather than
- * land on top of another line's end, and still shares one rather than go the
- * long way round to avoid it.
+ * Enough that a line takes the next place along rather than land on top of
+ * another line's end, and little enough that it shares one rather than go the
+ * long way round to avoid it. Far below what a turn costs, since two ends
+ * meeting at one place is a smaller thing to read past than a turn is.
  */
 const PORT_TAKEN_COST = 140
 
@@ -61,6 +76,7 @@ function run(request: RoutingRequest, clearance: number): Routed {
   // ones before it went, and an order that drifted would move lines about for
   // no reason a reader could see.
   const asked = [...request.edges].sort((one, other) => one.id.localeCompare(other.id))
+  const turning = bendCost(request.obstacles)
 
   for (const edge of asked) {
     const from = byId.get(edge.from)
@@ -69,7 +85,7 @@ function run(request: RoutingRequest, clearance: number): Routed {
       continue
     const between = request.obstacles.filter(box =>
       box.ground !== true && box.id !== edge.from && box.id !== edge.to)
-    const route = best(from, to, between, clearance, taken, used)
+    const route = best(from, to, between, clearance, taken, used, turning)
     edges.set(edge.id, route)
     keep(route, taken)
     used.add(keyOf(route[0]!)).add(keyOf(route[route.length - 1]!))
@@ -85,6 +101,7 @@ function best(
   clearance: number,
   taken: ReadonlyMap<string, number>,
   used: ReadonlySet<string>,
+  turning: number,
 ): readonly Point[] {
   const leaves = facingPort(from, centre(to), clearance, used)
   const arrives = facingPort(to, centre(from), clearance, used)
@@ -94,7 +111,7 @@ function best(
     return straight
   }
 
-  const round = around(from, to, [...between, from, to], clearance, taken, used)
+  const round = around(from, to, [...between, from, to], clearance, taken, used, turning)
   return round ?? [leaves.on, arrives.on]
 }
 
@@ -252,6 +269,7 @@ function around(
   clearance: number,
   taken: ReadonlyMap<string, number>,
   used: ReadonlySet<string>,
+  turning: number,
 ): readonly Point[] | undefined {
   const leaves = portsOf(from, clearance, used)
   const arrives = portsOf(to, clearance, used)
@@ -264,20 +282,26 @@ function around(
   const spotOf = (point: Point): number => ys.indexOf(point.y) * xs.length + xs.indexOf(point.x)
   const stepOn = new Map(arrives.map(port => [spotOf(port.off), port]))
 
+  // A state is a place **and the way a line was going when it got there**, not
+  // a place alone. A turn costs what it costs only if the search can tell one
+  // arrival from another, and keeping one direction per place lets a later path
+  // inherit an earlier path's direction and pay nothing for a turn it did make.
+  const wayOf = (state: number): 'x' | 'y' => (state % 2 === 0 ? 'x' : 'y')
+  const spotAt = (state: number): number => (state - (state % 2)) / 2
+  const stateOf = (spot: number, way: 'x' | 'y'): number => spot * 2 + (way === 'x' ? 0 : 1)
+
   const priced = new Map<number, number>()
   const cameFrom = new Map<number, number>()
-  const facing = new Map<number, 'x' | 'y'>()
   const waiting = new Set<number>()
   const steppedOff = new Map<number, Point>()
   for (const port of leaves) {
-    const spot = spotOf(port.off)
+    const state = stateOf(spotOf(port.off), port.facing)
     const asked = priceOf(port, used)
-    if (asked >= (priced.get(spot) ?? Number.POSITIVE_INFINITY))
+    if (asked >= (priced.get(state) ?? Number.POSITIVE_INFINITY))
       continue
-    priced.set(spot, asked)
-    facing.set(spot, port.facing)
-    steppedOff.set(spot, port.on)
-    waiting.add(spot)
+    priced.set(state, asked)
+    steppedOff.set(state, port.on)
+    waiting.add(state)
   }
 
   let last = -1
@@ -288,34 +312,40 @@ function around(
         here = candidate
     }
     waiting.delete(here)
-    if (stepOn.has(here)) {
+    if (stepOn.has(spotAt(here))) {
       last = here
       break
     }
 
-    const column = here % xs.length
-    const row = Math.floor(here / xs.length)
+    const spot = spotAt(here)
+    const column = spot % xs.length
+    const row = Math.floor(spot / xs.length)
     for (const [nextColumn, nextRow] of [
       [column - 1, row], [column + 1, row], [column, row - 1], [column, row + 1],
     ] as const) {
       if (nextColumn < 0 || nextColumn >= xs.length || nextRow < 0 || nextRow >= ys.length)
         continue
-      const next = nextRow * xs.length + nextColumn
-      const [one, other] = [at(here), at(next)]
+      const nextSpot = nextRow * xs.length + nextColumn
+      const [one, other] = [at(spot), at(nextSpot)]
       if (between.some(box => crosses(one, other, box)))
         continue
 
       const way = nextRow === row ? 'x' : 'y'
-      const arriving = stepOn.get(next)
+      const arriving = stepOn.get(nextSpot)
+      // The step onto the card is charged here rather than left to the end. It
+      // is a turn like any other when the line was not already going that way,
+      // and unpriced it let a route take three turns where two would do.
       const asked = priced.get(here)!
         + Math.abs(other.x - one.x) + Math.abs(other.y - one.y)
-        + (facing.get(here) !== undefined && facing.get(here) !== way ? BEND_COST : 0)
+        + (wayOf(here) === way ? 0 : turning)
         + COMPANY_COST * shared(one, other, taken)
-        + (arriving === undefined ? 0 : priceOf(arriving, used))
+        + (arriving === undefined
+          ? 0
+          : priceOf(arriving, used) + (arriving.facing === way ? 0 : turning))
+      const next = stateOf(nextSpot, way)
       if (asked < (priced.get(next) ?? Number.POSITIVE_INFINITY)) {
         priced.set(next, asked)
         cameFrom.set(next, here)
-        facing.set(next, way)
         waiting.add(next)
       }
     }
@@ -326,11 +356,11 @@ function around(
 
   const back: Point[] = []
   let began = last
-  for (let spot: number | undefined = last; spot !== undefined; spot = cameFrom.get(spot)) {
-    back.push(at(spot))
-    began = spot
+  for (let state: number | undefined = last; state !== undefined; state = cameFrom.get(state)) {
+    back.push(at(spotAt(state)))
+    began = state
   }
-  return straightened([steppedOff.get(began)!, ...back.reverse(), stepOn.get(last)!.on])
+  return straightened([steppedOff.get(began)!, ...back.reverse(), stepOn.get(spotAt(last))!.on])
 }
 
 /** The lines worth turning on, being each card's borders held clear of it. */
