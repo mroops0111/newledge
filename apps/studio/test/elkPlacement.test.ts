@@ -288,3 +288,33 @@ describe('which container lays out a relation', () => {
     expect(ends).not.toContain('section')
   })
 })
+
+describe('a group that holds nothing of its own', () => {
+  // Skipped for having no cards directly in it, the board keeps an edge
+  // reaching a shape it never sent, and the layout refuses the graph outright.
+  const emptied: PlacementRequest = {
+    nodes: [
+      { id: 'whole', type: 'Concept', width: 240, height: 100, groupId: 'brood' },
+      { id: 'part', type: 'Concept', width: 240, height: 100, groupId: 'brood' },
+      { id: 'away', type: 'Concept', width: 240, height: 100, groupId: 'other' },
+    ],
+    edges: [
+      { id: 'held', type: 'contains', from: 'whole', to: 'part' },
+      { id: 'across', type: 'contains', from: 'part', to: 'away' },
+    ],
+    groups: [{ id: 'brood', groupId: 'section' }, { id: 'section' }, { id: 'other' }],
+  }
+
+  it('is still sent, so an edge reaching it has something to reach', async () => {
+    const { sent, place } = asked()
+    await place(emptied)
+    expect((sent[0]?.children ?? []).map(child => child.id)).toContain('section')
+  })
+
+  it('carries the group inside it as its own child', async () => {
+    const { sent, place } = asked()
+    await place(emptied)
+    const section = sent[0]!.children!.find(child => child.id === 'section')!
+    expect((section.children ?? []).map(child => child.id)).toEqual(['brood'])
+  })
+})

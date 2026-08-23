@@ -1,7 +1,7 @@
 import type { Board, Card, Section } from '@newledge/board'
 import type { LayoutEdge, LayoutNode, Placement } from '@newledge/board-layout'
 import { orderedByPull, settledByPull } from '@newledge/board-layout'
-import { nodeStyle } from './boardStyle.js'
+import { edgeStyle, nodeStyle } from './boardStyle.js'
 import type { GraphEdge, GraphNode } from './graph.js'
 import { cardExtent } from './measure.js'
 import { lineages } from './kinship.js'
@@ -53,6 +53,16 @@ export interface Arrangement {
  */
 const SECTION_HEADER = 28
 
+/**
+ * Which relations put both their ends in one block, strongest first.
+ * A whole with its parts, and then a concept with what is said about it. Both
+ * are a thing and the things that hang off it, and both read as one object
+ * rather than as several that happen to be related. A card claimed by two of
+ * them goes with the first, so being part of something beats being talked
+ * about, which is the stronger claim on where a card belongs.
+ */
+const BLOCKS: readonly string[] = ['contains', 'concerns']
+
 const BROOD = 'brood-'
 
 /** The id a card's parts are kept together under. */
@@ -89,23 +99,34 @@ export async function firstArrangement(
   }
 
   /**
-   * A whole and its parts, kept together as a group of their own.
-   * The whole goes in with them rather than sitting outside, which is what
-   * kept a parent a whole board away from what it contained. A part filed
+   * A thing and what hangs off it, kept together as a block of their own.
+   * The thing goes in with them rather than sitting outside, which is what
+   * kept a parent a whole board away from what it contained. A card filed
    * under another topic stays where it was filed, since the section is ground
    * and a relation does not move a card off the ground it belongs to.
+   *
+   * A card joins the block the thing it hangs off is already in, rather than
+   * starting one of its own around it, so a concept that is itself part of
+   * something brings what is said about it along instead of being pulled out.
    */
   const partOf = new Map<string, string>()
-  for (const edge of graph.edges) {
-    if (edge.type !== 'contains' || partOf.has(edge.toNodeId))
-      continue
-    // Filed elsewhere, a part stays where it was filed, since the ground wins.
-    // Filed nowhere, there is nothing to lose by joining what holds it.
-    const filed = sectionOf(edge.toNodeId)
-    if (filed !== undefined && filed !== sectionOf(edge.fromNodeId))
-      continue
-    partOf.set(edge.toNodeId, broodOf(edge.fromNodeId))
-    partOf.set(edge.fromNodeId, broodOf(edge.fromNodeId))
+  for (const type of BLOCKS) {
+    const style = edgeStyle(type)
+    for (const edge of graph.edges.filter(one => one.type === type)) {
+      const [root, held] = style.rootAt === 'from'
+        ? [edge.fromNodeId, edge.toNodeId]
+        : [edge.toNodeId, edge.fromNodeId]
+      if (partOf.has(held))
+        continue
+      // Filed elsewhere, a card stays where it was filed, since the ground
+      // wins. Filed nowhere, there is nothing to lose by joining what holds it.
+      const filed = sectionOf(held)
+      if (filed !== undefined && filed !== sectionOf(root))
+        continue
+      const seat = partOf.get(root) ?? broodOf(root)
+      partOf.set(held, seat)
+      partOf.set(root, seat)
+    }
   }
 
   const hangsOff = lineages(graph.edges)

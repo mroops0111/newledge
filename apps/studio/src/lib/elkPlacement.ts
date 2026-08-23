@@ -192,12 +192,19 @@ function write(request: PlacementRequest): ElkNode {
       layoutOptions: { 'elk.layered.priority.shortness': String(pair.count) },
     }))
 
-  // A group inside a group is built from the inside out, so a nested one is
-  // already whole by the time the one holding it asks for its children.
+  // A group that holds nothing of its own is still built when another group
+  // sits inside it. Skipped, the board keeps an edge reaching a shape it never
+  // sent, and the layout refuses the graph outright.
+  const nested = new Map<string, number>()
+  for (const group of request.groups) {
+    if (group.groupId !== undefined)
+      nested.set(group.groupId, (nested.get(group.groupId) ?? 0) + 1)
+  }
+
   const built = new Map<string, ElkNode>()
-  for (const group of [...request.groups].reverse()) {
+  for (const group of request.groups) {
     const children = held.get(group.id) ?? []
-    if (children.length === 0)
+    if (children.length === 0 && (nested.get(group.id) ?? 0) === 0)
       continue
     built.set(group.id, {
       id: group.id,

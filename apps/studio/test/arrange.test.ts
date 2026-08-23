@@ -243,3 +243,57 @@ describe('which way round a whole and its parts are laid out', () => {
     expect(ranked).toEqual([])
   })
 })
+
+describe('what shares a block with what', () => {
+  // A concept and what is said about it read as one object, so they are laid
+  // out as one rather than as a concept and a spray of claims around it.
+  const said = {
+    nodes: [
+      node('term', 'Concept', 'A term'),
+      node('whole', 'Concept', 'A whole'),
+      node('one', 'Claim', 'One thing said'),
+      node('other', 'Claim', 'Another thing said'),
+    ],
+    edges: [
+      edge('concerns', 'one', 'term'),
+      edge('concerns', 'other', 'term'),
+      edge('contains', 'whole', 'term'),
+    ],
+  }
+
+  async function blocks(graph: typeof said): Promise<Map<string, string[]>> {
+    const seats = new Map<string, string[]>()
+    await firstArrangement(graph, {
+      id: 'noting',
+      place: async (request) => {
+        for (const node of request.nodes) {
+          if (node.groupId !== undefined)
+            seats.set(node.groupId, [...(seats.get(node.groupId) ?? []), node.id])
+        }
+        return gridPlacement().place(request)
+      },
+    }, ['Concept', 'Claim'])
+    return seats
+  }
+
+  it('puts what is said about a concept in the block that concept is in', async () => {
+    const seats = await blocks(said)
+    const held = [...seats.values()].find(members => members.includes('one'))
+    expect(held?.sort()).toEqual(['one', 'other', 'term', 'whole'])
+  })
+
+  it('leaves a claim where it was filed rather than moving it off its ground', async () => {
+    const filed = {
+      nodes: [...said.nodes, node('elsewhere', 'Topic', 'Elsewhere')],
+      edges: [...said.edges, edge('belongsTo', 'one', 'elsewhere')],
+    }
+    const seats = await blocks(filed)
+    const held = [...seats.values()].find(members => members.includes('term'))
+    expect(held).not.toContain('one')
+  })
+
+  it('keeps a concept in the block it was already in rather than starting one', async () => {
+    const seats = await blocks(said)
+    expect([...seats.keys()]).toEqual([broodOf('whole')])
+  })
+})
