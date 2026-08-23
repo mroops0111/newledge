@@ -14,6 +14,13 @@ export interface Kinship {
  * what makes a family tree read as one relation with several ends instead of
  * as several unrelated lines. Parts run the same way, and the box round them
  * comes from the layout, which is the only thing that can keep them together.
+ *
+ * A trunk is worked out from where the cards are and from nothing else, so it
+ * is only honest where the layout gathered the family in the first place.
+ * Given one it never gathered, the bar reaches across the board and the stems
+ * cross whatever stands between, which is exactly what a router would have
+ * gone round. A family whose trunk would run through a card is not drawn as
+ * one at all, and its relations are routed like any other line.
  */
 export function kinship(
   edges: readonly LayoutEdge[],
@@ -30,17 +37,31 @@ export function kinship(
     const kept = new Set([group.parentId, ...group.edgeIds.map(id => group.childOf.get(id)!)])
     const others = [...at].filter(([id]) => !kept.has(id)).map(([, box]) => box)
     const trunk = trunkFor(parent, children.map(child => child.box), others)
-    for (const child of children) {
-      // Drawn from the child towards the root, so the end that says what the
-      // relation is lands on the root from outside it. Drawn the other way it
-      // would point back into the card and be covered by it.
-      drawn.set(child.id, [
+
+    // Drawn from the child towards the root, so the end that says what the
+    // relation is lands on the root from outside it. Drawn the other way it
+    // would point back into the card and be covered by it.
+    const runs = children.map(child => ({
+      id: child.id,
+      run: [
         { x: centre(child.box), y: leaving(child.box, trunk.bar) },
         { x: centre(child.box), y: trunk.bar },
         { x: centre(parent), y: trunk.bar },
         { x: centre(parent), y: trunk.root },
-      ])
-    }
+      ],
+    }))
+
+    // Checked against every card but the two each run joins, siblings
+    // included. A stem drops from its own child to the bar and passes whatever
+    // is under it on the way, and what is under it is most often the sibling
+    // the trunk was drawn to gather it with.
+    const blocked = runs.some(one => runsThrough(one.run, [...at]
+      .filter(([id]) => id !== group.parentId && id !== group.childOf.get(one.id))
+      .map(([, box]) => box)))
+    if (blocked)
+      continue
+    for (const one of runs)
+      drawn.set(one.id, one.run)
   }
 
   return { edges: drawn }
@@ -154,6 +175,22 @@ function lane(
 
 function middle(box: Box): number {
   return box.y + box.height / 2
+}
+
+/** Whether any run of a trunk passes through a card that is not in its family. */
+function runsThrough(run: readonly Point[], others: readonly Box[]): boolean {
+  for (let index = 1; index < run.length; index += 1) {
+    const one = run[index - 1]!
+    const other = run[index]!
+    const crosses = others.some(box =>
+      Math.min(one.x, other.x) < box.x + box.width
+      && Math.max(one.x, other.x) > box.x
+      && Math.min(one.y, other.y) < box.y + box.height
+      && Math.max(one.y, other.y) > box.y)
+    if (crosses)
+      return true
+  }
+  return false
 }
 
 /** The side of a card the bar is on, which is the side a line leaves by. */

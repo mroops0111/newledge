@@ -6,10 +6,12 @@ function box(x: number, y: number): Box {
   return { x, y, width: 200, height: 100 }
 }
 
+// The kinds stand well clear of the parts, since a trunk that would run
+// through a card is not drawn as one and this fixture is about the trunks.
 const at = new Map<string, Box>([
   ['whole', box(300, 0)],
-  ['kindA', box(0, 300)],
-  ['kindB', box(600, 300)],
+  ['kindA', box(900, 300)],
+  ['kindB', box(1200, 300)],
   ['partA', box(0, 600)],
   ['partB', box(300, 600)],
 ])
@@ -276,5 +278,64 @@ describe('a relation that is not a hierarchy but still has a root', () => {
       new Map([['here', box(0, 0)], ['there', box(400, 400)]]),
     )
     expect(said.edges.has('r1')).toBe(false)
+  })
+})
+
+describe('a trunk the layout never gathered', () => {
+  // A trunk is worked out from where the cards are and from nothing else, so
+  // it is only honest where the layout kept the family together. Given one it
+  // never gathered, the bar reaches across the board and the stems cross
+  // whatever stands between, which is what a router would have gone round.
+  const scattered = new Map<string, Box>([
+    ['root', box(0, 0)],
+    ['far', box(1200, 800)],
+    ['between', box(0, 300)],
+  ])
+
+  it('is not drawn as a trunk, so its relations are routed like any other line', () => {
+    const said = kinship([edge('a1', 'contains', 'root', 'far')], scattered)
+    expect(said.edges.has('a1')).toBe(false)
+  })
+
+  it('is drawn as one once nothing stands in its way', () => {
+    const clear = new Map<string, Box>([['root', box(0, 0)], ['far', box(1200, 800)]])
+    expect(kinship([edge('a1', 'contains', 'root', 'far')], clear).edges.has('a1')).toBe(true)
+  })
+
+  it('gives up the whole family, since half a trunk is not a trunk', () => {
+    const half = kinship(
+      [edge('a1', 'contains', 'root', 'near'), edge('a2', 'contains', 'root', 'far')],
+      new Map([...scattered, ['near', box(0, 800)]]),
+    )
+    expect([half.edges.has('a1'), half.edges.has('a2')]).toEqual([false, false])
+  })
+})
+
+describe('a stem that would cross the sibling it was gathered with', () => {
+  // A stem drops from its own child to the bar and passes whatever is under it
+  // on the way, and what is under it is most often the sibling the trunk was
+  // drawn to gather it with.
+  it('gives up the trunk rather than run through a sibling', () => {
+    const stacked = kinship(
+      [edge('a1', 'contains', 'root', 'above'), edge('a2', 'contains', 'root', 'below')],
+      new Map([
+        ['root', box(0, 0)],
+        ['above', box(700, 200)],
+        ['below', box(700, 500)],
+      ]),
+    )
+    expect(stacked.edges.has('a1')).toBe(false)
+  })
+
+  it('keeps it when the siblings stand side by side, which is the point of one', () => {
+    const beside = kinship(
+      [edge('a1', 'contains', 'root', 'left'), edge('a2', 'contains', 'root', 'right')],
+      new Map([
+        ['root', box(300, 0)],
+        ['left', box(0, 500)],
+        ['right', box(600, 500)],
+      ]),
+    )
+    expect([beside.edges.has('a1'), beside.edges.has('a2')]).toEqual([true, true])
   })
 })
