@@ -31,16 +31,9 @@ const always = (): boolean => true
 const never = (): boolean => false
 
 describe('which relations the board draws, and between what', () => {
-  it('draws a relation between the two cards it names', () => {
+  it('draws a relation between the two cards it names, whatever kind it is', () => {
     const drawn = drawnRelations(edges, endpoint, ground, always, new Set())
-    expect(drawn.lines.map(one => one.id).sort()).toEqual(['e2', 'e3', 'e6'])
-  })
-
-  it('never draws what is read inside a card instead of beside it', () => {
-    const drawn = drawnRelations(edges, endpoint, ground, always, new Set())
-    const all = drawn.lines.map(one => one.id)
-    expect(all).not.toContain('e1')
-    expect(all).not.toContain('e4')
+    expect(drawn.lines.map(one => one.id).sort()).toEqual(['e1', 'e2', 'e3', 'e4', 'e6'])
   })
 
   // A topic is a section, so a relation reaching a topic reaches the ground it
@@ -148,7 +141,7 @@ describe('which cards the board draws', () => {
 describe('the visual language', () => {
   it('draws a type the ontology adds rather than dropping it', () => {
     expect(nodeStyle('Question').form).toBe('concept')
-    expect(edgeStyle('answers').onBoard).toBe(true)
+    expect(edgeStyle('answers').marker).toBe('arrow')
   })
 
   it('gives agreement and conflict a colour of their own, and nothing else', () => {
@@ -160,5 +153,48 @@ describe('the visual language', () => {
   it('makes a topic the ground rather than another card among its members', () => {
     expect(nodeStyle('Topic').ground).toBe(true)
     expect(nodeStyle('Concept').ground).toBe(false)
+  })
+})
+
+describe('a relation is drawn when both of its ends are on the board', () => {
+  // Not when a table says it belongs on one. Provenance, aboutness and
+  // argument were declared undrawable when only concepts were placed, and a
+  // board that put claims and sources on it as cards of their own then gave
+  // them nothing at all to stand in.
+  const both = new Set(['claim', 'concept', 'source'])
+  const here = (id: string): string | undefined => (both.has(id) ? id : undefined)
+  const nowhere = (): undefined => undefined
+
+  it('draws what a claim is about once the claim is a card', () => {
+    const drawn = drawnRelations(
+      [edge('a1', 'concerns', 'claim', 'concept')],
+      here,
+      nowhere,
+      always,
+      new Set(),
+    )
+    expect(drawn.lines.map(one => one.id)).toEqual(['a1'])
+  })
+
+  it('draws where a claim came from once the source is a card', () => {
+    const drawn = drawnRelations(
+      [edge('p1', 'introduces', 'source', 'claim')],
+      here,
+      nowhere,
+      always,
+      new Set(),
+    )
+    expect(drawn.lines.map(one => one.id)).toEqual(['p1'])
+  })
+
+  it('draws nothing when the other end was never placed', () => {
+    const drawn = drawnRelations(
+      [edge('a1', 'concerns', 'claim', 'elsewhere')],
+      here,
+      nowhere,
+      always,
+      new Set(),
+    )
+    expect(drawn.lines).toHaveLength(0)
   })
 })

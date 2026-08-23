@@ -69,8 +69,6 @@ export function drawnRelations(
 
   for (const edge of edges) {
     const style = edgeStyle(edge.type)
-    if (!style.onBoard)
-      continue
     const [source, target] = [endpointOf(edge.fromNodeId), endpointOf(edge.toNodeId)]
     if (source === undefined || target === undefined)
       continue

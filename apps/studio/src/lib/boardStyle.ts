@@ -84,13 +84,6 @@ export interface EdgeStyle {
   readonly strokeWidth: number
   readonly dash?: string
   readonly marker: MarkerKind
-  /**
-   * Whether this relation belongs on a board at all.
-   * One about a concept rather than between two is read inside the concept.
-   * Whether a board relation is actually drawn is decided from where its ends
-   * turn out to be, not declared here, since that is not knowable in advance.
-   */
-  readonly onBoard: boolean
 }
 
 export const TONE_COLOURS: Readonly<Record<EdgeTone, string>> = {
@@ -125,28 +118,30 @@ export const EDGE_STYLES: Readonly<Record<string, EdgeStyle>> = {
   // A hierarchy. Which of the three it is comes from the end it carries and
   // from what the card says it hangs off, since both are read at a glance and
   // a trunk on its own is not.
-  extends: { shapes: 'layout', kin: 'tree', rootAt: 'to', tone: 'structure', strokeWidth: STROKE, marker: 'triangleHollow', onBoard: true },
-  instantiates: { shapes: 'layout', kin: 'tree', rootAt: 'to', tone: 'structure', strokeWidth: STROKE, dash: '6 4', marker: 'triangleHollow', onBoard: true },
-  contains: { shapes: 'layout', kin: 'tree', rootAt: 'from', tone: 'structure', strokeWidth: STROKE, marker: 'diamond', onBoard: true },
+  extends: { shapes: 'layout', kin: 'tree', rootAt: 'to', tone: 'structure', strokeWidth: STROKE, marker: 'triangleHollow' },
+  instantiates: { shapes: 'layout', kin: 'tree', rootAt: 'to', tone: 'structure', strokeWidth: STROKE, dash: '6 4', marker: 'triangleHollow' },
+  contains: { shapes: 'layout', kin: 'tree', rootAt: 'from', tone: 'structure', strokeWidth: STROKE, marker: 'diamond' },
 
   // How solid a curve is drawn tracks how much it claims. A named dependency
   // says one thing needs another, so it is solid and points. The catch-all
   // says only that something is there, so it is faint and says no direction.
-  uses: { shapes: 'layout', kin: 'curve', tone: 'structure', strokeWidth: STROKE, marker: 'arrow', onBoard: true },
-  relatesTo: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, dash: '1 4', marker: 'none', onBoard: true },
+  uses: { shapes: 'layout', kin: 'curve', tone: 'structure', strokeWidth: STROKE, marker: 'arrow' },
+  relatesTo: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, dash: '1 4', marker: 'none' },
 
   // Filing a card under a topic is the section it sits in, and drawing that
   // repeats the board, which is caught by a relation whose end stands on its
   // other end. Filing a topic under a topic is not, so it is drawn, between
   // the two sections those topics are.
-  belongsTo: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, dash: '2 4', marker: 'none', onBoard: true },
+  belongsTo: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, dash: '2 4', marker: 'none' },
 
-  // Provenance, aboutness, and argument are each about a concept rather than
-  // between two, so they are read inside it and never drawn out here.
-  introduces: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, marker: 'none', onBoard: false },
-  concerns: { shapes: 'drawn', kin: 'curve', tone: 'structure', strokeWidth: STROKE, marker: 'dot', onBoard: false },
-  supports: { shapes: 'drawn', kin: 'curve', tone: 'supports', strokeWidth: STROKE, marker: 'arrow', onBoard: false },
-  contradicts: { shapes: 'drawn', kin: 'curve', tone: 'contradicts', strokeWidth: STROKE, dash: '5 3', marker: 'arrow', onBoard: false },
+  // Provenance, aboutness, and argument. Whether any of them is drawn is
+  // decided by where its two ends turn out to be, the same as every other
+  // relation. Declared undrawable instead, a board that put claims and sources
+  // on it as cards of their own gave them nothing at all to stand in.
+  introduces: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, marker: 'none' },
+  concerns: { shapes: 'drawn', kin: 'curve', tone: 'structure', strokeWidth: STROKE, marker: 'dot' },
+  supports: { shapes: 'drawn', kin: 'curve', tone: 'supports', strokeWidth: STROKE, marker: 'arrow' },
+  contradicts: { shapes: 'drawn', kin: 'curve', tone: 'contradicts', strokeWidth: STROKE, dash: '5 3', marker: 'arrow' },
 }
 
 const UNKNOWN_EDGE: EdgeStyle = {
@@ -155,7 +150,6 @@ const UNKNOWN_EDGE: EdgeStyle = {
   tone: 'quiet',
   strokeWidth: STROKE,
   marker: 'arrow',
-  onBoard: true,
 }
 
 /** An edge type the ontology adds is still drawn, quietly, rather than dropped. */
