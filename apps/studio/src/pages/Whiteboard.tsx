@@ -402,6 +402,11 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
         edges: graph.edges
           .filter(edge => !kin.edges.has(edge.id))
           .map(edge => ({ id: edge.id, type: edge.type, from: edge.fromNodeId, to: edge.toNodeId })),
+        // Where those trunks end is as taken as anywhere the router placed a
+        // line itself, and unsaid a routed line lands on one and the two run
+        // along together as one.
+        spoken: [...kin.edges.values()].flatMap(run =>
+          (run.length === 0 ? [] : [run[0]!, run[run.length - 1]!])),
       })
       .then((routed) => {
         if (asking)

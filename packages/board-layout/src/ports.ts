@@ -94,6 +94,13 @@ export interface RoutingRequest {
   /** Everything a line has to get around, and everything it can end on. */
   readonly obstacles: readonly Obstacle[]
   readonly edges: readonly LayoutEdge[]
+  /**
+   * Places on a card that lines drawn some other way already end at.
+   * A board may draw some of its relations itself, and those ends are as taken
+   * as any the router placed. Left unsaid, a routed line lands on one of them
+   * and the two run along together as one.
+   */
+  readonly spoken?: readonly Point[]
 }
 
 /** Where each line bends, from the edge of one card to the edge of another. */

@@ -437,3 +437,69 @@ describe('how often a line turns', () => {
     expect(turns(routed.edges.get('past')!)).toBeLessThanOrEqual(2)
   })
 })
+
+describe('two cards that face each other across an overlap', () => {
+  // Two cards a grid step out of line have their middles a grid step apart,
+  // and a line between them turns twice to cross those few pixels.
+  it('runs straight, sliding both ends to the one coordinate', async () => {
+    const routed = await orthogonalRouting().route({
+      edges: [{ id: 'down', type: 'uses', from: 'above', to: 'below' }],
+      obstacles: [
+        { id: 'above', x: 0, y: 0, width: 400, height: 100 },
+        { id: 'below', x: 24, y: 400, width: 400, height: 100 },
+      ],
+    })
+    expect(routed.edges.get('down')).toEqual([{ x: 212, y: 100 }, { x: 212, y: 400 }])
+  })
+
+  // Slid any further the ends are no longer meeting the card in the middle,
+  // and a board of ends scattered down a side to save a jog is the worse one.
+  it('will not slide past the middle third of either side', async () => {
+    const routed = await orthogonalRouting().route({
+      edges: [{ id: 'down', type: 'uses', from: 'above', to: 'below' }],
+      obstacles: [
+        { id: 'above', x: 0, y: 0, width: 400, height: 100 },
+        { id: 'below', x: 340, y: 400, width: 400, height: 100 },
+      ],
+    })
+    expect(routed.edges.get('down')!.length).toBeGreaterThan(2)
+  })
+
+  it('gives up the straight run rather than take an end another line has', async () => {
+    const routed = await orthogonalRouting().route({
+      edges: [
+        { id: 'first', type: 'uses', from: 'above', to: 'below' },
+        { id: 'second', type: 'uses', from: 'beside', to: 'below' },
+      ],
+      obstacles: [
+        { id: 'above', x: 0, y: 0, width: 400, height: 100 },
+        { id: 'beside', x: 0, y: 0, width: 400, height: 100 },
+        { id: 'below', x: 0, y: 400, width: 400, height: 100 },
+      ],
+    })
+    expect(routed.edges.get('first')![0]).not.toEqual(routed.edges.get('second')![0])
+  })
+})
+
+describe('places that lines drawn some other way already end at', () => {
+  // A board may draw some of its relations itself. Those ends are as taken as
+  // any the router placed, and left unsaid a routed line lands on one of them
+  // and the two run along together as one.
+  it('keeps off an end the board says is already spoken for', async () => {
+    const obstacles = [
+      { id: 'above', x: 0, y: 0, width: 400, height: 100 },
+      { id: 'below', x: 0, y: 400, width: 400, height: 100 },
+    ]
+    const alone = await orthogonalRouting().route({
+      edges: [{ id: 'down', type: 'uses', from: 'above', to: 'below' }],
+      obstacles,
+    })
+    const taken = alone.edges.get('down')![0]!
+    const after = await orthogonalRouting().route({
+      edges: [{ id: 'down', type: 'uses', from: 'above', to: 'below' }],
+      obstacles,
+      spoken: [taken],
+    })
+    expect(after.edges.get('down')![0]).not.toEqual(taken)
+  })
+})

@@ -70,7 +70,7 @@ function run(request: RoutingRequest, clearance: number): Routed {
   const byId = new Map(request.obstacles.map(box => [box.id, box]))
   const edges = new Map<string, readonly Point[]>()
   const taken = new Map<string, number>()
-  const used = new Set<string>()
+  const used = new Set((request.spoken ?? []).map(keyOf))
 
   // Routed in a settled order, since each line is laid out knowing where the
   // ones before it went, and an order that drifted would move lines about for
@@ -103,6 +103,10 @@ function best(
   used: ReadonlySet<string>,
   turning: number,
 ): readonly Point[] {
+  const square = facingSquare(from, to, used)
+  if (square !== undefined && !between.some(box => crosses(square[0], square[1], box)))
+    return square
+
   const leaves = facingPort(from, centre(to), clearance, used)
   const arrives = facingPort(to, centre(from), clearance, used)
   const straight = clear(leaves, arrives)
@@ -113,6 +117,52 @@ function best(
 
   const round = around(from, to, [...between, from, to], clearance, taken, used, turning)
   return round ?? [leaves.on, arrives.on]
+}
+
+/**
+ * One straight run between two cards that face each other across an overlap.
+ *
+ * Two cards a grid step out of line have their middles a grid step apart, and
+ * a line between them turns twice to cross those few pixels, which reads as a
+ * jog for no reason a reader can see. Both ends slide to one coordinate
+ * instead, as near each card's own middle as the overlap allows, and the line
+ * is straight.
+ *
+ * Only while both ends stay in the middle third of their own side. Slid any
+ * further they are no longer meeting the card in the middle, and a board of
+ * ends scattered down a side to save a jog is the worse of the two.
+ */
+function facingSquare(from: Box, to: Box, used: ReadonlySet<string>): [Point, Point] | undefined {
+  const [here, there] = [centre(from), centre(to)]
+  const upright = Math.abs(there.y - here.y) >= Math.abs(there.x - here.x)
+  const span = upright
+    ? [Math.max(from.x, to.x), Math.min(from.x + from.width, to.x + to.width)] as const
+    : [Math.max(from.y, to.y), Math.min(from.y + from.height, to.y + to.height)] as const
+  if (span[0] >= span[1])
+    return undefined
+
+  const along = upright ? (here.x + there.x) / 2 : (here.y + there.y) / 2
+  if (along < span[0] || along > span[1])
+    return undefined
+  const middling = (box: Box): boolean => (upright
+    ? Math.abs(along - centre(box).x) <= box.width / 6
+    : Math.abs(along - centre(box).y) <= box.height / 6)
+  if (!middling(from) || !middling(to))
+    return undefined
+
+  const below = there.y >= here.y
+  const right = there.x >= here.x
+  const ends: [Point, Point] = upright
+    ? [
+        { x: along, y: below ? from.y + from.height : from.y },
+        { x: along, y: below ? to.y : to.y + to.height },
+      ]
+    : [
+        { x: right ? from.x + from.width : from.x, y: along },
+        { x: right ? to.x : to.x + to.width, y: along },
+      ]
+  // A straight run is worth a nudge off the middle, never another line's end.
+  return ends.some(end => used.has(keyOf(end))) ? undefined : ends
 }
 
 /**
