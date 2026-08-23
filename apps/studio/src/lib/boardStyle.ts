@@ -99,7 +99,7 @@ const CARD_WIDTH = 400
 export const NODE_STYLES: Readonly<Record<string, NodeStyle>> = {
   Concept: { form: 'concept', cardWidth: CARD_WIDTH, ground: false, band: 0, placed: true },
   Claim: { form: 'claim', cardWidth: CARD_WIDTH, ground: false, band: 1, placed: false },
-  Source: { form: 'source', cardWidth: CARD_WIDTH, ground: false, band: 2, placed: false },
+  Source: { form: 'source', cardWidth: CARD_WIDTH, ground: false, band: 2, placed: true },
   Topic: { form: 'topic', cardWidth: CARD_WIDTH, ground: true, band: 0, placed: false },
 }
 

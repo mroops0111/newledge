@@ -38,17 +38,16 @@ export function createBoardClient(options: BoardClientOptions): BoardClient {
 }
 
 /**
- * The boards a workspace opens on, which are three readings of one graph.
+ * The boards a workspace opens on, which are readings of one graph.
  * A board is a view and which kinds it shows is the first thing that makes one
- * view differ from another, so the three differ in nothing else. One shows the
- * terms alone, one adds what is asserted about them, and one holds everything
- * the graph has. Reading them side by side is how a reader finds out which
- * reading their work actually wants.
+ * view differ from another, so they differ in nothing else. One shows the
+ * terms alone and one adds where they came from. Reading them side by side is
+ * how a reader finds out which reading their work actually wants.
  *
- * Which kinds the last one holds is read off the graph rather than written
- * down, so an ontology that grows does not leave a board behind. A ground is
- * left out of all three, since a topic is drawn as the section itself, and so
- * is any reading that would come out the same as one already there.
+ * Which kinds the second holds is read off the graph rather than written down,
+ * so an ontology that grows does not leave a board behind. Left out are the
+ * grounds, since a topic is drawn as the section itself, the kinds no board
+ * places, and any reading that would come out the same as one already there.
  */
 export function openingBoards(nodes: readonly GraphNode[]): readonly {
   readonly id: string
@@ -56,7 +55,7 @@ export function openingBoards(nodes: readonly GraphNode[]): readonly {
   readonly holds: readonly string[]
 }[] {
   const kinds = [...new Set(nodes.map(node => node.type))]
-    .filter(type => !nodeStyle(type).ground)
+    .filter(type => nodeStyle(type).placed && !nodeStyle(type).ground)
     .sort((one, other) => nodeStyle(one).band - nodeStyle(other).band || one.localeCompare(other))
 
   // Only the readings that actually differ. A graph of one kind read three
@@ -65,8 +64,7 @@ export function openingBoards(nodes: readonly GraphNode[]): readonly {
   const already = new Set<string>()
   return [
     { id: 'board-terms', name: 'Terms', holds: ['Concept'] },
-    { id: 'board-claims', name: 'Terms and claims', holds: ['Concept', 'Claim'] },
-    { id: 'board-everything', name: 'Everything', holds: kinds },
+    { id: 'board-everything', name: 'Terms and sources', holds: kinds },
   ].flatMap((board) => {
     const holds = board.holds.filter(type => kinds.includes(type))
     const key = [...holds].sort().join('|')

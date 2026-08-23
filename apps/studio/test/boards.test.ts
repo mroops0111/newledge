@@ -125,21 +125,33 @@ describe('the boards a workspace opens on', () => {
     { id: 'd', type: 'Topic', name: 'D' },
   ]
 
-  it('reads one graph three ways', () => {
+  it('reads one graph two ways', () => {
     expect(openingBoards(nodes).map(board => board.name))
-      .toEqual(['Terms', 'Terms and claims', 'Everything'])
+      .toEqual(['Terms', 'Terms and sources'])
   })
 
   it('differs in nothing but which kinds each one holds', () => {
-    const [terms, claims, everything] = openingBoards(nodes)
+    const [terms, sources] = openingBoards(nodes)
     expect(terms!.holds).toEqual(['Concept'])
-    expect(claims!.holds).toEqual(['Concept', 'Claim'])
-    expect(everything!.holds).toEqual(['Concept', 'Claim', 'Source'])
+    expect(sources!.holds).toEqual(['Concept', 'Source'])
+  })
+
+  // A claim is evidence about a concept, read inside the concept rather than
+  // arranged beside it, so no board opens holding one.
+  it('leaves out a kind no board places', () => {
+    expect(openingBoards(nodes).flatMap(board => board.holds)).not.toContain('Claim')
   })
 
   it('reads the last one off the graph, so a growing ontology is not left behind', () => {
     const richer = [...nodes, { id: 'e', type: 'Question', name: 'E' }]
     expect(openingBoards(richer).at(-1)!.holds).toContain('Question')
+  })
+
+  it('opens one board on a graph whose only placeable kind is the first', () => {
+    expect(openingBoards([
+      { id: 'a', type: 'Concept', name: 'A' },
+      { id: 'b', type: 'Claim', name: 'B' },
+    ]).map(board => board.name)).toEqual(['Terms'])
   })
 
   it('leaves a ground out, since a topic is drawn as the section itself', () => {

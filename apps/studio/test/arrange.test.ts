@@ -46,9 +46,11 @@ describe('what a board opens on', () => {
 
   // A board is for the things a reader thinks with. What is asserted about one
   // of them, and where that came from, is read inside it rather than beside it.
-  it('places the concepts, and leaves claims and sources to be opened', () => {
+  // A claim is evidence about a concept, read inside the concept rather than
+  // arranged beside it, so a board does not place one unless asked.
+  it('places the concepts and their sources, and leaves the claims to be opened', () => {
     expect(arranged.board.cards.map(card => card.nodeId).sort())
-      .toEqual(['embedding', 'graphRag', 'planner', 'rag'])
+      .toEqual(['embedding', 'graphRag', 'paper', 'planner', 'rag', 'stray'])
   })
 
   it('draws a topic as its section rather than as a card among its members', () => {
