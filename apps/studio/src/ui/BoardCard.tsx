@@ -13,7 +13,33 @@ export interface BoardCardData {
    * somewhere else are the same kind of statement, so they are one list.
    */
   readonly says?: readonly Said[]
+  /**
+   * The kind of thing this card is, when a board holds more than one.
+   * A board of one kind says it on every card and so says nothing, and the
+   * word is only worth the line it takes where there is something to tell it
+   * apart from.
+   */
+  readonly kind?: string
   [key: string]: unknown
+}
+
+/**
+ * What kind of thing a card is, said in a word.
+ * Said in a colour instead, it would be the third thing colour means on this
+ * board, after which family a card belongs to and whether a relation agrees or
+ * conflicts, and a reader would have to know which of the three a given patch
+ * of colour was speaking. The word needs nothing known in advance.
+ */
+function named(kind: string | undefined): React.JSX.Element | null {
+  if (kind === undefined)
+    return null
+  return (
+    <p className="mb-1">
+      <span className="rounded-full bg-raised px-1.5 py-px font-ui text-[0.5625rem] font-semibold uppercase tracking-wider text-ink-subtle">
+        {kind}
+      </span>
+    </p>
+  )
 }
 
 /**
@@ -56,7 +82,7 @@ export function BoardCard({ data, selected }: {
   data: BoardCardData
   selected: boolean
 }): React.JSX.Element {
-  const { node, form, colour, says } = data
+  const { node, form, colour, says, kind } = data
   const lift = selected ? 'shadow-lifted ring-1 ring-ink/25' : 'shadow-card'
 
   // The family colour runs the whole height of the card rather than beside its
@@ -68,7 +94,7 @@ export function BoardCard({ data, selected }: {
       style={{ borderLeftColor: colour }}
     >
       <Handle type="target" position={Position.Top} className="!opacity-0" />
-      {body(node, form, colour, says ?? [])}
+      {body(node, form, colour, says ?? [], kind)}
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />
     </div>
   )
@@ -79,12 +105,14 @@ function body(
   form: NodeForm,
   colour: string,
   says: readonly Said[],
+  kind: string | undefined,
 ): React.JSX.Element {
   switch (form) {
     case 'concept': {
       return (
         <>
           <div className="px-3.5 pt-2.5">
+            {named(kind)}
             <p className="truncate font-ui text-xs font-semibold text-ink">{node.name}</p>
             {says.length === 0 ? <div className="pb-2.5" /> : <ul className="pb-2 pt-1">{lines(says)}</ul>}
           </div>
@@ -103,13 +131,13 @@ function body(
     // would destroy the thing itself, so the card is as tall as saying it takes.
     case 'claim': {
       return (
-        <>
-          <div className="px-3.5 py-3">
-            <p className="font-reading text-[0.8125rem] leading-relaxed text-ink">
-              {node.name}
-            </p>
-          </div>
-        </>
+        <div className="px-3.5 py-3">
+          {named(kind)}
+          <p className="font-reading text-[0.8125rem] leading-relaxed text-ink">
+            {node.name}
+          </p>
+          {says.length > 0 && <ul className="pt-1.5">{lines(says)}</ul>}
+        </div>
       )
     }
     // Provenance reads as a link, the way a link preview does anywhere else.
@@ -119,12 +147,14 @@ function body(
       const domain = domainOf(node)
       return (
         <div className="px-3 py-2.5">
-          <p className="truncate font-ui text-[0.6875rem] uppercase tracking-wide" style={{ color: colour }}>
-            {domain ?? 'source'}
+          {named(kind)}
+          <p className="truncate font-ui text-[0.6875rem] uppercase tracking-wide text-ink-subtle">
+            {domain ?? 'a source'}
           </p>
           <p className="mt-1 line-clamp-2 font-ui text-xs font-medium leading-snug text-ink">
             {node.name}
           </p>
+          {says.length > 0 && <ul className="pt-1.5">{lines(says)}</ul>}
         </div>
       )
     }

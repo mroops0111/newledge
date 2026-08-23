@@ -221,6 +221,9 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
         form: nodeStyle(card.node.type).form,
         colour: colourOf(card.node),
         says: [],
+        // Only where there is something to tell a card apart from. A board of
+        // one kind would say the same word on every card and so say nothing.
+        ...((current.holds ?? []).length > 1 ? { kind: card.node.type } : {}),
       },
       style: { width: card.width },
       zIndex: 3,
