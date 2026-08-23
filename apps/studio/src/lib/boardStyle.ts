@@ -67,12 +67,6 @@ export const STROKE = 2.25
 export type MarkerKind = 'triangleHollow' | 'diamond' | 'arrow' | 'dot' | 'none'
 
 export interface EdgeStyle {
-  /**
-   * Whether this relation decides where things go, or is only drawn.
-   * A relation that places nothing leaves both its ends free, and a layout
-   * scatters what is free to fill the room the rest of the graph needs.
-   */
-  readonly shapes: 'layout' | 'drawn'
   readonly kin: EdgeKin
   /**
    * Which end of a hierarchy is its root.
@@ -118,34 +112,33 @@ export const EDGE_STYLES: Readonly<Record<string, EdgeStyle>> = {
   // A hierarchy. Which of the three it is comes from the end it carries and
   // from what the card says it hangs off, since both are read at a glance and
   // a trunk on its own is not.
-  extends: { shapes: 'layout', kin: 'tree', rootAt: 'to', tone: 'structure', strokeWidth: STROKE, marker: 'triangleHollow' },
-  instantiates: { shapes: 'layout', kin: 'tree', rootAt: 'to', tone: 'structure', strokeWidth: STROKE, dash: '6 4', marker: 'triangleHollow' },
-  contains: { shapes: 'layout', kin: 'tree', rootAt: 'from', tone: 'structure', strokeWidth: STROKE, marker: 'diamond' },
+  extends: { kin: 'tree', rootAt: 'to', tone: 'structure', strokeWidth: STROKE, marker: 'triangleHollow' },
+  instantiates: { kin: 'tree', rootAt: 'to', tone: 'structure', strokeWidth: STROKE, dash: '6 4', marker: 'triangleHollow' },
+  contains: { kin: 'tree', rootAt: 'from', tone: 'structure', strokeWidth: STROKE, marker: 'diamond' },
 
   // How solid a curve is drawn tracks how much it claims. A named dependency
   // says one thing needs another, so it is solid and points. The catch-all
   // says only that something is there, so it is faint and says no direction.
-  uses: { shapes: 'layout', kin: 'curve', tone: 'structure', strokeWidth: STROKE, marker: 'arrow' },
-  relatesTo: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, dash: '1 4', marker: 'none' },
+  uses: { kin: 'curve', tone: 'structure', strokeWidth: STROKE, marker: 'arrow' },
+  relatesTo: { kin: 'curve', tone: 'quiet', strokeWidth: STROKE, dash: '1 4', marker: 'none' },
 
   // Filing a card under a topic is the section it sits in, and drawing that
   // repeats the board, which is caught by a relation whose end stands on its
   // other end. Filing a topic under a topic is not, so it is drawn, between
   // the two sections those topics are.
-  belongsTo: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, dash: '2 4', marker: 'none' },
+  belongsTo: { kin: 'curve', tone: 'quiet', strokeWidth: STROKE, dash: '2 4', marker: 'none' },
 
   // Provenance, aboutness, and argument. Whether any of them is drawn is
   // decided by where its two ends turn out to be, the same as every other
   // relation. Declared undrawable instead, a board that put claims and sources
   // on it as cards of their own gave them nothing at all to stand in.
-  introduces: { shapes: 'drawn', kin: 'curve', tone: 'quiet', strokeWidth: STROKE, marker: 'none' },
-  concerns: { shapes: 'drawn', kin: 'curve', tone: 'structure', strokeWidth: STROKE, marker: 'dot' },
-  supports: { shapes: 'drawn', kin: 'curve', tone: 'supports', strokeWidth: STROKE, marker: 'arrow' },
-  contradicts: { shapes: 'drawn', kin: 'curve', tone: 'contradicts', strokeWidth: STROKE, dash: '5 3', marker: 'arrow' },
+  introduces: { kin: 'curve', tone: 'quiet', strokeWidth: STROKE, marker: 'none' },
+  concerns: { kin: 'curve', tone: 'structure', strokeWidth: STROKE, marker: 'dot' },
+  supports: { kin: 'curve', tone: 'supports', strokeWidth: STROKE, marker: 'arrow' },
+  contradicts: { kin: 'curve', tone: 'contradicts', strokeWidth: STROKE, dash: '5 3', marker: 'arrow' },
 }
 
 const UNKNOWN_EDGE: EdgeStyle = {
-  shapes: 'drawn',
   kin: 'curve',
   tone: 'quiet',
   strokeWidth: STROKE,

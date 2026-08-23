@@ -68,12 +68,35 @@ describe('handing a board to the layout kernel', () => {
     expect(sent[0]?.layoutOptions?.['elk.hierarchyHandling']).toBe('SEPARATE_CHILDREN')
   })
 
-  it('sends only the relations that are meant to decide where things go', async () => {
+  // An edge in a layered layout does not merely pull its two ends together, it
+  // says which of them goes above the other, and only a hierarchy has an
+  // answer. Handed every relation instead, the board grew by a quarter in both
+  // directions and drew fewer relations than before, because everything it had
+  // spread apart was then too far apart to follow.
+  it('shapes the board by a hierarchy and by nothing else', async () => {
     const { sent, place } = asked()
-    await place(request)
+    await place({
+      ...request,
+      edges: [
+        { id: 'held', type: 'contains', from: 'rag', to: 'faster' },
+        { id: 'about', type: 'concerns', from: 'faster', to: 'rag' },
+        { id: 'used', type: 'uses', from: 'rag', to: 'loose' },
+      ],
+    })
+    const held = sent[0]?.children?.find(child => child.id === 'g1')
+    const all = [...(held?.edges ?? []), ...(sent[0]?.edges ?? [])].map(one => one.id)
+    expect(all).toEqual(['held'])
+  })
+
+  it('sends nothing for a relation whose other end was never placed', async () => {
+    const { sent, place } = asked()
+    await place({
+      ...request,
+      edges: [...request.edges, { id: 'away', type: 'uses', from: 'rag', to: 'elsewhere' }],
+    })
     const held = sent[0]?.children?.find(child => child.id === 'g1')
     const all = [...(held?.edges ?? []), ...(sent[0]?.edges ?? [])]
-    expect(all.some(one => one.id.includes('e2'))).toBe(false)
+    expect(all.some(one => one.id.includes('away'))).toBe(false)
   })
 
   it('hands kinds over in band order, which is what keeps kinds together', async () => {
@@ -125,8 +148,8 @@ describe('handing a board to the layout kernel', () => {
         { id: 'c', type: 'Concept', width: 240, height: 100, groupId: 'g1' },
       ],
       edges: [
-        { id: 'e1', type: 'uses', from: 'a', to: 'b' },
-        { id: 'e2', type: 'uses', from: 'b', to: 'c' },
+        { id: 'e1', type: 'contains', from: 'a', to: 'b' },
+        { id: 'e2', type: 'contains', from: 'b', to: 'c' },
       ],
       groups: [{ id: 'g1' }],
     })
@@ -149,7 +172,7 @@ describe('handing a board to the layout kernel', () => {
   it('reads back where each line starts, bends, and ends', async () => {
     const placed = await asked().place({
       ...request,
-      edges: [{ id: 'e1', type: 'uses', from: 'rag', to: 'faster' }],
+      edges: [{ id: 'e1', type: 'contains', from: 'rag', to: 'faster' }],
     })
     expect(placed.edges?.get('e1')).toEqual([{ x: 1, y: 2 }, { x: 3, y: 4 }])
   })
@@ -159,8 +182,8 @@ describe('handing a board to the layout kernel', () => {
     await place({
       ...request,
       edges: [
-        { id: 'inside', type: 'uses', from: 'rag', to: 'faster' },
-        { id: 'across', type: 'uses', from: 'rag', to: 'loose' },
+        { id: 'inside', type: 'contains', from: 'rag', to: 'faster' },
+        { id: 'across', type: 'contains', from: 'rag', to: 'loose' },
       ],
     })
     const section = sent[0]?.children?.find(child => child.id === 'g1')
@@ -171,7 +194,7 @@ describe('handing a board to the layout kernel', () => {
   it('carries a line drawn inside a section out to where the board sees it', async () => {
     const placed = await asked().place({
       ...request,
-      edges: [{ id: 'inside', type: 'uses', from: 'rag', to: 'faster' }],
+      edges: [{ id: 'inside', type: 'contains', from: 'rag', to: 'faster' }],
     })
     const group = placed.groups.get('g1')!
     expect(placed.edges?.get('inside')).toEqual([
@@ -191,7 +214,7 @@ describe('keeping grounds that are related together', () => {
         { id: 'a', type: 'Concept', width: 240, height: 100, groupId: 'g1' },
         { id: 'b', type: 'Concept', width: 240, height: 100, groupId: 'empty' },
       ],
-      edges: [{ id: 'e1', type: 'uses', from: 'a', to: 'b' }],
+      edges: [{ id: 'e1', type: 'contains', from: 'a', to: 'b' }],
       groups: [{ id: 'g1' }, { id: 'empty' }],
     })
     expect(sent[0]?.edges?.map(one => [one.sources[0], one.targets[0]]))
@@ -207,11 +230,61 @@ describe('keeping grounds that are related together', () => {
         { id: 'c', type: 'Concept', width: 240, height: 100, groupId: 'empty' },
       ],
       edges: [
-        { id: 'e1', type: 'uses', from: 'a', to: 'c' },
-        { id: 'e2', type: 'uses', from: 'b', to: 'c' },
+        { id: 'e1', type: 'contains', from: 'a', to: 'c' },
+        { id: 'e2', type: 'contains', from: 'b', to: 'c' },
       ],
       groups: [{ id: 'g1' }, { id: 'empty' }],
     })
     expect(sent[0]?.edges?.[0]?.layoutOptions?.['elk.layered.priority.shortness']).toBe('2')
+  })
+})
+
+describe('which container lays out a relation', () => {
+  // A group inside a group means two ends can share a container without the
+  // board seeing either of them, and a layout handed an edge between a group
+  // and the group holding it refuses to run at all.
+  const nested: PlacementRequest = {
+    nodes: [
+      { id: 'whole', type: 'Concept', width: 240, height: 100, groupId: 'brood' },
+      { id: 'part', type: 'Concept', width: 240, height: 100, groupId: 'brood' },
+      { id: 'beside', type: 'Concept', width: 240, height: 100, groupId: 'section' },
+    ],
+    edges: [
+      { id: 'inside', type: 'contains', from: 'whole', to: 'part' },
+      { id: 'across', type: 'extends', from: 'part', to: 'beside' },
+    ],
+    groups: [{ id: 'brood', groupId: 'section' }, { id: 'section' }],
+  }
+
+  function laidBy(sent: ElkNode[], id: string): string[] {
+    const walk = (node: ElkNode): string[] => [
+      ...(node.edges ?? []).map(edge => `${node.id}:${edge.id}`),
+      ...(node.children ?? []).flatMap(walk),
+    ]
+    return walk(sent[0]!).filter(one => one.includes(id))
+  }
+
+  it('gives a relation inside one group to that group', async () => {
+    const { sent, place } = asked()
+    await place(nested)
+    expect(laidBy(sent, 'inside')).toEqual(['brood:inside'])
+  })
+
+  // Merged rather than kept whole, since the group is opaque from outside and
+  // an edge into a card it hides places nothing.
+  it('gives one that leaves a nested group to the group holding both', async () => {
+    const { sent, place } = asked()
+    await place(nested)
+    const section = sent[0]!.children!.find(child => child.id === 'section')!
+    expect((section.edges ?? []).map(edge => [edge.sources?.[0], edge.targets?.[0]]))
+      .toEqual([['beside', 'brood']])
+  })
+
+  it('never asks a container to lay out an edge reaching into itself', async () => {
+    const { sent, place } = asked()
+    await place(nested)
+    const ends = (sent[0]!.children ?? []).flatMap(child =>
+      (child.edges ?? []).flatMap(edge => [...(edge.sources ?? []), ...(edge.targets ?? [])]))
+    expect(ends).not.toContain('section')
   })
 })
