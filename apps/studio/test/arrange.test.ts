@@ -316,3 +316,39 @@ describe('what shares a block with what', () => {
     expect([...seats.keys()]).toEqual([broodOf('whole')])
   })
 })
+
+describe('lining up two cards a relation joins', () => {
+  // A layout places a card by what its own container needed, so a source
+  // sitting directly above the concept it introduced comes back a few tens of
+  // units out of line, and the line between them turns twice to cross that.
+  async function centres(gap: number): Promise<number[]> {
+    const nudged = {
+      nodes: [node('above', 'Concept', 'Above'), node('below', 'Concept', 'Below')],
+      edges: [edge('uses', 'above', 'below')],
+    }
+    const { board } = await firstArrangement(nudged, {
+      id: 'nudging',
+      place: async () => ({
+        nodes: new Map([['above', { x: 0, y: 0 }], ['below', { x: gap, y: 600 }]]),
+        groups: new Map(),
+        edges: new Map(),
+      }),
+    })
+    return ['above', 'below'].map(id => board.cards.find(card => card.nodeId === id)!.x)
+  }
+
+  it('puts two nearly in line into line', async () => {
+    const [above, below] = await centres(36)
+    expect(above).toBe(below)
+  })
+
+  it('leaves two that were never nearly in line where they are', async () => {
+    const [above, below] = await centres(600)
+    expect(above).not.toBe(below)
+  })
+
+  it('leaves two already in line alone', async () => {
+    const [above, below] = await centres(0)
+    expect(above).toBe(below)
+  })
+})

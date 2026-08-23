@@ -1,5 +1,5 @@
 import type { Board, Card, Section } from '@newledge/board'
-import type { LayoutEdge, LayoutNode, Placement } from '@newledge/board-layout'
+import type { Box, LayoutEdge, LayoutNode, Placement } from '@newledge/board-layout'
 import { orderedByPull, settledByPull } from '@newledge/board-layout'
 import { edgeStyle, nodeStyle } from './boardStyle.js'
 import type { GraphEdge, GraphNode } from './graph.js'
@@ -182,7 +182,8 @@ export async function firstArrangement(
     .filter(([id]) => !isBrood(id))
     .map(([id, box]) => ({ id, name: named.get(id) ?? id, ...box }))
 
-  const shuffled = shuffledSections(sections, cards, edges, sectionOf)
+  const lined = linedUp(cards, new Map(nodes.map(node => [node.id, node])), edges, sections)
+  const shuffled = shuffledSections(sections, lined, edges, sectionOf)
   return {
     board: {
       cards: shuffled.cards.map(card => ({ ...card, x: onGrid(card.x), y: onGrid(card.y) })),
@@ -190,6 +191,91 @@ export async function firstArrangement(
     },
     routes: placed.edges ?? new Map(),
   }
+}
+
+/**
+ * How far out of line two cards may be before lining them up is a move.
+ * Four steps of the grid. Beyond that they were not nearly in line and putting
+ * them there is rearranging the board rather than tidying it.
+ */
+const NEARLY = 96
+
+/**
+ * Nudge two cards a relation joins into line when they nearly are already.
+ *
+ * A layout places a card by what its own container needed, so a source sitting
+ * directly above the concept it introduced comes back a few tens of units out
+ * of line. Neither the layout nor the grid puts that right, and the line
+ * between them then turns twice to cross those few pixels. Lined up, the line
+ * is straight and the board reads as though someone had lined it up.
+ *
+ * Only a small move, only along the axis the two are not separated on, and
+ * only where the card lands clear of every other card and stays on its own
+ * ground. Whichever of the two can move does, and if neither can, neither
+ * moves and the line turns as it did before.
+ */
+function linedUp(
+  cards: readonly Card[],
+  extents: ReadonlyMap<string, LayoutNode>,
+  edges: readonly LayoutEdge[],
+  sections: readonly Section[],
+): Card[] {
+  const at = new Map(cards.map(card => [card.nodeId, { ...card }]))
+  const boxOf = (id: string): Box | undefined => {
+    const card = at.get(id)
+    const size = extents.get(id)
+    return card === undefined || size === undefined
+      ? undefined
+      : { x: card.x, y: card.y, width: size.width, height: size.height }
+  }
+  const clashes = (id: string, box: Box): boolean => [...at.keys()].some((other) => {
+    if (other === id)
+      return false
+    const theirs = boxOf(other)
+    return theirs !== undefined
+      && box.x < theirs.x + theirs.width && box.x + box.width > theirs.x
+      && box.y < theirs.y + theirs.height && box.y + box.height > theirs.y
+  })
+  const strayed = (id: string, box: Box): boolean => {
+    const home = sections.find(one => holds(one, boxOf(id)!))
+    return home !== undefined && !holds(home, box)
+  }
+
+  for (const edge of [...edges].sort((one, other) => one.id.localeCompare(other.id))) {
+    const [one, other] = [boxOf(edge.from), boxOf(edge.to)]
+    if (one === undefined || other === undefined)
+      continue
+    const upright = Math.abs(centreOf(other).y - centreOf(one).y)
+      >= Math.abs(centreOf(other).x - centreOf(one).x)
+    const off = upright
+      ? centreOf(other).x - centreOf(one).x
+      : centreOf(other).y - centreOf(one).y
+    if (off === 0 || Math.abs(off) > NEARLY)
+      continue
+
+    for (const [id, box, by] of [
+      [edge.from, one, off] as const,
+      [edge.to, other, -off] as const,
+    ]) {
+      const moved = upright ? { ...box, x: box.x + by } : { ...box, y: box.y + by }
+      if (clashes(id, moved) || strayed(id, moved))
+        continue
+      at.set(id, { ...at.get(id)!, x: moved.x, y: moved.y })
+      break
+    }
+  }
+  return [...at.values()]
+}
+
+/** Whether a section's bounds hold a box whole. */
+function holds(section: Section, box: Box): boolean {
+  return box.x >= section.x && box.y >= section.y
+    && box.x + box.width <= section.x + section.width
+    && box.y + box.height <= section.y + section.height
+}
+
+function centreOf(box: Box): { x: number, y: number } {
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
 }
 
 /**
