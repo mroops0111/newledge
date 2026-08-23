@@ -50,6 +50,14 @@ const HOLDS_ITS_OWN = 24
 const FAR = 1600
 const WANDERS = 2.5
 /**
+ * How many times a line may turn and still be worth following.
+ * Out, across, and in is a shape a reader takes in at once. A third turn means
+ * the line doubled back on itself somewhere, and from then on following it is
+ * work rather than looking. What it had to say is said on the card instead,
+ * which costs a line of words and no confusion.
+ */
+const TURNS = 2
+/**
  * How much worse a line already drawn may get before it stops being drawn.
  * What a card says about the relations the board could not draw is written on
  * the card, so it makes the card taller, which moves every route past it, which
@@ -430,18 +438,36 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       const ends = [route[0]!, route[route.length - 1]!]
       const direct = Math.hypot(ends[1]!.x - ends[0]!.x, ends[1]!.y - ends[0]!.y)
       let run = 0
-      for (let index = 1; index < route.length; index += 1)
+      let turns = 0
+      for (let index = 1; index < route.length; index += 1) {
         run += Math.abs(route[index]!.x - route[index - 1]!.x) + Math.abs(route[index]!.y - route[index - 1]!.y)
-      const slack = alreadyDrawn.current.has(edgeId) ? SETTLES : 1
-      return run <= FAR * slack && run <= direct * WANDERS * slack
+        if (index < 2)
+          continue
+        const [before, corner, after] = [route[index - 2]!, route[index - 1]!, route[index]!]
+        const straight = (before.x === corner.x && corner.x === after.x)
+          || (before.y === corner.y && corner.y === after.y)
+        if (!straight)
+          turns += 1
+      }
+      const held = alreadyDrawn.current.has(edgeId)
+      const slack = held ? SETTLES : 1
+      return turns <= (held ? TURNS + 1 : TURNS)
+        && run <= FAR * slack
+        && run <= direct * WANDERS * slack
     }
 
     return drawnRelations(graph.edges, endpointOf, groundOf, drawable, selected)
   }, [graph, drawn, selected, routes, kin, groundOf, sectionFor])
 
+  // Only lines whose way across the board is actually known. A line with no
+  // route yet is drawn on the assumption that it will be fine, and remembering
+  // that assumption let the slack protect a line the moment its real route
+  // turned out to be one a reader could not follow.
   useEffect(() => {
-    alreadyDrawn.current = new Set(relations.lines.map(line => line.id))
-  }, [relations])
+    alreadyDrawn.current = new Set(relations.lines
+      .filter(line => kin.edges.has(line.id) || routes.has(line.id))
+      .map(line => line.id))
+  }, [relations, kin, routes])
 
   /**
    * The cards as the canvas is given them.
