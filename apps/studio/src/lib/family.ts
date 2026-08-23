@@ -57,6 +57,12 @@ interface Family {
  * Which end is the root follows from the relation, not from how it was written.
  * A whole contains its parts, so a part-of runs from the root, while a kind
  * extends what it is a kind of, so an is-a runs towards it.
+ *
+ * Any relation that names a root makes a family, not only a hierarchy. Eight
+ * claims about one concept are eight lines converging on it from wherever each
+ * claim happens to sit, which reads as a spray. Gathered onto one bar they read
+ * as what they are, and they cost the concept one place on its border rather
+ * than eight.
  */
 function familiesIn(
   edges: readonly LayoutEdge[],
@@ -65,7 +71,7 @@ function familiesIn(
   const families = new Map<string, Family>()
   for (const edge of edges) {
     const style = edgeStyle(edge.type)
-    if (style.kin !== 'tree' || !at.has(edge.from) || !at.has(edge.to))
+    if (style.rootAt === undefined || !at.has(edge.from) || !at.has(edge.to))
       continue
     const [parentId, childId] = style.rootAt === 'from' ? [edge.from, edge.to] : [edge.to, edge.from]
     const key = `${parentId}:${edge.type}`

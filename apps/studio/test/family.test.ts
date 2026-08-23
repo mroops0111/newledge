@@ -229,3 +229,52 @@ describe('a bar squeezed by a card in the middle of its reach', () => {
     expect(crowded.edges.get('p1')![2]!.y).toBeGreaterThan(100)
   })
 })
+
+describe('a relation that is not a hierarchy but still has a root', () => {
+  // Eight claims about one concept are eight lines converging on it from
+  // wherever each claim happens to sit, which reads as a spray, and a card has
+  // only three places to a side to receive them.
+  it('gathers what many say about one thing onto a single trunk', () => {
+    const said = kinship(
+      [
+        edge('a1', 'concerns', 'oneClaim', 'topic'),
+        edge('a2', 'concerns', 'twoClaim', 'topic'),
+        edge('a3', 'concerns', 'threeClaim', 'topic'),
+      ],
+      new Map([
+        ['topic', box(400, 0)],
+        ['oneClaim', box(0, 400)],
+        ['twoClaim', box(400, 400)],
+        ['threeClaim', box(800, 400)],
+      ]),
+    )
+    const roots = ['a1', 'a2', 'a3'].map((id) => {
+      const run = said.edges.get(id)!
+      return JSON.stringify(run[run.length - 1])
+    })
+    expect(new Set(roots).size).toBe(1)
+  })
+
+  it('keeps one trunk per kind, since two kinds are two things to say', () => {
+    const said = kinship(
+      [
+        edge('a1', 'concerns', 'claim', 'whole'),
+        edge('c1', 'contains', 'whole', 'part'),
+      ],
+      new Map([['whole', box(400, 400)], ['claim', box(0, 0)], ['part', box(800, 800)]]),
+    )
+    const meets = ['a1', 'c1'].map((id) => {
+      const run = said.edges.get(id)!
+      return JSON.stringify(run[run.length - 1])
+    })
+    expect(new Set(meets).size).toBe(2)
+  })
+
+  it('leaves a relation with no root to be routed like any other line', () => {
+    const said = kinship(
+      [edge('r1', 'relatesTo', 'here', 'there')],
+      new Map([['here', box(0, 0)], ['there', box(400, 400)]]),
+    )
+    expect(said.edges.has('r1')).toBe(false)
+  })
+})

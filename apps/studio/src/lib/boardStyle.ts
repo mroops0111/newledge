@@ -69,9 +69,11 @@ export type MarkerKind = 'triangleHollow' | 'diamond' | 'arrow' | 'dot' | 'none'
 export interface EdgeStyle {
   readonly kin: EdgeKin
   /**
-   * Which end of a hierarchy is its root.
-   * A whole contains its parts and a kind extends what it is a kind of, so
-   * the two are written in opposite directions.
+   * Which end of a relation several of its kind meet at.
+   * A whole contains its parts and a kind extends what it is a kind of, so the
+   * two are written in opposite directions. It is not only a hierarchy that
+   * has one, a concept is what many claims are about and a source is what many
+   * claims came from, and anything with a root is drawn as a trunk.
    */
   readonly rootAt?: 'from' | 'to'
   readonly tone: EdgeTone
@@ -132,8 +134,8 @@ export const EDGE_STYLES: Readonly<Record<string, EdgeStyle>> = {
   // decided by where its two ends turn out to be, the same as every other
   // relation. Declared undrawable instead, a board that put claims and sources
   // on it as cards of their own gave them nothing at all to stand in.
-  introduces: { kin: 'curve', tone: 'quiet', strokeWidth: STROKE, marker: 'none' },
-  concerns: { kin: 'curve', tone: 'structure', strokeWidth: STROKE, marker: 'dot' },
+  introduces: { kin: 'curve', rootAt: 'from', tone: 'quiet', strokeWidth: STROKE, marker: 'none' },
+  concerns: { kin: 'curve', rootAt: 'to', tone: 'structure', strokeWidth: STROKE, marker: 'dot' },
   supports: { kin: 'curve', tone: 'supports', strokeWidth: STROKE, marker: 'arrow' },
   contradicts: { kin: 'curve', tone: 'contradicts', strokeWidth: STROKE, dash: '5 3', marker: 'arrow' },
 }

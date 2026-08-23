@@ -11,7 +11,7 @@ import { emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { elkPlacement } from '../lib/elkPlacement.js'
 import type { BoardClient } from '../lib/boards.js'
 import { openingBoards, renameSection, withBoard, withCard, withSection } from '../lib/boards.js'
-import { edgeStyle, nodeStyle } from '../lib/boardStyle.js'
+import { nodeStyle } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import type { DrawnEdge } from '../lib/drawing.js'
 import { drawnCards, drawnRelations } from '../lib/drawing.js'
@@ -367,8 +367,11 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     void ROUTING
       .route({
         obstacles,
+        // Anything drawn as a trunk is worked out from where its cards are,
+        // so routing it as well would spend a place on a border that nothing
+        // then draws to, and push another line off the middle it wanted.
         edges: graph.edges
-          .filter(edge => edgeStyle(edge.type).kin !== 'tree')
+          .filter(edge => !kin.edges.has(edge.id))
           .map(edge => ({ id: edge.id, type: edge.type, from: edge.fromNodeId, to: edge.toNodeId })),
       })
       .then((routed) => {
@@ -376,7 +379,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
           setRoutes(routed.edges)
       })
     return () => { asking = false }
-  }, [obstacles, graph])
+  }, [obstacles, graph, kin])
 
   const relations = useMemo(() => {
     const onBoard = new Set(drawn.filter(node => node.type === 'card').map(node => node.id))
