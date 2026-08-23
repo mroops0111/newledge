@@ -282,14 +282,31 @@ describe('what shares a block with what', () => {
     expect(held?.sort()).toEqual(['one', 'other', 'term', 'whole'])
   })
 
-  it('leaves a claim where it was filed rather than moving it off its ground', async () => {
+  // A claim is evidence about a concept and has no business sitting under a
+  // topic away from what it is about, so it follows the concept off its ground.
+  it('brings a claim to its concept even when it was filed elsewhere', async () => {
     const filed = {
       nodes: [...said.nodes, node('elsewhere', 'Topic', 'Elsewhere')],
       edges: [...said.edges, edge('belongsTo', 'one', 'elsewhere')],
     }
     const seats = await blocks(filed)
     const held = [...seats.values()].find(members => members.includes('term'))
-    expect(held).not.toContain('one')
+    expect(held).toContain('one')
+  })
+
+  // A part is a thing in its own right and a reader may file it wherever they
+  // like, so being filed somewhere beats being held by something.
+  it('leaves a part where it was filed rather than moving it off its ground', async () => {
+    const filed = {
+      nodes: [
+        node('whole', 'Concept', 'A whole'),
+        node('part', 'Concept', 'A part'),
+        node('elsewhere', 'Topic', 'Elsewhere'),
+      ],
+      edges: [edge('contains', 'whole', 'part'), edge('belongsTo', 'part', 'elsewhere')],
+    }
+    const seats = await blocks(filed)
+    expect(seats.get(broodOf('whole'))).toBeUndefined()
   })
 
   it('keeps a concept in the block it was already in rather than starting one', async () => {

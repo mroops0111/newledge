@@ -60,8 +60,17 @@ const SECTION_HEADER = 28
  * rather than as several that happen to be related. A card claimed by two of
  * them goes with the first, so being part of something beats being talked
  * about, which is the stronger claim on where a card belongs.
+ *
+ * A part keeps its own ground. It is a thing in its own right and a reader may
+ * file it under whatever topic they like, so being filed somewhere beats being
+ * held by something. A claim does not. It is evidence about a concept and has
+ * no business sitting under a topic away from what it is about, so it follows
+ * the concept off its own ground.
  */
-const BLOCKS: readonly string[] = ['contains', 'concerns']
+const BLOCKS: readonly { readonly type: string, readonly ownGround: boolean }[] = [
+  { type: 'contains', ownGround: true },
+  { type: 'concerns', ownGround: false },
+]
 
 const BROOD = 'brood-'
 
@@ -110,18 +119,16 @@ export async function firstArrangement(
    * something brings what is said about it along instead of being pulled out.
    */
   const partOf = new Map<string, string>()
-  for (const type of BLOCKS) {
-    const style = edgeStyle(type)
-    for (const edge of graph.edges.filter(one => one.type === type)) {
+  for (const block of BLOCKS) {
+    const style = edgeStyle(block.type)
+    for (const edge of graph.edges.filter(one => one.type === block.type)) {
       const [root, held] = style.rootAt === 'from'
         ? [edge.fromNodeId, edge.toNodeId]
         : [edge.toNodeId, edge.fromNodeId]
       if (partOf.has(held))
         continue
-      // Filed elsewhere, a card stays where it was filed, since the ground
-      // wins. Filed nowhere, there is nothing to lose by joining what holds it.
       const filed = sectionOf(held)
-      if (filed !== undefined && filed !== sectionOf(root))
+      if (block.ownGround && filed !== undefined && filed !== sectionOf(root))
         continue
       const seat = partOf.get(root) ?? broodOf(root)
       partOf.set(held, seat)
