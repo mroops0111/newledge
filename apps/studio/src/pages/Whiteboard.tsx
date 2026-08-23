@@ -46,6 +46,17 @@ const GRID = 24
 /** How far a line may run before a reader loses it, and how far it may wander. */
 const FAR = 1600
 const WANDERS = 2.5
+/**
+ * How much worse a line already drawn may get before it stops being drawn.
+ * What a card says about the relations the board could not draw is written on
+ * the card, so it makes the card taller, which moves every route past it, which
+ * changes what the board can draw. Judged on one threshold, two relations on
+ * the real board flipped in and out of it for ever and the board never stood
+ * still. A relation has to get this much worse than the threshold to be given
+ * up, and that much better than it to be taken back, so the two answers cannot
+ * chase each other.
+ */
+const SETTLES = 1.25
 const NOTHING: readonly Guide[] = []
 
 interface SectionDrag {
@@ -84,6 +95,8 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   const latestBoard = useRef<Board | undefined>(undefined)
   const sectionDrag = useRef<SectionDrag | undefined>(undefined)
   const zoom = useRef(1)
+  /** Which relations the board drew last time, which is what it holds on to. */
+  const alreadyDrawn = useRef<ReadonlySet<string>>(new Set())
 
   useEffect(() => {
     void (async () => {
@@ -382,6 +395,9 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
      * than about what a reader can follow. A line that wanders far enough is
      * lost whether or not it stays on one ground, and a short line across two
      * grounds is perfectly readable.
+     *
+     * One already drawn is held to a looser measure than one not, so the board
+     * settles instead of chasing its own answer.
      */
     const drawable = (edgeId: string): boolean => {
       const route = kin.edges.get(edgeId) ?? routes.get(edgeId)
@@ -392,11 +408,16 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       let run = 0
       for (let index = 1; index < route.length; index += 1)
         run += Math.abs(route[index]!.x - route[index - 1]!.x) + Math.abs(route[index]!.y - route[index - 1]!.y)
-      return run <= FAR && run <= direct * WANDERS
+      const slack = alreadyDrawn.current.has(edgeId) ? SETTLES : 1
+      return run <= FAR * slack && run <= direct * WANDERS * slack
     }
 
     return drawnRelations(graph.edges, endpointOf, groundOf, drawable, selected)
   }, [graph, drawn, selected, routes, kin, groundOf, sectionFor])
+
+  useEffect(() => {
+    alreadyDrawn.current = new Set(relations.lines.map(line => line.id))
+  }, [relations])
 
   /**
    * The cards as the canvas is given them.
