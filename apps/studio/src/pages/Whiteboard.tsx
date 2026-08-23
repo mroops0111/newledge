@@ -44,6 +44,9 @@ const MIN_NAME_WIDTH = 10
 const DIMMED = 0.22
 const GRID = 24
 /** How far a line may run before a reader loses it, and how far it may wander. */
+/** How much of a section is left showing past whatever stands on it. */
+const HOLDS_ITS_OWN = 24
+
 const FAR = 1600
 const WANDERS = 2.5
 /**
@@ -300,14 +303,35 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   // A reader who picked something wants the rest out of the way, gently while
   // they glance and entirely once they ask to focus.
 
+  /**
+   * The sections, each drawn big enough to hold what stands on it.
+   * A section is sized by the layout from what a card was estimated to need,
+   * and a card turns out taller than the estimate once the browser has laid
+   * its words out, so ground meant to hold one ends a few pixels short of it.
+   * Ground that does not reach the edge of what stands on it reads as a
+   * mistake wherever it happens.
+   */
+  const grounds = useMemo(() => (board?.sections ?? []).map((section) => {
+    const standing = [...boxes.values()].filter(box => sectionHolding(box, [section]) !== undefined)
+    if (standing.length === 0)
+      return section
+    const right = Math.max(...standing.map(box => box.x + box.width + HOLDS_ITS_OWN))
+    const bottom = Math.max(...standing.map(box => box.y + box.height + HOLDS_ITS_OWN))
+    return {
+      ...section,
+      width: Math.max(section.width, right - section.x),
+      height: Math.max(section.height, bottom - section.y),
+    }
+  }), [board, boxes])
+
   const extent = useMemo(
-    () => [...boxes.values(), ...(board?.sections ?? []).map(section => ({
+    () => [...boxes.values(), ...grounds.map(section => ({
       x: section.x,
       y: section.y,
       width: section.width,
       height: section.height,
     }))],
-    [boxes, board],
+    [boxes, grounds],
   )
 
   /**
@@ -322,13 +346,10 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
    * Asked of where it is rather than of what it was filed under, so a reader
    * who drags a card into another section has moved it there.
    */
-  const groundOf = useMemo(() => {
-    const sections = board?.sections ?? []
-    return (nodeId: string): string | undefined => {
-      const box = boxes.get(nodeId)
-      return box === undefined ? undefined : sectionHolding(box, sections)?.id
-    }
-  }, [boxes, board])
+  const groundOf = useMemo(() => (nodeId: string): string | undefined => {
+    const box = boxes.get(nodeId)
+    return box === undefined ? undefined : sectionHolding(box, grounds)?.id
+  }, [boxes, grounds])
 
   /** The section a topic is drawn as, so a relation reaching it has an end. */
   const sectionFor = useMemo(
@@ -348,7 +369,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
       // Given as ground rather than as something to avoid, since a section is
       // drawn under every line and a line crossing one is not hidden by it.
       // A line still has to be able to end on one, which is why it is here.
-      ...(board?.sections ?? []).map(section => ({
+      ...grounds.map(section => ({
         id: section.id,
         x: section.x,
         y: section.y,
@@ -357,7 +378,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
         ground: true,
       })),
     ],
-    [boxes, board],
+    [boxes, grounds],
   )
 
   useEffect(() => {
@@ -432,7 +453,11 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
   const attended: Node[] = useMemo(() => drawn.flatMap((node): Node[] => {
     if (node.type !== 'card') {
       const held = node.id === grabbed
-      return [{ ...node, draggable: held, data: { ...node.data, grabbed: held } }]
+      // Given the ground grown to hold what stands on it, which is worked out
+      // from what the browser measured and so is not known when a section is
+      // first built.
+      const section = grounds.find(one => one.id === node.id) ?? node.data.section
+      return [{ ...node, draggable: held, data: { ...node.data, grabbed: held, section } }]
     }
     const emphasis = emphasisOf(node.id, near.nodes, attention)
     if (emphasis === 'gone')
@@ -455,7 +480,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     return [emphasis === 'dimmed'
       ? { ...picked, style: { ...picked.style, opacity: DIMMED } }
       : picked]
-  }), [drawn, near, attention, grabbed, relations, byId, hangsOff, familyLed])
+  }), [drawn, near, attention, grabbed, relations, byId, hangsOff, familyLed, grounds])
 
   const edges: Edge[] = useMemo(() => {
 

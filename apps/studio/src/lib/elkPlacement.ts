@@ -38,7 +38,14 @@ const BOARD_OPTIONS: Record<string, string> = {
   'elk.spacing.componentComponent': SECTION_GAP,
 }
 
-const GROUP_PADDING = 20
+/**
+ * How much room a group keeps around what it holds.
+ * Wider than the clearance a line keeps from a card, and by a whole grid step,
+ * since a line going round a card just inside a group runs at exactly the
+ * card's border plus that clearance. Set to the same number, that run lands on
+ * the group's own border and reads as part of it.
+ */
+const GROUP_PADDING = 44
 
 /**
  * How many relations a section needs before laying it out in layers is worth it.
