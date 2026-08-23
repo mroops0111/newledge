@@ -13,6 +13,22 @@ const BEND_COST = 140
  * about to dodge a short overlap.
  */
 const COMPANY_COST = 1.6
+/**
+ * Ending where another line already ends costs this much.
+ * About what a bend costs, so a line takes the next slot along rather than
+ * land on top of another line's end, and still shares one rather than go the
+ * long way round to avoid it.
+ */
+const PORT_TAKEN_COST = 140
+
+/**
+ * How many places a line may meet a card on each of its sides.
+ * A line has to meet a card somewhere a reader can see it meets it, which
+ * means square on to a border and not wherever the run between two centres
+ * happens to cross one. Three to a side is enough for any card on a board and
+ * few enough that a reader reads them as places rather than as a scatter.
+ */
+const PORTS_A_SIDE = 3
 
 /**
  * Lines that go round the cards between their ends.
@@ -39,6 +55,7 @@ function run(request: RoutingRequest, clearance: number): Routed {
   const byId = new Map(request.obstacles.map(box => [box.id, box]))
   const edges = new Map<string, readonly Point[]>()
   const taken = new Map<string, number>()
+  const used = new Set<string>()
 
   // Routed in a settled order, since each line is laid out knowing where the
   // ones before it went, and an order that drifted would move lines about for
@@ -52,9 +69,10 @@ function run(request: RoutingRequest, clearance: number): Routed {
       continue
     const between = request.obstacles.filter(box =>
       box.ground !== true && box.id !== edge.from && box.id !== edge.to)
-    const route = best(from, to, between, clearance, taken)
+    const route = best(from, to, between, clearance, taken, used)
     edges.set(edge.id, route)
     keep(route, taken)
+    used.add(keyOf(route[0]!)).add(keyOf(route[route.length - 1]!))
   }
   return { edges }
 }
@@ -66,24 +84,69 @@ function best(
   between: readonly Obstacle[],
   clearance: number,
   taken: ReadonlyMap<string, number>,
+  used: ReadonlySet<string>,
 ): readonly Point[] {
-  const across = trimmed([centre(from), centre(to)], from, to)
+  const across = [
+    facingPort(from, centre(to), clearance, used).on,
+    facingPort(to, centre(from), clearance, used).on,
+  ]
   if (!between.some(box => crosses(across[0]!, across[1]!, box)))
     return across
 
-  const round = around(from, to, [...between, from, to], clearance, taken)
+  const round = around(from, to, [...between, from, to], clearance, taken, used)
   return round ?? across
 }
 
-/** Where a line waits just off each side of a card, and the point it steps in at. */
-function portsOf(box: Box, clearance: number): { off: Point, on: Point, facing: 'x' | 'y' }[] {
+interface Port {
+  readonly off: Point
+  readonly on: Point
+  readonly facing: 'x' | 'y'
+}
+
+/**
+ * Where a line waits just off a card, and the point on the border it steps in at.
+ * Three places to a side, evenly spaced, so a line always meets a card square
+ * on to a border rather than wherever the run between two centres happens to
+ * cross one, and so several lines reaching the same side are told apart.
+ */
+function portsOf(box: Box, clearance: number): Port[] {
+  const along = (span: number, at: number): number => span * (at + 1) / (PORTS_A_SIDE + 1)
+  const slots = Array.from({ length: PORTS_A_SIDE }, (_, at) => at)
+  return slots.flatMap((at): Port[] => {
+    const x = box.x + along(box.width, at)
+    const y = box.y + along(box.height, at)
+    return [
+      { off: { x, y: box.y - clearance }, on: { x, y: box.y }, facing: 'y' },
+      { off: { x, y: box.y + box.height + clearance }, on: { x, y: box.y + box.height }, facing: 'y' },
+      { off: { x: box.x - clearance, y }, on: { x: box.x, y }, facing: 'x' },
+      { off: { x: box.x + box.width + clearance, y }, on: { x: box.x + box.width, y }, facing: 'x' },
+    ]
+  })
+}
+
+/** Where a point is, as a key, so two lines can tell they want the same place. */
+function keyOf(point: Point): string {
+  return `${point.x},${point.y}`
+}
+
+/**
+ * The place on the side facing something, nearest to it and not already taken.
+ * Which side is settled first, by whichever way the other thing mostly lies,
+ * so a line leaves by the face a reader would expect it to.
+ */
+function facingPort(box: Box, towards: Point, clearance: number, used: ReadonlySet<string>): Port {
   const middle = centre(box)
-  return [
-    { off: { x: middle.x, y: box.y - clearance }, on: { x: middle.x, y: box.y }, facing: 'y' },
-    { off: { x: middle.x, y: box.y + box.height + clearance }, on: { x: middle.x, y: box.y + box.height }, facing: 'y' },
-    { off: { x: box.x - clearance, y: middle.y }, on: { x: box.x, y: middle.y }, facing: 'x' },
-    { off: { x: box.x + box.width + clearance, y: middle.y }, on: { x: box.x + box.width, y: middle.y }, facing: 'x' },
-  ]
+  const sideways = Math.abs(towards.x - middle.x) >= Math.abs(towards.y - middle.y)
+  const border = sideways
+    ? (towards.x >= middle.x ? box.x + box.width : box.x)
+    : (towards.y >= middle.y ? box.y + box.height : box.y)
+
+  const onSide = portsOf(box, clearance)
+    .filter(port => (sideways ? port.on.x === border : port.on.y === border))
+    .sort((one, other) =>
+      Math.hypot(one.on.x - towards.x, one.on.y - towards.y)
+      - Math.hypot(other.on.x - towards.x, other.on.y - towards.y))
+  return onSide.find(port => !used.has(keyOf(port.on))) ?? onSide[0]!
 }
 
 /**
@@ -108,6 +171,7 @@ function around(
   between: readonly Obstacle[],
   clearance: number,
   taken: ReadonlyMap<string, number>,
+  used: ReadonlySet<string>,
 ): readonly Point[] | undefined {
   const leaves = portsOf(from, clearance)
   const arrives = portsOf(to, clearance)
@@ -127,7 +191,10 @@ function around(
   const steppedOff = new Map<number, Point>()
   for (const port of leaves) {
     const spot = spotOf(port.off)
-    priced.set(spot, 0)
+    const asked = used.has(keyOf(port.on)) ? PORT_TAKEN_COST : 0
+    if (asked >= (priced.get(spot) ?? Number.POSITIVE_INFINITY))
+      continue
+    priced.set(spot, asked)
     facing.set(spot, port.facing)
     steppedOff.set(spot, port.on)
     waiting.add(spot)
@@ -159,10 +226,12 @@ function around(
         continue
 
       const way = nextRow === row ? 'x' : 'y'
+      const arriving = stepOn.get(next)
       const asked = priced.get(here)!
         + Math.abs(other.x - one.x) + Math.abs(other.y - one.y)
         + (facing.get(here) !== undefined && facing.get(here) !== way ? BEND_COST : 0)
         + COMPANY_COST * shared(one, other, taken)
+        + (arriving !== undefined && used.has(keyOf(arriving)) ? PORT_TAKEN_COST : 0)
       if (asked < (priced.get(next) ?? Number.POSITIVE_INFINITY)) {
         priced.set(next, asked)
         cameFrom.set(next, here)
@@ -243,40 +312,6 @@ function crosses(one: Point, other: Point, box: Box): boolean {
     && right > box.x
     && top < box.y + box.height
     && bottom > box.y
-}
-
-/**
- * Pull both ends back to the borders of the cards they belong to.
- * A route is worked out between two centres, since a centre is a point and a
- * border is a side, but it has to be drawn from edge to edge.
- */
-function trimmed(route: readonly Point[], from: Box, to: Box): Point[] {
-  const points = [...route]
-  points[0] = leaving(points[0]!, points[1] ?? points[0]!, from)
-  const last = points.length - 1
-  points[last] = leaving(points[last]!, points[last - 1] ?? points[last]!, to)
-  return points
-}
-
-/**
- * Where a run out of a box's centre crosses its border.
- * Worked out as an intersection rather than by pinning one coordinate and
- * moving the other. Every corridor leaves a box square on, where the two come
- * to the same answer, but the straight run across leaves at whatever angle the
- * two centres happen to sit at. Pinned, both ends of that run kept the height
- * of their own card, so a line between two cards at different heights arrived
- * bent and its arrow head came in at an angle nothing accounted for.
- */
-function leaving(inside: Point, towards: Point, box: Box): Point {
-  const dx = towards.x - inside.x
-  const dy = towards.y - inside.y
-  if (dx === 0 && dy === 0)
-    return inside
-  const reach = Math.min(
-    dx === 0 ? Number.POSITIVE_INFINITY : (box.width / 2) / Math.abs(dx),
-    dy === 0 ? Number.POSITIVE_INFINITY : (box.height / 2) / Math.abs(dy),
-  )
-  return { x: inside.x + dx * reach, y: inside.y + dy * reach }
 }
 
 function centre(box: Box): Point {

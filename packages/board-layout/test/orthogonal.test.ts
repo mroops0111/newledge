@@ -108,10 +108,11 @@ describe('going round what is in the way', () => {
 })
 
 describe('where a line meets the card it belongs to', () => {
-  // Two cards at different heights with nothing between them. The way across
-  // is the straight one, and it leaves each card at an angle, so an end pinned
-  // to its own card's height would sit off the line the route actually takes.
-  it('meets each card where the run actually crosses its border', async () => {
+  // Three places to a side, evenly spaced. Left to meet a card wherever the
+  // run between two centres happened to cross its border, a line arrived at a
+  // different height for every card it came from, and a reader saw a scatter
+  // of ends down a side rather than places a line can be at.
+  it('meets each card at one of the places on the side facing the other', async () => {
     const routed = await orthogonalRouting().route({
       edges: [{ id: 'across', type: 'uses', from: 'left', to: 'right' }],
       obstacles: [
@@ -120,9 +121,41 @@ describe('where a line meets the card it belongs to', () => {
       ],
     })
     const points = routed.edges.get('across')!
-    const [first, last] = [points[0]!, points[points.length - 1]!]
-    expect(first).toEqual({ x: 200, y: 100 })
-    expect(last).toEqual({ x: 400, y: 200 })
+    expect(points[0]).toEqual({ x: 200, y: 75 })
+    expect(points[points.length - 1]).toEqual({ x: 400, y: 225 })
+  })
+
+  it('spaces those places evenly down the side, whatever the card is', async () => {
+    const routed = await orthogonalRouting().route({
+      edges: [
+        { id: 'high', type: 'uses', from: 'here', to: 'above' },
+        { id: 'level', type: 'uses', from: 'here', to: 'level' },
+        { id: 'low', type: 'uses', from: 'here', to: 'below' },
+      ],
+      obstacles: [
+        { id: 'here', x: 0, y: 0, width: 200, height: 120 },
+        { id: 'above', x: 600, y: -400, width: 100, height: 100 },
+        { id: 'level', x: 600, y: 10, width: 100, height: 100 },
+        { id: 'below', x: 600, y: 420, width: 100, height: 100 },
+      ],
+    })
+    const left = ['high', 'level', 'low'].map(id => routed.edges.get(id)![0]!.y)
+    expect(left.sort((one, other) => one - other)).toEqual([30, 60, 90])
+  })
+
+  it('sends a line to the next place along rather than onto another line', async () => {
+    const routed = await orthogonalRouting().route({
+      edges: [
+        { id: 'one', type: 'uses', from: 'here', to: 'there' },
+        { id: 'two', type: 'uses', from: 'here', to: 'alongside' },
+      ],
+      obstacles: [
+        { id: 'here', x: 0, y: 0, width: 200, height: 120 },
+        { id: 'there', x: 600, y: 10, width: 100, height: 100 },
+        { id: 'alongside', x: 600, y: 12, width: 100, height: 100 },
+      ],
+    })
+    expect(routed.edges.get('one')![0]).not.toEqual(routed.edges.get('two')![0])
   })
 
   it('still leaves a card square on when the run is square on', async () => {
