@@ -356,3 +356,39 @@ describe('when a clear run is drawn as a curve and when it turns square', () => 
     expect(run[run.length - 1]!.y).toBe(run[run.length - 2]!.y)
   })
 })
+
+describe('a side offers its middle until that is taken', () => {
+  // Offered the other two alongside it, a line coming down on top of one took
+  // it rather than pay the two turns it costs to reach the middle, and a card
+  // with a single line on a side had it enter a quarter of the way along.
+  it('meets the middle even when a line arrives straight above another place', async () => {
+    const routed = await orthogonalRouting().route({
+      edges: [{ id: 'down', type: 'uses', from: 'above', to: 'wide' }],
+      obstacles: [
+        { id: 'wide', x: 0, y: 600, width: 800, height: 120 },
+        { id: 'above', x: 150, y: 0, width: 100, height: 100 },
+      ],
+    })
+    const run = routed.edges.get('down')!
+    expect(run[run.length - 1]).toEqual({ x: 400, y: 600 })
+  })
+
+  it('falls to another place once the middle is spoken for', async () => {
+    const routed = await orthogonalRouting().route({
+      edges: [
+        { id: 'first', type: 'uses', from: 'left', to: 'wide' },
+        { id: 'second', type: 'uses', from: 'right', to: 'wide' },
+      ],
+      obstacles: [
+        { id: 'wide', x: 0, y: 600, width: 800, height: 120 },
+        { id: 'left', x: 100, y: 0, width: 100, height: 100 },
+        { id: 'right', x: 620, y: 0, width: 100, height: 100 },
+      ],
+    })
+    const ends = ['first', 'second'].map((id) => {
+      const run = routed.edges.get(id)!
+      return run[run.length - 1]!.x
+    })
+    expect(ends).toEqual([400, 600])
+  })
+})

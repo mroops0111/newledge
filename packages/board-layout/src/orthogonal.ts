@@ -139,24 +139,58 @@ interface Port {
 }
 
 /**
- * Where a line waits just off a card, and the point on the border it steps in at.
- * Three places to a side, evenly spaced, so a line always meets a card square
- * on to a border rather than wherever the run between two centres happens to
- * cross one, and so several lines reaching the same side are told apart.
+ * Where a line waits just off each side of a card, and the points on the border
+ * it steps in at. Three places to a side, evenly spaced, the middle one first.
+ *
+ * A line meets a card square on to a border rather than wherever the run
+ * between two centres happens to cross one, and several lines reaching the
+ * same side are told apart by taking different places on it.
  */
-function portsOf(box: Box, clearance: number): Port[] {
+function sidesOf(box: Box, clearance: number): Port[][] {
   const along = (span: number, at: number): number => span * (at + 1) / (PORTS_A_SIDE + 1)
-  const slots = Array.from({ length: PORTS_A_SIDE }, (_, at) => at)
-  return slots.flatMap((at): Port[] => {
-    const x = box.x + along(box.width, at)
-    const y = box.y + along(box.height, at)
-    return [
-      { off: { x, y: box.y - clearance }, on: { x, y: box.y }, facing: 'y' },
-      { off: { x, y: box.y + box.height + clearance }, on: { x, y: box.y + box.height }, facing: 'y' },
-      { off: { x: box.x - clearance, y }, on: { x: box.x, y }, facing: 'x' },
-      { off: { x: box.x + box.width + clearance, y }, on: { x: box.x + box.width, y }, facing: 'x' },
-    ]
-  })
+  const middle = (PORTS_A_SIDE - 1) / 2
+  const order = Array.from({ length: PORTS_A_SIDE }, (_, at) => at)
+    .sort((one, other) => Math.abs(one - middle) - Math.abs(other - middle))
+
+  return [
+    order.map((at): Port => {
+      const x = box.x + along(box.width, at)
+      return { off: { x, y: box.y - clearance }, on: { x, y: box.y }, facing: 'y' }
+    }),
+    order.map((at): Port => {
+      const x = box.x + along(box.width, at)
+      return { off: { x, y: box.y + box.height + clearance }, on: { x, y: box.y + box.height }, facing: 'y' }
+    }),
+    order.map((at): Port => {
+      const y = box.y + along(box.height, at)
+      return { off: { x: box.x - clearance, y }, on: { x: box.x, y }, facing: 'x' }
+    }),
+    order.map((at): Port => {
+      const y = box.y + along(box.height, at)
+      return { off: { x: box.x + box.width, y }, on: { x: box.x + box.width, y }, facing: 'x' }
+    }).map(port => ({ ...port, off: { x: box.x + box.width + clearance, y: port.on.y } })),
+  ]
+}
+
+/**
+ * What a side offers a line, which is its middle until that is taken.
+ * The other two are there to tell lines apart and for nothing else, so they
+ * are not offered while the middle is free. Offered alongside it, a line
+ * coming down on top of one took it rather than pay the two turns it costs to
+ * reach the middle, and a card with one line on a side had it enter at a
+ * quarter of the way along for no reason a reader could see.
+ */
+function offeredBy(side: readonly Port[], used: ReadonlySet<string>): Port[] {
+  const [middle, ...rest] = side
+  if (middle === undefined || !used.has(keyOf(middle.on)))
+    return middle === undefined ? [] : [middle]
+  const free = rest.filter(port => !used.has(keyOf(port.on)))
+  return free.length > 0 ? free : [...side]
+}
+
+/** Every place a line may take on a card, once the taken ones are accounted for. */
+function portsOf(box: Box, clearance: number, used: ReadonlySet<string>): Port[] {
+  return sidesOf(box, clearance).flatMap(side => offeredBy(side, used))
 }
 
 /** Where a point is, as a key, so two lines can tell they want the same place. */
@@ -166,18 +200,10 @@ function keyOf(point: Point): string {
 
 /**
  * What a place costs a line beyond the run itself.
- * How far off the middle of its side it is, since the middle is where a line
- * meets a card when nothing is competing for the side and the others are only
- * there to tell lines apart. Measured as a length, in the same units as the
- * run, so it is never enough on its own to send a line round to another side.
- * On top of that, ending where another line already ends.
+ * Nothing, unless every place on its side is taken and it has to share one.
  */
-function priceOf(port: Port, box: Box, used: ReadonlySet<string>): number {
-  const middle = centre(box)
-  const off = port.facing === 'x'
-    ? Math.abs(port.on.y - middle.y)
-    : Math.abs(port.on.x - middle.x)
-  return off + (used.has(keyOf(port.on)) ? PORT_TAKEN_COST : 0)
+function priceOf(port: Port, used: ReadonlySet<string>): number {
+  return used.has(keyOf(port.on)) ? PORT_TAKEN_COST : 0
 }
 
 /**
@@ -197,10 +223,10 @@ function facingPort(box: Box, towards: Point, clearance: number, used: ReadonlyS
     : (towards.y >= middle.y ? box.y + box.height : box.y)
 
   const reach = (port: Port): number => Math.hypot(port.on.x - towards.x, port.on.y - towards.y)
-  return portsOf(box, clearance)
+  return portsOf(box, clearance, used)
     .filter(port => (sideways ? port.on.x === border : port.on.y === border))
     .sort((one, other) =>
-      priceOf(one, box, used) - priceOf(other, box, used) || reach(one) - reach(other))[0]!
+      priceOf(one, used) - priceOf(other, used) || reach(one) - reach(other))[0]!
 }
 
 /**
@@ -227,8 +253,8 @@ function around(
   taken: ReadonlyMap<string, number>,
   used: ReadonlySet<string>,
 ): readonly Point[] | undefined {
-  const leaves = portsOf(from, clearance)
-  const arrives = portsOf(to, clearance)
+  const leaves = portsOf(from, clearance, used)
+  const arrives = portsOf(to, clearance, used)
   const centres = [centre(from), centre(to)]
   const waypoints = [...centres, ...[...leaves, ...arrives].map(port => port.off)]
   const xs = ruled(between, clearance, 'x', waypoints.map(point => point.x))
@@ -245,7 +271,7 @@ function around(
   const steppedOff = new Map<number, Point>()
   for (const port of leaves) {
     const spot = spotOf(port.off)
-    const asked = priceOf(port, from, used)
+    const asked = priceOf(port, used)
     if (asked >= (priced.get(spot) ?? Number.POSITIVE_INFINITY))
       continue
     priced.set(spot, asked)
@@ -285,7 +311,7 @@ function around(
         + Math.abs(other.x - one.x) + Math.abs(other.y - one.y)
         + (facing.get(here) !== undefined && facing.get(here) !== way ? BEND_COST : 0)
         + COMPANY_COST * shared(one, other, taken)
-        + (arriving === undefined ? 0 : priceOf(arriving, to, used))
+        + (arriving === undefined ? 0 : priceOf(arriving, used))
       if (asked < (priced.get(next) ?? Number.POSITIVE_INFINITY)) {
         priced.set(next, asked)
         cameFrom.set(next, here)
