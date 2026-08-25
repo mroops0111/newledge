@@ -2,7 +2,8 @@ import { sectionHolding } from '@newledge/board'
 import { gridPlacement } from '@newledge/board-layout'
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { Arrangement } from '../src/lib/arrange.js'
-import { broodOf, firstArrangement } from '../src/lib/arrange.js'
+import { firstArrangement } from '../src/lib/arrange.js'
+import { broodOf } from '../src/lib/brood.js'
 import type { GraphEdge, GraphNode } from '../src/lib/graph.js'
 
 function node(id: string, type: string, name = id): GraphNode {
@@ -35,8 +36,9 @@ const graph = {
   ],
 }
 
-// The arrangement is asked of a placement, so it can be tested against the one
-// that needs no browser, which is the point of it being a port at all.
+// The arrangement is asked of a placement,
+// so it can be tested against the one that needs no browser,
+// which is the point of it being a port at all.
 describe('what a board opens on', () => {
   let arranged: Arrangement
 
@@ -44,10 +46,12 @@ describe('what a board opens on', () => {
     arranged = await firstArrangement(graph, gridPlacement())
   })
 
-  // A board is for the things a reader thinks with. What is asserted about one
-  // of them, and where that came from, is read inside it rather than beside it.
-  // A claim is evidence about a concept, read inside the concept rather than
-  // arranged beside it, so a board does not place one unless asked.
+  // A board is for the things a reader thinks with.
+  // What is asserted about one of them, and where that came from,
+  // is read inside it rather than beside it.
+  // A claim is evidence about a concept,
+  // read inside the concept rather than arranged beside it,
+  // so a board does not place one unless asked.
   it('places the concepts and their sources, and leaves the claims to be opened', () => {
     expect(arranged.board.cards.map(card => card.nodeId).sort())
       .toEqual(['embedding', 'graphRag', 'paper', 'planner', 'rag', 'stray'])
@@ -83,24 +87,202 @@ describe('what a board opens on', () => {
     expect(nothing.board.sections).toEqual([])
   })
 
-  it('carries back the lines when the placement worked them out', async () => {
-    const routed = await firstArrangement(graph, {
-      id: 'fake',
-      place: async () => ({
-        nodes: new Map([['rag', { x: 0, y: 0 }]]),
-        groups: new Map(),
-        edges: new Map([['e1', [{ x: 0, y: 0 }, { x: 10, y: 10 }]]]),
-      }),
-    })
-    expect(routed.routes.get('e1')).toHaveLength(2)
-  })
-
   it('drops a card the placement had no room for rather than putting it nowhere', async () => {
     const partial = await firstArrangement(graph, {
       id: 'fake',
       place: async () => ({ nodes: new Map([['rag', { x: 0, y: 0 }]]), groups: new Map() }),
     })
     expect(partial.board.cards.map(card => card.nodeId)).toEqual(['rag'])
+  })
+})
+
+describe('a section standing far from what it relates to', () => {
+  const across = {
+    nodes: [
+      node('here', 'Topic', 'Here'),
+      node('there', 'Topic', 'There'),
+      node('speaker', 'Concept', 'Speaker'),
+      node('spokenTo', 'Concept', 'Spoken to'),
+      node('filler', 'Concept', 'Filler'),
+    ],
+    edges: [
+      edge('belongsTo', 'speaker', 'here'),
+      edge('belongsTo', 'spokenTo', 'there'),
+      edge('belongsTo', 'filler', 'there'),
+      edge('uses', 'speaker', 'spokenTo'),
+    ],
+  }
+
+  // The grounds pack by shape,
+  // which says nothing about what is written on them,
+  // so a ground can land a whole board away from what its cards speak to.
+  const placedFar = () => ({
+    id: 'far apart',
+    place: async () => ({
+      nodes: new Map([
+        ['speaker', { x: 40, y: 40 }],
+        ['spokenTo', { x: 1040, y: 1240 }],
+        ['filler', { x: 1040, y: 1640 }],
+      ]),
+      groups: new Map([
+        ['topic-here', { x: 0, y: 0, width: 600, height: 384 }],
+        ['topic-there', { x: 1080, y: 1200, width: 600, height: 1200 }],
+      ]),
+    }),
+  })
+
+  it('slides it until its card is level with the card it speaks to', async () => {
+    const { board } = await firstArrangement(across, placedFar())
+    const at = new Map(board.cards.map(card => [card.nodeId, card]))
+    const apart = Math.abs(at.get('speaker')!.y - at.get('spokenTo')!.y)
+    expect(apart).toBeLessThan(48)
+  })
+
+  // Moving one ground moves what every other ground is reaching for,
+  // so one pass leaves each answering a question that has since changed.
+  it('settles on the same board however many times it is asked', async () => {
+    const twice = await Promise.all([0, 1].map(async () =>
+      (await firstArrangement(across, placedFar())).board.sections
+        .map(section => `${section.id} ${section.x},${section.y}`)))
+    expect(twice[0]).toEqual(twice[1])
+  })
+
+  it('stops one gap short of whatever it would run into', async () => {
+    const { board } = await firstArrangement(across, {
+      id: 'blocked',
+      place: async () => ({
+        nodes: new Map([
+          ['speaker', { x: 40, y: 40 }],
+          ['spokenTo', { x: 40, y: 1240 }],
+          ['filler', { x: 40, y: 1640 }],
+        ]),
+        groups: new Map([
+          ['topic-here', { x: 0, y: 0, width: 600, height: 384 }],
+          ['topic-there', { x: 0, y: 1200, width: 600, height: 1200 }],
+        ]),
+      }),
+    })
+    const at = new Map(board.sections.map(section => [section.id, section]))
+    const here = at.get('topic-here')!
+    const there = at.get('topic-there')!
+    expect(here.y + here.height).toBeLessThanOrEqual(there.y - 96)
+  })
+})
+
+describe('sections a layout left standing on their tops', () => {
+  const twoTopics = {
+    nodes: [
+      node('short', 'Topic', 'Short'),
+      node('tall', 'Topic', 'Tall'),
+      node('under', 'Topic', 'Under'),
+      node('a', 'Concept', 'A'),
+      node('b', 'Concept', 'B'),
+      node('c', 'Concept', 'C'),
+    ],
+    edges: [
+      edge('belongsTo', 'a', 'short'),
+      edge('belongsTo', 'b', 'tall'),
+      edge('belongsTo', 'c', 'under'),
+    ],
+  }
+
+  const placedAs = (groups: Record<string, { x: number, y: number, width: number, height: number }>) => ({
+    id: 'fixed',
+    place: async () => ({
+      nodes: new Map([
+        ['a', { x: groups['topic-short']!.x + 40, y: groups['topic-short']!.y + 40 }],
+        ['b', { x: groups['topic-tall']!.x + 40, y: groups['topic-tall']!.y + 40 }],
+        ['c', { x: groups['topic-under']!.x + 40, y: groups['topic-under']!.y + 40 }],
+      ]),
+      groups: new Map(Object.entries(groups)),
+    }),
+  })
+
+  // A row is laid out on its top,
+  // so the short one leaves a hole under it as deep as the difference,
+  // and nothing ever stands in that hole.
+  it('pulls what is below up under the section it actually meets', async () => {
+    const { board } = await firstArrangement(twoTopics, placedAs({
+      'topic-short': { x: 0, y: 0, width: 600, height: 384 },
+      'topic-tall': { x: 720, y: 0, width: 600, height: 768 },
+      'topic-under': { x: 0, y: 1200, width: 600, height: 384 },
+    }))
+    const at = new Map(board.sections.map(section => [section.id, section]))
+    const short = at.get('topic-short')!
+    expect(at.get('topic-under')!.y).toBe(short.y + short.height + 96)
+  })
+
+  it('carries the cards standing on a section it moved', async () => {
+    const { board } = await firstArrangement(twoTopics, placedAs({
+      'topic-short': { x: 0, y: 0, width: 600, height: 384 },
+      'topic-tall': { x: 720, y: 0, width: 600, height: 768 },
+      'topic-under': { x: 0, y: 1200, width: 600, height: 384 },
+    }))
+    const under = board.sections.find(section => section.id === 'topic-under')!
+    const card = board.cards.find(one => one.nodeId === 'c')!
+    expect(card.y).toBeGreaterThanOrEqual(under.y)
+    expect(card.y).toBeLessThan(under.y + under.height)
+  })
+
+  // Heights on the grid, so the gap the board wants is a gap the grid allows.
+  it('leaves a section alone when what is over it already sits one gap away', async () => {
+    const { board } = await firstArrangement(twoTopics, placedAs({
+      'topic-short': { x: 0, y: 0, width: 600, height: 384 },
+      'topic-tall': { x: 720, y: 0, width: 600, height: 384 },
+      'topic-under': { x: 0, y: 480, width: 600, height: 384 },
+    }))
+    expect(board.sections.find(section => section.id === 'topic-under')!.y).toBe(480)
+  })
+})
+
+describe('cards a packing left a little out of column', () => {
+  const stacked = {
+    nodes: [
+      node('topic', 'Topic', 'A topic'),
+      node('one', 'Concept', 'One'),
+      node('two', 'Concept', 'Two'),
+      node('three', 'Concept', 'Three'),
+    ],
+    edges: [
+      edge('belongsTo', 'one', 'topic'),
+      edge('belongsTo', 'two', 'topic'),
+      edge('belongsTo', 'three', 'topic'),
+    ],
+  }
+
+  // A packing fills a space rather than ruling columns,
+  // so it can set one card of a stack a little in from the rest,
+  // which reads as a card that failed to line up.
+  it('pulls the one that was indented back onto the column', async () => {
+    const { board } = await firstArrangement(stacked, {
+      id: 'indenting',
+      place: async () => ({
+        nodes: new Map([
+          ['one', { x: 100, y: 0 }],
+          ['two', { x: 100, y: 384 }],
+          ['three', { x: 144, y: 768 }],
+        ]),
+        groups: new Map([['topic-topic', { x: 0, y: 0, width: 800, height: 1200 }]]),
+      }),
+    })
+    const at = new Map(board.cards.map(card => [card.nodeId, card]))
+    expect(new Set([at.get('one')!.x, at.get('two')!.x, at.get('three')!.x]).size).toBe(1)
+  })
+
+  it('leaves a card a whole column over where it stands', async () => {
+    const { board } = await firstArrangement(stacked, {
+      id: 'two columns',
+      place: async () => ({
+        nodes: new Map([
+          ['one', { x: 0, y: 0 }],
+          ['two', { x: 0, y: 384 }],
+          ['three', { x: 600, y: 0 }],
+        ]),
+        groups: new Map([['topic-topic', { x: 0, y: 0, width: 1400, height: 800 }]]),
+      }),
+    })
+    const at = new Map(board.cards.map(card => [card.nodeId, card]))
+    expect(at.get('three')!.x).toBeGreaterThan(at.get('one')!.x + 400)
   })
 })
 
@@ -119,7 +301,7 @@ describe('a family after the layout has placed it', () => {
     ],
   }
 
-  /** Placed in a row with gaps a layout worked out rather than gaps that match. */
+  /** Placed in a row with gaps a layout worked out, not gaps that match. */
   const uneven = {
     id: 'uneven',
     place: async () => ({
@@ -161,9 +343,9 @@ describe('a family after the layout has placed it', () => {
 })
 
 describe('moving sections so what relates sits nearer', () => {
-  // Three sections in one row, with the outer two doing all the talking. A
-  // packing has no reason to put them together, and a relation stretched the
-  // width of the board is too long to be worth drawing.
+  // Three sections in one row, with the outer two doing all the talking.
+  // A packing has no reason to put them together,
+  // and a relation the width of the board is too long to be worth drawing.
   const spread = {
     nodes: [
       node('left', 'Topic'),
@@ -207,8 +389,8 @@ describe('moving sections so what relates sits nearer', () => {
 })
 
 describe('which way round a whole and its parts are laid out', () => {
-  // Packed rather than laid out, two cards go wherever they fit, and a reader
-  // has to work out which way a hierarchy runs from the arrow heads.
+  // Packed rather than laid out, two cards go wherever they fit,
+  // and a reader works out which way a hierarchy runs from the arrow heads.
   const held = {
     nodes: [
       node('subscription', 'Concept', 'The subscription'),
@@ -247,8 +429,9 @@ describe('which way round a whole and its parts are laid out', () => {
 })
 
 describe('what shares a block with what', () => {
-  // A concept and what is said about it read as one object, so they are laid
-  // out as one rather than as a concept and a spray of claims around it.
+  // A concept and what is said about it read as one object,
+  // so they are laid out as one,
+  // not as a concept with a spray of claims around it.
   const said = {
     nodes: [
       node('term', 'Concept', 'A term'),
@@ -284,8 +467,9 @@ describe('what shares a block with what', () => {
     expect(held?.sort()).toEqual(['one', 'other', 'term', 'whole'])
   })
 
-  // A claim is evidence about a concept and has no business sitting under a
-  // topic away from what it is about, so it follows the concept off its ground.
+  // A claim is evidence about a concept,
+  // and has no business under a topic away from what it is about,
+  // so it follows the concept off its ground.
   it('brings a claim to its concept even when it was filed elsewhere', async () => {
     const filed = {
       nodes: [...said.nodes, node('elsewhere', 'Topic', 'Elsewhere')],
@@ -296,8 +480,9 @@ describe('what shares a block with what', () => {
     expect(held).toContain('one')
   })
 
-  // A part is a thing in its own right and a reader may file it wherever they
-  // like, so being filed somewhere beats being held by something.
+  // A part is a thing in its own right,
+  // and a reader may file it wherever they like,
+  // so being filed somewhere beats being held by something.
   it('leaves a part where it was filed rather than moving it off its ground', async () => {
     const filed = {
       nodes: [
@@ -318,9 +503,10 @@ describe('what shares a block with what', () => {
 })
 
 describe('lining up two cards a relation joins', () => {
-  // A layout places a card by what its own container needed, so a source
-  // sitting directly above the concept it introduced comes back a few tens of
-  // units out of line, and the line between them turns twice to cross that.
+  // A layout places a card by what its own container needed,
+  // so a source sitting directly above the concept it introduced,
+  // comes back a few tens of units out of line,
+  // and the line between them turns twice to cross that.
   async function centres(gap: number): Promise<number[]> {
     const nudged = {
       nodes: [node('above', 'Concept', 'Above'), node('below', 'Concept', 'Below')],

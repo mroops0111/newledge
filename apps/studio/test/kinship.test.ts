@@ -3,7 +3,6 @@ import type { GraphEdge, GraphNode } from '../src/lib/graph.js'
 import type { Note } from '../src/lib/drawing.js'
 import { EDGE_STYLES, edgeStyle } from '../src/lib/boardStyle.js'
 import { FAMILY_COLOURS, familyColours, familyOfRoot, kinColour, KINSHIP_KEYS, lineages, LINE_PAINTS, lineColour, NO_FAMILY, saidOnCard } from '../src/lib/kinship.js'
-import { cardExtent } from '../src/lib/measure.js'
 
 function edge(type: string, from: string, to: string): GraphEdge {
   return { id: `${type}-${from}-${to}`, type, fromNodeId: from, toNodeId: to }
@@ -24,8 +23,8 @@ describe('what a card wears to say what it belongs to', () => {
     expect(worn.get('viewer')).toBe(worn.get('suite'))
   })
 
-  // A whole holds its parts and a kind extends what it is a kind of, so the
-  // two are written in opposite directions and only one end is the root.
+  // A whole holds its parts and a kind extends what it is a kind of,
+  // so the two are written in opposite directions and only one end is the root.
   it('gives a kind the colour of what it is a kind of, not the other way round', () => {
     expect(worn.get('graphRag')).toBe(worn.get('rag'))
   })
@@ -81,20 +80,12 @@ describe('what a card says it hangs off', () => {
     expect(held.has('embedding')).toBe(false)
     expect(held.has('suite')).toBe(false)
   })
-
-  // A card that says what it hangs off is taller than one that does not, and a
-  // layout given the wrong height lays the board out wrong.
-  it('costs a card a row, which the arrangement has to know about', () => {
-    const node = { id: 'editor', type: 'Concept', name: 'Editor', description: 'A kit.' }
-    expect(cardExtent(node, 2).height).toBeGreaterThan(cardExtent(node, 1).height)
-    expect(cardExtent(node, 1).height).toBeGreaterThan(cardExtent(node, 0).height)
-  })
 })
 
 describe('a family of one', () => {
-  // A middle card leads a family of its own and wears that, so the family
-  // above it is left with nobody but itself, and a colour worn by one card
-  // announces a group that is not there.
+  // A middle card leads a family of its own and wears that,
+  // so the family above it is left with nobody but itself,
+  // and a colour worn by one card announces a group that is not there.
   const chained = familyColours([
     edge('contains', 'vendor', 'suite'),
     edge('contains', 'suite', 'editor'),
@@ -119,8 +110,8 @@ describe('what colour a relation is drawn in', () => {
   ]
   const led = familyOfRoot(chained)
 
-  // A relation belongs to the family its parent leads. Asking the child gives
-  // the wrong answer whenever that child leads a family of its own.
+  // A relation belongs to the family its parent leads.
+  // Asking the child answers wrongly whenever it leads a family of its own.
   it('gives a relation the colour of the family its parent leads', () => {
     expect(led.get('suite')).toBe(familyColours(chained).get('editor'))
   })
@@ -131,8 +122,8 @@ describe('what colour a relation is drawn in', () => {
 })
 
 describe('a card in two families', () => {
-  // A card wearing one family and naming another says two things and settles
-  // nothing, so both come from the same choice.
+  // A card wearing one family and naming another says two things,
+  // and settles nothing, so both come from the same choice.
   const both = [
     edge('contains', 'suite', 'signing'),
     edge('instantiates', 'signing', 'electronicSignature'),
@@ -161,9 +152,10 @@ describe('a card that hangs off more than one thing', () => {
 })
 
 describe('the colours lines are drawn in', () => {
-  // A line takes its colour by a key, and the end it points with is cut from
-  // the same table. A key with no colour draws nothing at all, so the line
-  // vanishes and only its end is left standing in open space.
+  // A line takes its colour by a key,
+  // and the end it points with is cut from the same table.
+  // A key with no colour draws nothing at all,
+  // so the line vanishes and only its end is left standing in open space.
   it('answers every key a relation can ask by', () => {
     const asked = new Set<string>([...KINSHIP_KEYS])
     for (const type of Object.keys(EDGE_STYLES))

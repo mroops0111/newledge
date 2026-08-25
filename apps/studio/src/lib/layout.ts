@@ -1,7 +1,8 @@
 import dagre from '@dagrejs/dagre'
 import type { GraphEdge, GraphNode } from './graph.js'
 
-export interface Placement {
+/** Where one node sits, which is all this layout decides about it. */
+export interface Spot {
   readonly x: number
   readonly y: number
 }
@@ -17,8 +18,8 @@ const NODE_HEIGHT = 96
 export function placeArrivals(
   nodes: readonly GraphNode[],
   edges: readonly GraphEdge[],
-  placed: ReadonlyMap<string, Placement>,
-): ReadonlyMap<string, Placement> {
+  placed: ReadonlyMap<string, Spot>,
+): ReadonlyMap<string, Spot> {
   const arrivals = nodes.filter(node => !placed.has(node.id))
   if (arrivals.length === 0)
     return placed

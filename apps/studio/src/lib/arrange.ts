@@ -1,94 +1,67 @@
 import type { Board, Card, Section } from '@newledge/board'
-import type { Box, LayoutEdge, LayoutNode, Placement } from '@newledge/board-layout'
-import { orderedByPull, settledByPull } from '@newledge/board-layout'
+import type { LayoutEdge, LayoutNode, Placement } from '@newledge/board-layout'
 import { edgeStyle, nodeStyle } from './boardStyle.js'
 import type { GraphEdge, GraphNode } from './graph.js'
+import { broodOf, isBrood, rootOf } from './brood.js'
+import { boxOnGrid, onGrid } from './grid.js'
+import { broughtNear, closedUp, groundsUnder, looseBoxes, shuffledSections } from './grounds.js'
 import { cardExtent } from './measure.js'
-import { lineages } from './kinship.js'
+import { columned, linedUp, settledInGrounds, tidied } from './tidying.js'
+import { sectionOf } from './topic.js'
 
-/**
- * The grid the canvas draws, which the first arrangement lands on.
- * A layout answers in whatever coordinates suit it, and a board that opens
- * half a pixel off the grid can never be tidied by eye afterwards.
- */
-const GRID = 24
-
-function onGrid(value: number): number {
-  return Math.round(value / GRID) * GRID
-}
-
-/**
- * A box on the grid, put there by both its edges rather than by one and a size.
- * Rounding a position and a size on their own moves the far edge by the two
- * roundings together, which on a section can close a gap the layout left.
- */
-function boxOnGrid(box: { x: number, y: number, width: number, height: number }): typeof box {
-  const [left, top] = [onGrid(box.x), onGrid(box.y)]
-  return {
-    x: left,
-    y: top,
-    width: onGrid(box.x + box.width) - left,
-    height: onGrid(box.y + box.height) - top,
-  }
-}
-
-// A node nobody filed sits with whatever it is about, so a claim lands beside
-// its concept and a source beside what it introduced.
+// A node nobody filed sits with whatever it is about,
+// so a claim lands beside its concept and a source beside what it introduced.
 const STANDS_IN_FOR = ['concerns', 'introduces', 'belongsTo']
 
+/**
+ * Where everything goes, which is all an arrangement decides.
+ * Whose board it is and what it is called belong to the board,
+ * not to laying it out.
+ */
 export interface Arrangement {
-  /**
-   * Where everything goes, which is all an arrangement decides. Whose board it
-   * is and what it is called belong to the board, not to laying it out.
-   */
   readonly board: Pick<Board, 'cards' | 'sections'>
-  /** Where each line runs, when the placement worked that out as it placed. */
-  readonly routes: ReadonlyMap<string, readonly { x: number, y: number }[]>
 }
 
 /**
  * How much of a section is kept clear for the name it carries.
- * The name is part of the section rather than a label floating over the gap
- * above it, so the section has to be tall enough to hold it.
+ * The name is part of the section, not a label floating over the gap above it,
+ * so the section has to be tall enough to hold it.
+ *
+ * Tall enough for the name a board is read at rather than for the name at rest.
+ * A board zoomed out draws its type at a fraction of its size,
+ * so a name that is to stay readable has to grow, and it grows into this.
+ * Three grid steps, since what the layout leaves lands on a grid line anyway.
  */
-const SECTION_HEADER = 28
+export const SECTION_HEADER = 72
 
 /**
  * Which relations put both their ends in one block, strongest first.
- * A whole with its parts, and then a concept with what is said about it. Both
- * are a thing and the things that hang off it, and both read as one object
- * rather than as several that happen to be related. A card claimed by two of
- * them goes with the first, so being part of something beats being talked
- * about, which is the stronger claim on where a card belongs.
+ * A whole with its parts, and then a concept with what is said about it.
+ * Both are a thing and the things that hang off it,
+ * and both read as one object rather than as several that happen to be related.
+ * A card claimed by two of them goes with the first,
+ * so being part of something beats being talked about,
+ * which is the stronger claim on where a card belongs.
  *
- * A part keeps its own ground. It is a thing in its own right and a reader may
- * file it under whatever topic they like, so being filed somewhere beats being
- * held by something. A claim does not. It is evidence about a concept and has
- * no business sitting under a topic away from what it is about, so it follows
- * the concept off its own ground.
+ * A part keeps its own ground. It is a thing in its own right,
+ * and a reader may file it under whatever topic they like,
+ * so being filed somewhere beats being held by something. A claim does not.
+ * It is evidence about a concept,
+ * and has no business sitting under a topic away from what it is about,
+ * so it follows the concept off its own ground.
  */
 const BLOCKS: readonly { readonly type: string, readonly ownGround: boolean }[] = [
   { type: 'contains', ownGround: true },
   { type: 'concerns', ownGround: false },
 ]
 
-const BROOD = 'brood-'
-
-/** The id a card's parts are kept together under. */
-export function broodOf(nodeId: string): string {
-  return `${BROOD}${nodeId}`
-}
-
-export function isBrood(groupId: string): boolean {
-  return groupId.startsWith(BROOD)
-}
-
 /**
  * What a board opens on before a reader has touched it.
- * Every node of a kind the board holds is placed, filed under the topic it
- * belongs to, and a topic becomes the section rather than a card sitting among
- * its members. A board that has not said which kinds it holds takes whatever
- * the drawing rules say is worth placing.
+ * Every node of a kind the board holds is placed,
+ * filed under the topic it belongs to,
+ * and a topic becomes the section rather than a card sitting among its members.
+ * A board that has not said which kinds it holds,
+ * takes whatever the drawing rules say is worth placing.
  */
 export async function firstArrangement(
   graph: { nodes: readonly GraphNode[], edges: readonly GraphEdge[] },
@@ -100,23 +73,25 @@ export async function firstArrangement(
     ? nodeStyle(node.type).placed
     : holds.includes(node.type)))
   const filedUnder = filing(graph, new Set(topics.map(topic => topic.id)))
-  const named = new Map(topics.map(topic => [`topic-${topic.id}`, topic.name]))
+  const named = new Map(topics.map(topic => [sectionOf(topic.id), topic.name]))
 
-  const sectionOf = (nodeId: string): string | undefined => {
+  const filedIn = (nodeId: string): string | undefined => {
     const [topicId] = [...(filedUnder.get(nodeId) ?? [])]
-    return topicId === undefined ? undefined : `topic-${topicId}`
+    return topicId === undefined ? undefined : sectionOf(topicId)
   }
 
   /**
    * A thing and what hangs off it, kept together as a block of their own.
-   * The thing goes in with them rather than sitting outside, which is what
-   * kept a parent a whole board away from what it contained. A card filed
-   * under another topic stays where it was filed, since the section is ground
+   * The thing goes in with them rather than sitting outside,
+   * which is what kept a parent a whole board away from what it contained.
+   * A card filed under another topic stays where it was filed,
+   * since the section is ground,
    * and a relation does not move a card off the ground it belongs to.
    *
-   * A card joins the block the thing it hangs off is already in, rather than
-   * starting one of its own around it, so a concept that is itself part of
-   * something brings what is said about it along instead of being pulled out.
+   * A card joins the block the thing it hangs off is already in,
+   * rather than starting one of its own around it,
+   * so a concept that is itself part of something,
+   * brings what is said about it along instead of being pulled out.
    */
   const partOf = new Map<string, string>()
   for (const block of BLOCKS) {
@@ -127,8 +102,8 @@ export async function firstArrangement(
         : [edge.toNodeId, edge.fromNodeId]
       if (partOf.has(held))
         continue
-      const filed = sectionOf(held)
-      if (block.ownGround && filed !== undefined && filed !== sectionOf(root))
+      const filed = filedIn(held)
+      if (block.ownGround && filed !== undefined && filed !== filedIn(root))
         continue
       const seat = partOf.get(root) ?? broodOf(root)
       partOf.set(held, seat)
@@ -136,22 +111,22 @@ export async function firstArrangement(
     }
   }
 
-  const hangsOff = lineages(graph.edges)
   const nodes: LayoutNode[] = placeable.map((node) => {
-    const seat = partOf.get(node.id) ?? sectionOf(node.id)
+    const seat = partOf.get(node.id) ?? filedIn(node.id)
     return {
       id: node.id,
       type: node.type,
-      ...cardExtent(node, (hangsOff.get(node.id) ?? []).length),
+      ...cardExtent(node),
       ...(seat === undefined ? {} : { groupId: seat }),
     }
   })
 
-  // A brood is a whole and its parts, which is a hierarchy however few it
-  // holds, so its order comes from the relations inside it and not from how
-  // well its members happen to pack.
+  // A brood is a whole and its parts,
+  // which is a hierarchy however few it holds,
+  // so its order comes from the relations inside it,
+  // and not from how well its members happen to pack.
   const broods = [...new Set(partOf.values())].map((id) => {
-    const seat = sectionOf(id.slice(BROOD.length))
+    const seat = filedIn(rootOf(id))
     return { id, ranked: true, ...(seat === undefined ? {} : { groupId: seat }) }
   })
   const edges: LayoutEdge[] = graph.edges.map(edge => ({
@@ -164,8 +139,8 @@ export async function firstArrangement(
   const placed = await placement.place({
     nodes,
     edges,
-    // The broods come first, since a group has to be whole before the one
-    // holding it can be built round it.
+    // The broods come first,
+    // since a group has to be whole before the one holding it is built.
     groups: [...broods, ...[...named.keys()].map(id => ({ id, inset: { width: 0, height: SECTION_HEADER } }))],
   })
 
@@ -182,165 +157,26 @@ export async function firstArrangement(
     .filter(([id]) => !isBrood(id))
     .map(([id, box]) => ({ id, name: named.get(id) ?? id, ...box }))
 
-  const lined = linedUp(cards, new Map(nodes.map(node => [node.id, node])), edges, sections)
-  const shuffled = shuffledSections(sections, lined, edges, sectionOf)
+  const extents = new Map(nodes.map(node => [node.id, node]))
+  const ordered = settledInGrounds(cards, extents, edges, sections, partOf)
+  const columns = columned(ordered, extents, sections)
+  const lined = linedUp(columns, extents, edges, sections)
+  // Which ground a card stands on,
+  // read from where it is rather than from what it was filed under.
+  // A card the ontology filed nowhere still stands somewhere,
+  // and a ground that moved without it would slide out from under it,
+  // and leave every relation it had stretched.
+  const standingOn = groundsUnder(lined, extents, sections)
+  const loose = looseBoxes(lined, extents, standingOn)
+  const shuffled = shuffledSections(sections, lined, edges, standingOn)
+  const closed = closedUp(shuffled.sections, shuffled.cards, standingOn, loose)
+  const near = broughtNear(closed.sections, closed.cards, extents, edges, standingOn, loose)
   return {
     board: {
-      cards: shuffled.cards.map(card => ({ ...card, x: onGrid(card.x), y: onGrid(card.y) })),
-      sections: shuffled.sections.map(section => ({ ...section, ...boxOnGrid(section) })),
+      cards: near.cards.map(card => ({ ...card, x: onGrid(card.x), y: onGrid(card.y) })),
+      sections: near.sections.map(section => ({ ...section, ...boxOnGrid(section) })),
     },
-    routes: placed.edges ?? new Map(),
   }
-}
-
-/**
- * How far out of line two cards may be before lining them up is a move.
- * Four steps of the grid. Beyond that they were not nearly in line and putting
- * them there is rearranging the board rather than tidying it.
- */
-const NEARLY = 96
-
-/**
- * Nudge two cards a relation joins into line when they nearly are already.
- *
- * A layout places a card by what its own container needed, so a source sitting
- * directly above the concept it introduced comes back a few tens of units out
- * of line. Neither the layout nor the grid puts that right, and the line
- * between them then turns twice to cross those few pixels. Lined up, the line
- * is straight and the board reads as though someone had lined it up.
- *
- * Only a small move, only along the axis the two are not separated on, and
- * only where the card lands clear of every other card and stays on its own
- * ground. Whichever of the two can move does, and if neither can, neither
- * moves and the line turns as it did before.
- */
-function linedUp(
-  cards: readonly Card[],
-  extents: ReadonlyMap<string, LayoutNode>,
-  edges: readonly LayoutEdge[],
-  sections: readonly Section[],
-): Card[] {
-  const at = new Map(cards.map(card => [card.nodeId, { ...card }]))
-  const boxOf = (id: string): Box | undefined => {
-    const card = at.get(id)
-    const size = extents.get(id)
-    return card === undefined || size === undefined
-      ? undefined
-      : { x: card.x, y: card.y, width: size.width, height: size.height }
-  }
-  const clashes = (id: string, box: Box): boolean => [...at.keys()].some((other) => {
-    if (other === id)
-      return false
-    const theirs = boxOf(other)
-    return theirs !== undefined
-      && box.x < theirs.x + theirs.width && box.x + box.width > theirs.x
-      && box.y < theirs.y + theirs.height && box.y + box.height > theirs.y
-  })
-  const strayed = (id: string, box: Box): boolean => {
-    const home = sections.find(one => holds(one, boxOf(id)!))
-    return home !== undefined && !holds(home, box)
-  }
-
-  for (const edge of [...edges].sort((one, other) => one.id.localeCompare(other.id))) {
-    const [one, other] = [boxOf(edge.from), boxOf(edge.to)]
-    if (one === undefined || other === undefined)
-      continue
-    const upright = Math.abs(centreOf(other).y - centreOf(one).y)
-      >= Math.abs(centreOf(other).x - centreOf(one).x)
-    const off = upright
-      ? centreOf(other).x - centreOf(one).x
-      : centreOf(other).y - centreOf(one).y
-    if (off === 0 || Math.abs(off) > NEARLY)
-      continue
-
-    for (const [id, box, by] of [
-      [edge.from, one, off] as const,
-      [edge.to, other, -off] as const,
-    ]) {
-      const moved = upright ? { ...box, x: box.x + by } : { ...box, y: box.y + by }
-      if (clashes(id, moved) || strayed(id, moved))
-        continue
-      at.set(id, { ...at.get(id)!, x: moved.x, y: moved.y })
-      break
-    }
-  }
-  return [...at.values()]
-}
-
-/** Whether a section's bounds hold a box whole. */
-function holds(section: Section, box: Box): boolean {
-  return box.x >= section.x && box.y >= section.y
-    && box.x + box.width <= section.x + section.width
-    && box.y + box.height <= section.y + section.height
-}
-
-function centreOf(box: Box): { x: number, y: number } {
-  return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
-}
-
-/**
- * How far apart two sections' tops may be and still be read as one row.
- * A packing lines a row up on its tallest member, so the rest of the row can
- * sit a little below without having left it.
- */
-const SAME_ROW = 40
-
-/**
- * Move whole sections along their rows so what relates sits nearer.
- *
- * A packing places a section by how well it fills a space, which says nothing
- * about what the section is about. Two sections that talk to each other can
- * end up at opposite ends of the board, and a relation that far apart is too
- * long to be worth drawing, so the board loses it. Where a section sits in its
- * row is free, in exactly the way the order of siblings in a family is free,
- * so it is spent the same way.
- *
- * A card goes wherever the section holding it went, since a section is ground
- * and moving it is moving everything standing on it.
- */
-function shuffledSections(
-  sections: readonly Section[],
-  cards: readonly Card[],
-  edges: readonly LayoutEdge[],
-  sectionOf: (nodeId: string) => string | undefined,
-): { sections: Section[], cards: Card[] } {
-  const between: LayoutEdge[] = edges.flatMap((edge) => {
-    const from = sectionOf(edge.from)
-    const to = sectionOf(edge.to)
-    return from === undefined || to === undefined || from === to
-      ? []
-      : [{ ...edge, from, to }]
-  })
-  if (between.length === 0)
-    return { sections: [...sections], cards: [...cards] }
-
-  const was = new Map(sections.map(section => [section.id, section]))
-  const now = settledByPull(inRows(sections), between, was)
-  const moved = new Map([...now]
-    .map(([id, box]) => [id, box.x - was.get(id)!.x] as const)
-    .filter(([, by]) => by !== 0))
-
-  return {
-    sections: sections.map(section => ({ ...section, x: now.get(section.id)?.x ?? section.x })),
-    cards: cards.map((card) => {
-      const by = moved.get(sectionOf(card.nodeId) ?? '')
-      return by === undefined ? card : { ...card, x: card.x + by }
-    }),
-  }
-}
-
-/** The rows a packing left the sections in, each read from left to right. */
-function inRows(sections: readonly Section[]): string[][] {
-  const rows: Section[][] = []
-  for (const section of [...sections].sort((one, other) => one.y - other.y)) {
-    const row = rows[rows.length - 1]
-    if (row === undefined || section.y - row[0]!.y > SAME_ROW)
-      rows.push([section])
-    else row.push(section)
-  }
-  return rows.map(row => row
-    .sort((one, other) => one.x - other.x)
-    .map(section => section.id))
 }
 
 /**
@@ -369,69 +205,4 @@ function filing(
       filed.set(edge.fromNodeId, new Set(borrowed))
   }
   return filed
-}
-
-/**
- * How far apart siblings sit, which is the same for every pair of them.
- * The step from one to the next is put on the grid here rather than left to be
- * rounded later, since rounding each of them on its own turns one even row
- * into gaps that differ by a rounding.
- */
-const SIBLING_GAP = 56
-
-/**
- * Even out a family after the layout has placed it.
- * A layout spaces siblings by whatever its own placement worked out, so the
- * gaps come back uneven and the parent lands wherever its edges pulled it,
- * which reads as carelessness however sound the reasoning behind it. Siblings
- * on one row are spaced alike and the parent is centred over them.
- */
-function tidied(
-  cards: readonly Card[],
-  partOf: ReadonlyMap<string, string>,
-  extents: ReadonlyMap<string, LayoutNode>,
-  edges: readonly LayoutEdge[],
-): Card[] {
-  const at = new Map(cards.map(card => [card.nodeId, { ...card }]))
-  const boxes = new Map(cards.flatMap((card) => {
-    const size = extents.get(card.nodeId)
-    return size === undefined ? [] : [[card.nodeId, { ...card, width: size.width, height: size.height }] as const]
-  }))
-
-  for (const brood of new Set(partOf.values())) {
-    const parentId = brood.slice(BROOD.length)
-    const members = [...partOf].filter(([, id]) => id === brood).map(([member]) => member)
-    const children = members.filter(member => member !== parentId)
-
-    for (const row of rows(children, at)) {
-      // Which sibling is drawn leftmost says nothing about it, so the order is
-      // spent on putting each of them nearest whatever pulls on it.
-      const pulled = orderedByPull(row, edges, boxes)
-      let left = onGrid(at.get(row[0]!)!.x)
-      for (const childId of pulled) {
-        at.get(childId)!.x = left
-        left += onGrid((extents.get(childId)?.width ?? 0) + SIBLING_GAP)
-      }
-      const last = at.get(pulled[pulled.length - 1]!)!
-      const span = { from: at.get(pulled[0]!)!.x, to: last.x + (extents.get(last.nodeId)?.width ?? 0) }
-      const parent = at.get(parentId)
-      if (parent !== undefined && pulled.length > 0)
-        parent.x = (span.from + span.to) / 2 - (extents.get(parentId)?.width ?? 0) / 2
-    }
-  }
-  return [...at.values()]
-}
-
-/** Siblings sharing a line, since a family too wide for one sits on several. */
-function rows(children: readonly string[], at: ReadonlyMap<string, Card>): string[][] {
-  const byRow = new Map<number, string[]>()
-  for (const childId of children) {
-    const card = at.get(childId)
-    if (card === undefined)
-      continue
-    byRow.set(card.y, [...(byRow.get(card.y) ?? []), childId])
-  }
-  return [...byRow]
-    .sort(([one], [other]) => one - other)
-    .map(([, row]) => row.sort((one, other) => at.get(one)!.x - at.get(other)!.x))
 }

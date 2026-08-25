@@ -1,63 +1,25 @@
-import type { Box, Obstacle, Point, Routed, Routing, RoutingRequest } from './ports.js'
+import { Congestion } from './congestion.js'
+import { centreOf, crossesBox } from './geometry.js'
+import type { Box, LayoutEdge, Obstacle, Point, Routed, Routing, RoutingRequest } from './ports.js'
+import type { Port } from './sides.js'
+import { alignedPlaces, facingPort, keyOf, offMiddle, placesFacing, portsOf, priceOf } from './sides.js'
 
 /** How far a line stays clear of a card it is going round. */
 const CLEARANCE = 20
-/**
- * A bend costs as much as crossing the whole board.
- * Priced against length, a line buys a turn whenever the turn saves more than
- * the turn costs, and on a board of any size that is most of the time. Seven
- * of twenty-one lines turned three or four times, and a reader following one
- * of those has lost it. Priced above any distance there is, a line turns only
- * when it has no way through without turning, so what it costs is worked out
- * from the board rather than written down.
- */
-function bendCost(obstacles: readonly Box[]): number {
-  if (obstacles.length === 0)
-    return 0
-  const width = Math.max(...obstacles.map(box => box.x + box.width)) - Math.min(...obstacles.map(box => box.x))
-  const height = Math.max(...obstacles.map(box => box.y + box.height)) - Math.min(...obstacles.map(box => box.y))
-  return width + height
-}
-/**
- * Running where another line already runs costs this much a unit.
- * Two lines lying on top of each other read as one, and the one underneath is
- * lost entirely. Priced by the length shared rather than as a flat charge, so
- * a line crosses another without hesitating and only avoids keeping it
- * company. Kept well under what a bend costs, so a route does not stagger
- * about to dodge a short overlap.
- */
-const COMPANY_COST = 1.6
-/**
- * Ending where another line already ends costs this much.
- * Enough that a line takes the next place along rather than land on top of
- * another line's end, and little enough that it shares one rather than go the
- * long way round to avoid it. Far below what a turn costs, since two ends
- * meeting at one place is a smaller thing to read past than a turn is.
- */
-const PORT_TAKEN_COST = 140
-
-/**
- * How many places a line may meet a card on each of its sides.
- * A line has to meet a card somewhere a reader can see it meets it, which
- * means square on to a border and not wherever the run between two centres
- * happens to cross one. Three to a side is enough for any card on a board and
- * few enough that a reader reads them as places rather than as a scatter.
- */
-const PORTS_A_SIDE = 3
 
 /**
  * Lines that go round the cards between their ends.
- * A line drawn straight from one card to another passes under whatever sits
- * between them, and a card is drawn over the lines that reach it, so what a
- * reader sees is an arrow head in open space with nothing attached to it.
+ * A line drawn straight between two cards passes under whatever is between,
+ * and a card is drawn over the lines that reach it,
+ * so what a reader sees is an arrow head in open space, attached to nothing.
  *
  * Where the straight run is clear the two ends are handed back on their own,
- * which is what lets a curve be drawn along it. Where it is not, the way round
- * is the cheapest path across the grid the cards themselves rule, which is how
- * an orthogonal connector is routed. Trying a handful of likely corridors
- * instead was quicker to write and to run, but a board only has to be crowded
- * in one place for none of them to be clear, and the line then took the least
- * bad of them and ran straight through a card.
+ * which is what lets a curve be drawn along it. Where it is not,
+ * the way round is the cheapest path across the grid the cards themselves rule,
+ * which is how an orthogonal connector is routed.
+ * Trying a handful of likely corridors instead was quicker to write and to run,
+ * but a board only has to be crowded in one place for none of them to be clear,
+ * and the line then took the least bad of them and ran straight through a card.
  */
 export function orthogonalRouting(clearance = CLEARANCE): Routing {
   return {
@@ -66,17 +28,48 @@ export function orthogonalRouting(clearance = CLEARANCE): Routing {
   }
 }
 
+/**
+ * What one board charges a line, which is settled before any of them is drawn.
+ * Held together so the prices a route is judged on cannot drift apart,
+ * and so that what a turn is worth follows from the board it is drawn on.
+ */
+interface Tariff {
+  /** What a turn costs, in the units a run is measured in. */
+  readonly turning: number
+  readonly clearance: number
+  readonly congestion: Congestion
+  /** Places on a card that a line already ends at. */
+  readonly endings: Set<string>
+}
+
 function run(request: RoutingRequest, clearance: number): Routed {
   const byId = new Map(request.obstacles.map(box => [box.id, box]))
   const edges = new Map<string, readonly Point[]>()
-  const taken = new Map<string, number>()
-  const used = new Set((request.spoken ?? []).map(keyOf))
+  const tariff: Tariff = {
+    turning: bendCost(request.obstacles),
+    clearance,
+    congestion: new Congestion(),
+    endings: new Set((request.spoken ?? []).map(keyOf)),
+  }
 
-  // Routed in a settled order, since each line is laid out knowing where the
-  // ones before it went, and an order that drifted would move lines about for
-  // no reason a reader could see.
-  const asked = [...request.edges].sort((one, other) => one.id.localeCompare(other.id))
-  const turning = bendCost(request.obstacles)
+  // Routed in a settled order,
+  // since each line is laid out knowing where the ones before it went,
+  // and an order that drifted would move lines about for no visible reason.
+  //
+  // A line whose two cards already face each other place to place goes first.
+  // Places are taken as lines are drawn,
+  // so in name order the first line to want one got it,
+  // however little it gained by it,
+  // and a line that would have run dead straight found the place gone,
+  // and bent instead. Ordered by what the place is worth to the line asking,
+  // that no longer happens, and the order is still settled,
+  // since nothing in it depends on what has been drawn.
+  const claim = (edge: LayoutEdge): number => {
+    const [from, to] = [byId.get(edge.from), byId.get(edge.to)]
+    return from !== undefined && to !== undefined && alignedPlaces(from, to) ? 0 : 1
+  }
+  const asked = [...request.edges].sort((one, other) =>
+    claim(one) - claim(other) || one.id.localeCompare(other.id))
 
   for (const edge of asked) {
     const from = byId.get(edge.from)
@@ -85,94 +78,114 @@ function run(request: RoutingRequest, clearance: number): Routed {
       continue
     const between = request.obstacles.filter(box =>
       box.ground !== true && box.id !== edge.from && box.id !== edge.to)
-    const route = best(from, to, between, clearance, taken, used, turning)
+    const route = best(from, to, between, tariff)
     edges.set(edge.id, route)
-    keep(route, taken)
-    used.add(keyOf(route[0]!)).add(keyOf(route[route.length - 1]!))
+    tariff.congestion.remember(route)
+    tariff.endings.add(keyOf(route[0]!)).add(keyOf(route[route.length - 1]!))
   }
   return { edges }
 }
 
-/** The straight run when it is clear, and the cheapest way round when it is not. */
+/**
+ * A bend costs as much as crossing the whole board. Priced against length,
+ * a line buys a turn whenever the turn saves more than the turn costs,
+ * and on a board of any size that is most of the time.
+ * Seven of twenty-one lines turned three or four times,
+ * and a reader following one of those has lost it.
+ * Priced above any distance there is,
+ * a line turns only when it has no way through without turning,
+ * so what it costs is worked out from the board rather than written down.
+ */
+function bendCost(obstacles: readonly Box[]): number {
+  if (obstacles.length === 0)
+    return 0
+  const width = Math.max(...obstacles.map(box => box.x + box.width)) - Math.min(...obstacles.map(box => box.x))
+  const height = Math.max(...obstacles.map(box => box.y + box.height)) - Math.min(...obstacles.map(box => box.y))
+  return width + height
+}
+
+/** The straight run when it is clear, the cheapest way round when it is not. */
 function best(
   from: Obstacle,
   to: Obstacle,
   between: readonly Obstacle[],
-  clearance: number,
-  taken: ReadonlyMap<string, number>,
-  used: ReadonlySet<string>,
-  turning: number,
+  tariff: Tariff,
 ): readonly Point[] {
-  const square = facingSquare(from, to, used)
-  if (square !== undefined && !between.some(box => crosses(square[0], square[1], box)))
-    return square
+  const unobstructed = (run: readonly Point[]): boolean => !run.some((point, step) =>
+    step > 0 && between.some(box => crossesBox(run[step - 1]!, point, box)))
 
-  const leaves = facingPort(from, centre(to), clearance, used)
-  const arrives = facingPort(to, centre(from), clearance, used)
+  // A run between two places the cards already offer, needing no bend at all,
+  // beats sliding the ends off those places, so it is tried first.
+  const inLine = straightThrough(from, to, tariff)
+  if (inLine !== undefined && unobstructed(inLine))
+    return inLine
+
+  const leaves = facingPort(from, centreOf(to), tariff.clearance, tariff.endings)
+  const arrives = facingPort(to, centreOf(from), tariff.clearance, tariff.endings)
   const straight = clear(leaves, arrives)
-  if (!straight.some((point, index) =>
-    index > 0 && between.some(box => crosses(straight[index - 1]!, point, box)))) {
-    return straight
-  }
 
-  const round = around(from, to, [...between, from, to], clearance, taken, used, turning)
+  if (unobstructed(straight))
+    return straight
+
+  const round = around(from, to, [...between, from, to], tariff)
   return round ?? [leaves.on, arrives.on]
 }
 
 /**
- * One straight run between two cards that face each other across an overlap.
+ * A run needing no bend, between a free place on each card.
  *
- * Two cards a grid step out of line have their middles a grid step apart, and
- * a line between them turns twice to cross those few pixels, which reads as a
- * jog for no reason a reader can see. Both ends slide to one coordinate
- * instead, as near each card's own middle as the overlap allows, and the line
- * is straight.
+ * Card widths divide four ways by the grid,
+ * so a layout that put two cards in line put their places in line as well.
+ * Where such a pair is on offer, the line is dead straight,
+ * and both ends meet a card where a reader expects a line to meet one,
+ * which is better than either bending or sliding off.
  *
- * Only while both ends stay in the middle third of their own side. Slid any
- * further they are no longer meeting the card in the middle, and a board of
- * ends scattered down a side to save a jog is the worse of the two.
+ * Only among the places each side actually offers,
+ * which is its middle until the middle is taken.
+ * A card is not made to give up its middle to straighten a line,
+ * since a lone line entering off the middle reads as a mistake,
+ * and the bend it saved was the smaller thing to read past.
+ *
+ * The pair nearest the two middles wins,
+ * so two cards whose middles agree meet middle to middle.
  */
-function facingSquare(from: Box, to: Box, used: ReadonlySet<string>): [Point, Point] | undefined {
-  const [here, there] = [centre(from), centre(to)]
-  const upright = Math.abs(there.y - here.y) >= Math.abs(there.x - here.x)
-  const span = upright
-    ? [Math.max(from.x, to.x), Math.min(from.x + from.width, to.x + to.width)] as const
-    : [Math.max(from.y, to.y), Math.min(from.y + from.height, to.y + to.height)] as const
-  if (span[0] >= span[1])
-    return undefined
+function straightThrough(from: Box, to: Box, tariff: Tariff): [Point, Point] | undefined {
+  const here = placesFacing(from, centreOf(to), tariff.clearance, tariff.endings)
+  const there = placesFacing(to, centreOf(from), tariff.clearance, tariff.endings)
 
-  const along = upright ? (here.x + there.x) / 2 : (here.y + there.y) / 2
-  if (along < span[0] || along > span[1])
-    return undefined
-  const middling = (box: Box): boolean => (upright
-    ? Math.abs(along - centre(box).x) <= box.width / 6
-    : Math.abs(along - centre(box).y) <= box.height / 6)
-  if (!middling(from) || !middling(to))
-    return undefined
-
-  const below = there.y >= here.y
-  const right = there.x >= here.x
-  const ends: [Point, Point] = upright
-    ? [
-        { x: along, y: below ? from.y + from.height : from.y },
-        { x: along, y: below ? to.y : to.y + to.height },
-      ]
-    : [
-        { x: right ? from.x + from.width : from.x, y: along },
-        { x: right ? to.x : to.x + to.width, y: along },
-      ]
-  // A straight run is worth a nudge off the middle, never another line's end.
-  return ends.some(end => used.has(keyOf(end))) ? undefined : ends
+  let found: [Point, Point] | undefined
+  let nearest = Number.POSITIVE_INFINITY
+  for (const mine of here) {
+    if (tariff.endings.has(keyOf(mine.on)))
+      continue
+    for (const theirs of there) {
+      if (mine.facing !== theirs.facing || tariff.endings.has(keyOf(theirs.on)))
+        continue
+      const lined = mine.facing === 'y'
+        ? mine.on.x === theirs.on.x
+        : mine.on.y === theirs.on.y
+      if (!lined)
+        continue
+      const spent = offMiddle(from, mine) + offMiddle(to, theirs)
+      if (spent < nearest) {
+        nearest = spent
+        found = [mine.on, theirs.on]
+      }
+    }
+  }
+  return found
 }
 
 /**
  * The way between two places when nothing is in between.
- * Two ends given nothing but each other are handed back as they are, and the
- * drawing bows them into an S. That reads as a line only while the two have
- * more room along the way they face than they are offset across it. Given a
- * pair almost stacked on top of each other and facing sideways, the same bow
- * has to turn through most of a right angle within a few pixels of each end,
- * and the line hooks into its own arrow head. Those turn square instead.
+ * Two ends given nothing but each other are handed back as they are,
+ * and the drawing bows them into an S.
+ * It reads as a line only while the two have more room along the way they face,
+ * than they are offset across it.
+ * Given a pair almost stacked on top of each other and facing sideways,
+ * the same bow has to turn through most of a right angle,
+ * within a few pixels of each end, and the line hooks into its own arrow head.
+ * Those turn square instead.
  */
 function clear(leaves: Port, arrives: Port): Point[] {
   const along = leaves.facing === 'x'
@@ -199,154 +212,45 @@ function clear(leaves: Port, arrives: Port): Point[] {
     : [leaves.on, { x: leaves.on.x, y: turn }, { x: arrives.on.x, y: turn }, arrives.on]
 }
 
-interface Port {
-  readonly off: Point
-  readonly on: Point
-  readonly facing: 'x' | 'y'
-}
-
-/**
- * Where a line waits just off each side of a card, and the points on the border
- * it steps in at. Three places to a side, evenly spaced, the middle one first.
- *
- * A line meets a card square on to a border rather than wherever the run
- * between two centres happens to cross one, and several lines reaching the
- * same side are told apart by taking different places on it.
- */
-function sidesOf(box: Box, clearance: number): Port[][] {
-  const along = (span: number, at: number): number => span * (at + 1) / (PORTS_A_SIDE + 1)
-  const middle = (PORTS_A_SIDE - 1) / 2
-  const order = Array.from({ length: PORTS_A_SIDE }, (_, at) => at)
-    .sort((one, other) => Math.abs(one - middle) - Math.abs(other - middle))
-
-  return [
-    order.map((at): Port => {
-      const x = box.x + along(box.width, at)
-      return { off: { x, y: box.y - clearance }, on: { x, y: box.y }, facing: 'y' }
-    }),
-    order.map((at): Port => {
-      const x = box.x + along(box.width, at)
-      return { off: { x, y: box.y + box.height + clearance }, on: { x, y: box.y + box.height }, facing: 'y' }
-    }),
-    order.map((at): Port => {
-      const y = box.y + along(box.height, at)
-      return { off: { x: box.x - clearance, y }, on: { x: box.x, y }, facing: 'x' }
-    }),
-    order.map((at): Port => {
-      const y = box.y + along(box.height, at)
-      return { off: { x: box.x + box.width, y }, on: { x: box.x + box.width, y }, facing: 'x' }
-    }).map(port => ({ ...port, off: { x: box.x + box.width + clearance, y: port.on.y } })),
-  ]
-}
-
-/**
- * What a side offers a line, which is its middle until that is taken.
- * The other two are there to tell lines apart and for nothing else, so they
- * are not offered while the middle is free. Offered alongside it, a line
- * coming down on top of one took it rather than pay the two turns it costs to
- * reach the middle, and a card with one line on a side had it enter at a
- * quarter of the way along for no reason a reader could see.
- */
-function offeredBy(side: readonly Port[], used: ReadonlySet<string>): Port[] {
-  const [middle, ...rest] = side
-  if (middle === undefined || !used.has(keyOf(middle.on)))
-    return middle === undefined ? [] : [middle]
-  const free = rest.filter(port => !used.has(keyOf(port.on)))
-  return free.length > 0 ? free : [...side]
-}
-
-/** Every place a line may take on a card, once the taken ones are accounted for. */
-function portsOf(box: Box, clearance: number, used: ReadonlySet<string>): Port[] {
-  return sidesOf(box, clearance).flatMap(side => offeredBy(side, used))
-}
-
-/** Where a point is, as a key, so two lines can tell they want the same place. */
-function keyOf(point: Point): string {
-  return `${point.x},${point.y}`
-}
-
-/**
- * What a place costs a line beyond the run itself.
- * Nothing, unless every place on its side is taken and it has to share one.
- */
-function priceOf(port: Port, used: ReadonlySet<string>): number {
-  return used.has(keyOf(port.on)) ? PORT_TAKEN_COST : 0
-}
-
-/**
- * The place on the side facing something, which is the middle of it unless
- * that is taken.
- * Which side is settled first, by whichever way the other thing mostly lies,
- * so a line leaves by the face a reader would expect it to. Then the cheapest
- * place on that side, and among places that cost the same the one nearest what
- * the line is reaching for, which is what keeps two lines off the same side
- * from crossing each other on their way out.
- */
-function facingPort(box: Box, towards: Point, clearance: number, used: ReadonlySet<string>): Port {
-  const middle = centre(box)
-  const sideways = Math.abs(towards.x - middle.x) >= Math.abs(towards.y - middle.y)
-  const border = sideways
-    ? (towards.x >= middle.x ? box.x + box.width : box.x)
-    : (towards.y >= middle.y ? box.y + box.height : box.y)
-
-  const reach = (port: Port): number => Math.hypot(port.on.x - towards.x, port.on.y - towards.y)
-  return portsOf(box, clearance, used)
-    .filter(port => (sideways ? port.on.x === border : port.on.y === border))
-    .sort((one, other) =>
-      priceOf(one, used) - priceOf(other, used) || reach(one) - reach(other))[0]!
-}
-
 /**
  * The cheapest way round, along the grid the cards themselves rule.
  *
- * Every card contributes the lines just outside each of its four borders, and
- * the two ends contribute their own centre lines, so anywhere worth turning is
- * a crossing of two of them. That grid is the visibility graph an orthogonal
- * connector is routed on, and the cheapest path across it is found the way any
- * cheapest path is. A step that would run through a card is not offered at
- * all, so no route through one can come back as the least bad.
+ * Every card contributes the lines just outside each of its four borders,
+ * and the two ends contribute their own centre lines,
+ * so anywhere worth turning is a crossing of two of them.
+ * That grid is the visibility graph an orthogonal connector is routed on,
+ * and the cheapest path across it is found the way any cheapest path is.
+ * A step that would run through a card is not offered at all,
+ * so no route through one can come back as the least bad.
  *
- * The two cards at the ends are in the way as much as any other, so the search
- * runs between the points a line waits at off each of their four sides rather
- * than between their centres. Aimed at a centre instead, a route reaches it by
- * tunnelling through the card it belongs to and comes in along the inside of
- * its own target.
+ * The two cards at the ends are in the way as much as any other.
+ * So the search runs between the points a line waits at off their four sides,
+ * rather than between their centres. Aimed at a centre instead,
+ * a route reaches it by tunnelling through the card it belongs to,
+ * and comes in along the inside of its own target.
  */
 function around(
   from: Box,
   to: Box,
   between: readonly Obstacle[],
-  clearance: number,
-  taken: ReadonlyMap<string, number>,
-  used: ReadonlySet<string>,
-  turning: number,
+  tariff: Tariff,
 ): readonly Point[] | undefined {
-  const leaves = portsOf(from, clearance, used)
-  const arrives = portsOf(to, clearance, used)
-  const centres = [centre(from), centre(to)]
-  const waypoints = [...centres, ...[...leaves, ...arrives].map(port => port.off)]
-  const xs = ruled(between, clearance, 'x', waypoints.map(point => point.x))
-  const ys = ruled(between, clearance, 'y', waypoints.map(point => point.y))
+  const leaves = portsOf(from, tariff.clearance, tariff.endings)
+  const arrives = portsOf(to, tariff.clearance, tariff.endings)
+  const waypoints = [centreOf(from), centreOf(to), ...[...leaves, ...arrives].map(port => port.off)]
+  const columns = ruled(between, tariff.clearance, 'x', waypoints.map(point => point.x))
+  const rows = ruled(between, tariff.clearance, 'y', waypoints.map(point => point.y))
 
-  const at = (spot: number): Point => ({ x: xs[spot % xs.length]!, y: ys[Math.floor(spot / xs.length)]! })
-  const spotOf = (point: Point): number => ys.indexOf(point.y) * xs.length + xs.indexOf(point.x)
-  const stepOn = new Map(arrives.map(port => [spotOf(port.off), port]))
-
-  // A state is a place **and the way a line was going when it got there**, not
-  // a place alone. A turn costs what it costs only if the search can tell one
-  // arrival from another, and keeping one direction per place lets a later path
-  // inherit an earlier path's direction and pay nothing for a turn it did make.
-  const wayOf = (state: number): 'x' | 'y' => (state % 2 === 0 ? 'x' : 'y')
-  const spotAt = (state: number): number => (state - (state % 2)) / 2
-  const stateOf = (spot: number, way: 'x' | 'y'): number => spot * 2 + (way === 'x' ? 0 : 1)
+  const crossing = new Crossings(columns, rows)
+  const stepOn = new Map(arrives.map(port => [crossing.spotOf(port.off), port]))
 
   const priced = new Map<number, number>()
   const cameFrom = new Map<number, number>()
   const waiting = new Set<number>()
   const steppedOff = new Map<number, Point>()
   for (const port of leaves) {
-    const state = stateOf(spotOf(port.off), port.facing)
-    const asked = priceOf(port, used)
+    const state = crossing.stateOf(crossing.spotOf(port.off), port.facing)
+    const asked = priceOf(port, tariff.endings)
     if (asked >= (priced.get(state) ?? Number.POSITIVE_INFINITY))
       continue
     priced.set(state, asked)
@@ -362,37 +266,29 @@ function around(
         here = candidate
     }
     waiting.delete(here)
-    if (stepOn.has(spotAt(here))) {
+    if (stepOn.has(crossing.spotAt(here))) {
       last = here
       break
     }
 
-    const spot = spotAt(here)
-    const column = spot % xs.length
-    const row = Math.floor(spot / xs.length)
-    for (const [nextColumn, nextRow] of [
-      [column - 1, row], [column + 1, row], [column, row - 1], [column, row + 1],
-    ] as const) {
-      if (nextColumn < 0 || nextColumn >= xs.length || nextRow < 0 || nextRow >= ys.length)
-        continue
-      const nextSpot = nextRow * xs.length + nextColumn
-      const [one, other] = [at(spot), at(nextSpot)]
-      if (between.some(box => crosses(one, other, box)))
+    const spot = crossing.spotAt(here)
+    for (const [nextSpot, way] of crossing.nextTo(spot)) {
+      const [one, other] = [crossing.at(spot), crossing.at(nextSpot)]
+      if (between.some(box => crossesBox(one, other, box)))
         continue
 
-      const way = nextRow === row ? 'x' : 'y'
       const arriving = stepOn.get(nextSpot)
-      // The step onto the card is charged here rather than left to the end. It
-      // is a turn like any other when the line was not already going that way,
+      // The step onto the card is charged here rather than left to the end.
+      // It is a turn like any other when the line was not going that way,
       // and unpriced it let a route take three turns where two would do.
       const asked = priced.get(here)!
         + Math.abs(other.x - one.x) + Math.abs(other.y - one.y)
-        + (wayOf(here) === way ? 0 : turning)
-        + COMPANY_COST * shared(one, other, taken)
+        + (crossing.wayOf(here) === way ? 0 : tariff.turning)
+        + tariff.congestion.costOf(one, other)
         + (arriving === undefined
           ? 0
-          : priceOf(arriving, used) + (arriving.facing === way ? 0 : turning))
-      const next = stateOf(nextSpot, way)
+          : priceOf(arriving, tariff.endings) + (arriving.facing === way ? 0 : tariff.turning))
+      const next = crossing.stateOf(nextSpot, way)
       if (asked < (priced.get(next) ?? Number.POSITIVE_INFINITY)) {
         priced.set(next, asked)
         cameFrom.set(next, here)
@@ -407,10 +303,69 @@ function around(
   const back: Point[] = []
   let began = last
   for (let state: number | undefined = last; state !== undefined; state = cameFrom.get(state)) {
-    back.push(at(spotAt(state)))
+    back.push(crossing.at(crossing.spotAt(state)))
     began = state
   }
-  return straightened([steppedOff.get(began)!, ...back.reverse(), stepOn.get(spotAt(last))!.on])
+  return straightened([steppedOff.get(began)!, ...back.reverse(), stepOn.get(crossing.spotAt(last))!.on])
+}
+
+/**
+ * The grid a route is searched over, and the states a search may be in on it.
+ *
+ * A state is a place and the way a line was going when it got there,
+ * not a place alone.
+ * A turn costs what it costs only if the search tells arrivals apart.
+ * One direction is kept per place,
+ * or a later path inherits an earlier path's direction,
+ * and pays nothing for a turn it did make.
+ */
+class Crossings {
+  constructor(
+    private readonly columns: readonly number[],
+    private readonly rows: readonly number[],
+  ) {}
+
+  at(spot: number): Point {
+    return {
+      x: this.columns[spot % this.columns.length]!,
+      y: this.rows[Math.floor(spot / this.columns.length)]!,
+    }
+  }
+
+  spotOf(point: Point): number {
+    return this.rows.indexOf(point.y) * this.columns.length + this.columns.indexOf(point.x)
+  }
+
+  stateOf(spot: number, way: 'x' | 'y'): number {
+    return spot * 2 + (way === 'x' ? 0 : 1)
+  }
+
+  spotAt(state: number): number {
+    return (state - (state % 2)) / 2
+  }
+
+  wayOf(state: number): 'x' | 'y' {
+    return state % 2 === 0 ? 'x' : 'y'
+  }
+
+  /** The four places one step away, each with the way a line gets there. */
+  nextTo(spot: number): [number, 'x' | 'y'][] {
+    const column = spot % this.columns.length
+    const row = Math.floor(spot / this.columns.length)
+    const steps: [number, number][] = [
+      [column - 1, row],
+      [column + 1, row],
+      [column, row - 1],
+      [column, row + 1],
+    ]
+    return steps
+      .filter(([nextColumn, nextRow]) => nextColumn >= 0 && nextColumn < this.columns.length
+        && nextRow >= 0 && nextRow < this.rows.length)
+      .map(([nextColumn, nextRow]) => [
+        nextRow * this.columns.length + nextColumn,
+        nextRow === row ? 'x' : 'y',
+      ])
+  }
 }
 
 /** The lines worth turning on, being each card's borders held clear of it. */
@@ -426,54 +381,16 @@ function ruled(
   return [...new Set([...ends, ...skirting])].sort((one, other) => one - other)
 }
 
-/** Drop the points a route only passes through, keeping the ones it turns at. */
+/** Drop the points a route passes through, keep the ones it turns at. */
 function straightened(route: readonly Point[]): Point[] {
   const kept: Point[] = []
-  for (const [index, point] of route.entries()) {
+  for (const [step, point] of route.entries()) {
     const before = kept[kept.length - 1]
-    const after = route[index + 1]
+    const after = route[step + 1]
     const throughout = before !== undefined && after !== undefined
       && ((before.x === point.x && point.x === after.x) || (before.y === point.y && point.y === after.y))
     if (!throughout)
       kept.push(point)
   }
   return kept
-}
-
-/** Remember where a route ran, so the ones after it can keep off. */
-function keep(route: readonly Point[], taken: Map<string, number>): void {
-  for (let index = 1; index < route.length; index += 1) {
-    const one = route[index - 1]!
-    const other = route[index]!
-    const along = one.x === other.x ? `x${one.x}` : one.y === other.y ? `y${one.y}` : undefined
-    if (along !== undefined)
-      taken.set(along, (taken.get(along) ?? 0) + 1)
-  }
-}
-
-/**
- * How much of this step would be spent alongside a line already drawn.
- * Counted by the whole line a run sits on rather than by the stretch of it
- * used, which is coarse and cheap, and enough to send the next line one
- * corridor over instead of straight down the same one.
- */
-function shared(one: Point, other: Point, taken: ReadonlyMap<string, number>): number {
-  const along = one.x === other.x ? `x${one.x}` : `y${one.y}`
-  return (taken.get(along) ?? 0) * (Math.abs(other.x - one.x) + Math.abs(other.y - one.y))
-}
-
-/** Whether a straight run between two points passes through a box. */
-function crosses(one: Point, other: Point, box: Box): boolean {
-  const left = Math.min(one.x, other.x)
-  const right = Math.max(one.x, other.x)
-  const top = Math.min(one.y, other.y)
-  const bottom = Math.max(one.y, other.y)
-  return left < box.x + box.width
-    && right > box.x
-    && top < box.y + box.height
-    && bottom > box.y
-}
-
-function centre(box: Box): Point {
-  return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
 }

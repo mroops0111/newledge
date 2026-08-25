@@ -18,9 +18,9 @@ export const GRID_DEFAULTS: GridOptions = {
 
 /**
  * Rows and columns, in the order the caller handed things over.
- * It reads nothing from the relations, so it says nothing about them, but it
- * needs no dependency and gives the same answer every time, which is what a
- * fallback and a test both want.
+ * It reads nothing from the relations, so it says nothing about them,
+ * but it needs no dependency and gives the same answer every time,
+ * which is what a test wants of the port it measures another placement against.
  */
 export function gridPlacement(options: GridOptions = GRID_DEFAULTS): Placement {
   return {
@@ -61,8 +61,8 @@ function place(request: PlacementRequest, options: GridOptions): Placed {
   return { nodes, groups }
 }
 
-// A group holding one card is drawn one card wide, so its size reads as
-// how much is in it rather than as room left over.
+// A group holding one card is drawn one card wide,
+// so its size reads as how much is in it, rather than as room left over.
 function columnsFor(count: number, options: GridOptions): number {
   return Math.min(options.columns, Math.max(count, 1))
 }
@@ -77,8 +77,9 @@ function extentOf(held: readonly LayoutNode[], options: GridOptions, inset: { he
   }
 }
 
-// One cell fits the largest thing in the group, so a row of cards of
-// different heights still lines up rather than overlapping the row below.
+// One cell fits the largest thing in the group,
+// so a row of cards of different heights still lines up,
+// rather than overlapping the row below.
 function cellOf(held: readonly LayoutNode[]): { width: number, height: number } {
   return {
     width: Math.max(...held.map(node => node.width), 0),

@@ -1,12 +1,16 @@
 import type { Box, Placed, Placement, PlacementRequest, Point } from '@newledge/board-layout'
 import type { ElkExtendedEdge, ElkNode } from 'elkjs/lib/elk-api.js'
+import { SECTION_GAP } from './grid.js'
 import { edgeStyle, nodeStyle } from './boardStyle.js'
 
 const CORE_OPTIONS: Record<string, string> = {
   'elk.algorithm': 'layered',
   'elk.direction': 'DOWN',
-  // The whole point of reaching for ELK, lines bend around cards instead of
-  // running through them, and it hands back where each one bends.
+  // Where the lines will run is not read back,
+  // since a reader moving one card makes every route wrong,
+  // and the board works them out again.
+  // It is set because a layout leaves room between layers,
+  // for the routing it was told to expect.
   'elk.edgeRouting': 'ORTHOGONAL',
   // Each section is laid out on its own and stands as one box to the board.
   // Letting the board place cards across sections lets it interleave them,
@@ -19,48 +23,46 @@ const CORE_OPTIONS: Record<string, string> = {
   'elk.layered.spacing.edgeNodeBetweenLayers': '24',
 }
 
-/**
- * How far apart two sections stand, which is further than two cards do.
- * A section is ground, and two grounds set end to end read as one. The gap is
- * what says where one ends, so it has to be wider than the gaps inside them.
- */
-const SECTION_GAP = '96'
+const BETWEEN_SECTIONS = String(SECTION_GAP)
 
 const BOARD_OPTIONS: Record<string, string> = {
   ...CORE_OPTIONS,
   'elk.padding': '[top=40.0,left=40.0,bottom=40.0,right=40.0]',
-  'elk.spacing.nodeNode': SECTION_GAP,
-  'elk.layered.spacing.nodeNodeBetweenLayers': SECTION_GAP,
-  // Sections with no relation between them are not laid out at all, they are
-  // packed, and packing answers to a spacing of its own. Left at its default
-  // of 20 the board set two sections all but touching however far apart the
-  // layout had been told to keep things.
-  'elk.spacing.componentComponent': SECTION_GAP,
+  'elk.spacing.nodeNode': BETWEEN_SECTIONS,
+  'elk.layered.spacing.nodeNodeBetweenLayers': BETWEEN_SECTIONS,
+  // Sections with no relation between them are not laid out at all,
+  // they are packed, and packing answers to a spacing of its own.
+  // Left at its default of 20 the board set two sections all but touching,
+  // however far apart the layout had been told to keep things.
+  'elk.spacing.componentComponent': BETWEEN_SECTIONS,
 }
 
 /**
  * How much room a group keeps around what it holds.
  * Wider than the clearance a line keeps from a card, and by a whole grid step,
- * since a line going round a card just inside a group runs at exactly the
- * card's border plus that clearance. Set to the same number, that run lands on
- * the group's own border and reads as part of it.
+ * since a line going round a card just inside a group,
+ * runs at exactly the card's border plus that clearance.
+ * Set to the same number,
+ * that run lands on the group's own border and reads as part of it.
  */
 const GROUP_PADDING = 44
 
 /**
- * How many relations a section needs before laying it out in layers is worth it.
- * A layered algorithm exists to make a dense directed graph readable. Given a
- * section with almost nothing to go on it spreads the cards out to fill layers,
- * which reads worse than simply sitting them together. A group that says its
- * order is settled by its relations is laid out in layers whatever this says,
+ * How many relations a section needs before layers are worth laying it out in.
+ * A layered algorithm exists to make a dense directed graph readable.
+ * Given a section with almost nothing to go on,
+ * it spreads the cards out to fill layers,
+ * which reads worse than simply sitting them together.
+ * A group is laid out in layers whatever this says,
+ * once it says its order is settled by its relations,
  * since a hierarchy of two is still a hierarchy.
  */
 const DENSE_ENOUGH = 0.6
 
-// A section lays itself out, and ELK asks each container for its own options
+// A section lays itself out, and ELK asks each container for its own options,
 // rather than reading them off the one above, so they are given again here.
-// What the group asked to keep clear is kept clear at the top, which is where
-// a section carries its name.
+// What the group asked to keep clear is kept clear at the top,
+// which is where a section carries its name.
 function groupOptions(cards: number, relations: number, header: number, ranked: boolean): Record<string, string> {
   const dense = ranked || (cards > 0 && relations / cards >= DENSE_ENOUGH)
   const padding = `[top=${(GROUP_PADDING + header).toFixed(1)},left=${GROUP_PADDING}.0,`
@@ -81,8 +83,9 @@ type ElkFactory = () => Promise<{
 
 /**
  * Placement by the Eclipse Layout Kernel.
- * It is loaded only when a board actually asks for an arrangement, since it is
- * the largest thing the studio depends on and most sessions never need it.
+ * It is loaded only when a board actually asks for an arrangement,
+ * since it is the largest thing the studio depends on,
+ * and most sessions never need it.
  */
 export function elkPlacement(factory: ElkFactory = load): Placement {
   return {
@@ -107,9 +110,10 @@ function write(request: PlacementRequest): ElkNode {
   const loose: ElkNode[] = []
   const groupById = new Map(request.groups.map(group => [group.id, group]))
 
-  // Anything a relation reaches is placed by that relation. What none reaches
-  // is laid down in the order it is handed over, so handing kinds over in
-  // band order is what keeps kinds together, terms first and provenance last.
+  // Anything a relation reaches is placed by that relation.
+  // What none reaches is laid down in the order it is handed over,
+  // so handing kinds over in band order is what keeps kinds together,
+  // terms first and provenance last.
   const banded = [...request.nodes].sort((one, other) =>
     nodeStyle(one.type).band - nodeStyle(other.type).band)
 
@@ -126,25 +130,29 @@ function write(request: PlacementRequest): ElkNode {
 
   /**
    * A relation is laid out by the innermost container that holds both its ends.
-   * Both cards sitting straight in it, and it lays the relation out between
-   * them as it stands. One or both held deeper, and it lays it out between the
-   * groups it can actually see, because a group is opaque from outside and an
-   * edge into a card it hides places nothing. Those are merged, and the more
-   * relations run between two groups the harder it is asked to keep them
-   * together.
+   * Both cards sitting straight in it,
+   * and it lays the relation out between them as it stands.
+   * One or both held deeper,
+   * and it lays it out between the groups it can actually see,
+   * because a group is opaque from outside,
+   * and an edge into a card it hides places nothing. Those are merged,
+   * and the more relations run between two groups,
+   * the harder it is asked to keep them together.
    *
-   * Which container that is has to be worked out rather than taken as the
-   * board, since a group inside a group means the two ends can share one
-   * without sharing the board's own view of them, and a layout handed an edge
-   * between a group and the group holding it will not run at all.
+   * Which container that is has to be worked out rather than assumed,
+   * since a group inside a group means the two ends can share one,
+   * without sharing the board's own view of them,
+   * and a layout will not run at all,
+   * handed an edge between a group and the group holding it.
    *
-   * Only a hierarchy is handed over at all. An edge in a layered layout does
-   * not merely pull its two ends together, it says which of them goes above
-   * the other, and only a hierarchy has an answer. Handed every relation
-   * instead, a board of claims and sources stacked provenance and aboutness
-   * into layers of their own, grew by a quarter in both directions, and ended
-   * up drawing fewer relations than before, because everything it had spread
-   * apart was then too far apart to follow.
+   * Only a hierarchy is handed over at all.
+   * An edge in a layered layout does not merely pull its two ends together,
+   * it says which of them goes above the other,
+   * and only a hierarchy has an answer. Handed every relation instead,
+   * a board of claims and sources stacked provenance and aboutness,
+   * into layers of their own, grew by a quarter in both directions,
+   * and ended up drawing fewer relations than before,
+   * because everything it had spread apart was then too far apart to follow.
    */
   const drawn = new Set(request.nodes.map(node => node.id))
   const within = new Map<string, ElkExtendedEdge[]>()
@@ -189,7 +197,7 @@ function write(request: PlacementRequest): ElkNode {
     crossing.set(key, pair)
   }
 
-  /** How hard a container is asked to keep two of the things it holds together. */
+  /** How hard a container is asked to keep two things it holds together. */
   const merged = (holder: string): ElkExtendedEdge[] => [...crossing]
     .filter(([, pair]) => pair.holder === holder)
     .map(([id, pair]) => ({
@@ -199,9 +207,10 @@ function write(request: PlacementRequest): ElkNode {
       layoutOptions: { 'elk.layered.priority.shortness': String(pair.count) },
     }))
 
-  // A group that holds nothing of its own is still built when another group
-  // sits inside it. Skipped, the board keeps an edge reaching a shape it never
-  // sent, and the layout refuses the graph outright.
+  // A group that holds nothing of its own is still built,
+  // when another group sits inside it. Skipped,
+  // the board keeps an edge reaching a shape it never sent,
+  // and the layout refuses the graph outright.
   const nested = new Map<string, number>()
   for (const group of request.groups) {
     if (group.groupId !== undefined)
@@ -247,32 +256,25 @@ function write(request: PlacementRequest): ElkNode {
   }
 }
 
-/**
- * Read the arrangement back out.
- * ELK gives a child its position within its parent, so a card inside a section
- * is carried out to where the board sees it.
- */
 function read(laid: ElkNode): Placed {
   const nodes = new Map<string, Point>()
   const groups = new Map<string, Box>()
-  const edges = new Map<string, readonly Point[]>()
-  walk(laid, { x: 0, y: 0 }, { nodes, groups, edges })
-  return { nodes, groups, edges }
+  walk(laid, { x: 0, y: 0 }, { nodes, groups })
+  return { nodes, groups }
 }
 
 interface Collected {
   readonly nodes: Map<string, Point>
   readonly groups: Map<string, Box>
-  readonly edges: Map<string, readonly Point[]>
 }
 
 /**
  * Read the arrangement back out.
- * ELK gives a child its position within its parent, and a group may hold
- * another, so everything is carried out to where the board sees it.
+ * ELK gives a child its position within its parent,
+ * and a group may hold another,
+ * so everything is carried out to where the board sees it.
  */
 function walk(container: ElkNode, origin: Point, into: Collected): void {
-  routesOf(container, origin, into.edges)
   for (const child of container.children ?? []) {
     const at = { x: origin.x + (child.x ?? 0), y: origin.y + (child.y ?? 0) }
     if (child.children === undefined || child.children.length === 0) {
@@ -281,15 +283,5 @@ function walk(container: ElkNode, origin: Point, into: Collected): void {
     }
     into.groups.set(child.id, { ...at, width: child.width ?? 0, height: child.height ?? 0 })
     walk(child, at, into)
-  }
-}
-
-function routesOf(container: ElkNode, origin: Point, into: Map<string, readonly Point[]>): void {
-  for (const edge of container.edges ?? []) {
-    const [section] = (edge as ElkExtendedEdge).sections ?? []
-    if (section === undefined)
-      continue
-    const points = [section.startPoint, ...(section.bendPoints ?? []), section.endPoint]
-    into.set(edge.id, points.map(point => ({ x: origin.x + point.x, y: origin.y + point.y })))
   }
 }

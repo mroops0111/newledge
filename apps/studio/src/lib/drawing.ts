@@ -19,8 +19,8 @@ export type Drawable = (edgeId: string) => boolean
 
 /**
  * A relation a card names in words because the board could not draw it.
- * Which end of it the card is matters, since a relation reads one way from one
- * end and the other way from the other.
+ * Which end of it the card is matters,
+ * since a relation reads one way from one end and the other way from the other.
  */
 export interface Note {
   readonly edgeId: string
@@ -38,15 +38,17 @@ export interface DrawnRelations {
 
 /**
  * Which relations the board draws, and between what.
- * An end attaches to the card it names, or to a ground when the node it names
- * is that ground, since a topic is a section and a section is a thing a
- * relation can honestly run between.
+ * An end attaches to the card it names,
+ * or to a ground when the node it names is that ground,
+ * since a topic is a section,
+ * and a section is a thing a relation can honestly run between.
  *
- * A relation that cannot be drawn without a line long enough to be lost is
- * left undrawn, and what it says is not thrown away. The cards at its two ends
- * name each other in words instead. A line summarising several of them between
- * two grounds said only that something was there, which a reader could not act
- * on, while the words say which card and how.
+ * A relation needing a line long enough to be lost is left undrawn,
+ * and what it says is not thrown away.
+ * The cards at its two ends name each other in words instead.
+ * A line summarising several of them between two grounds,
+ * said only that something was there, which a reader could not act on,
+ * while the words say which card and how.
  *
  * A child already names what it hangs off, whatever the board managed to draw,
  * so only the other end of a hierarchy has anything left to say.
@@ -61,8 +63,8 @@ export function drawnRelations(
   const lines: DrawnEdge[] = []
   const notes = new Map<string, Note[]>()
   const noted = (nodeId: string, note: Note): void => {
-    // Only a card can carry a note, and a node the board never drew has
-    // nowhere to put one.
+    // Only a card can carry a note,
+    // and a node the board never drew has nowhere to put one.
     if (endpointOf(nodeId) === nodeId)
       notes.set(nodeId, [...(notes.get(nodeId) ?? []), note])
   }
@@ -72,8 +74,8 @@ export function drawnRelations(
     const [source, target] = [endpointOf(edge.fromNodeId), endpointOf(edge.toNodeId)]
     if (source === undefined || target === undefined)
       continue
-    // A relation whose one end stands on its other says only where a card
-    // already is, which the board said by putting it there.
+    // A relation with one end on its other says only where a card already is,
+    // which the board said by putting it there.
     if (source === target
       || groundOf(edge.fromNodeId) === target
       || groundOf(edge.toNodeId) === source) {
@@ -86,8 +88,8 @@ export function drawnRelations(
         id: edge.id,
         source,
         target,
-        // The line already says what kind of relation it is, so the verb is
-        // spelled out only when a reader has asked about one of its ends.
+        // The line already says what kind of relation it is,
+        // so the verb is spelled out only when a reader asks about an end.
         ...(asked ? { label: edge.type } : {}),
         style,
       })
@@ -117,9 +119,9 @@ export interface DrawnCard {
 }
 
 /**
- * The cards a board can actually draw.
- * A card names a node, so one naming a node the graph no longer holds simply
- * stops being drawn rather than leaving a hole a reader has to clear up.
+ * The cards a board can actually draw. A card names a node,
+ * so one naming a node the graph no longer holds simply stops being drawn,
+ * rather than leaving a hole a reader has to clear up.
  */
 export function drawnCards(board: Board, byId: ReadonlyMap<string, GraphNode>): DrawnCard[] {
   return board.cards.flatMap((card) => {

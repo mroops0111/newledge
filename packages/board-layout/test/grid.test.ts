@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { boxesOverlap } from '../src/geometry.js'
 import { gridPlacement } from '../src/grid.js'
 import type { Box, LayoutNode, PlacementRequest } from '../src/ports.js'
-import { straightRouting } from '../src/straight.js'
 
 function node(id: string, groupId?: string, height = 100): LayoutNode {
   return { id, type: 'Concept', width: 240, height, ...(groupId === undefined ? {} : { groupId }) }
@@ -74,37 +74,9 @@ describe('rows and columns', () => {
   })
 })
 
-describe('a line from the middle of one card to the middle of another', () => {
-  it('runs between the two cards it names', async () => {
-    const routed = await straightRouting().route({
-      obstacles: [
-        { id: 'a', x: 0, y: 0, width: 100, height: 100 },
-        { id: 'b', x: 200, y: 0, width: 100, height: 100 },
-      ],
-      edges: [{ id: 'e1', type: 'uses', from: 'a', to: 'b' }],
-    })
-    expect(routed.edges.get('e1')).toEqual([{ x: 50, y: 50 }, { x: 250, y: 50 }])
-  })
-
-  it('routes nothing for a line whose end is not on the board', async () => {
-    const routed = await straightRouting().route({
-      obstacles: [{ id: 'a', x: 0, y: 0, width: 10, height: 10 }],
-      edges: [{ id: 'e1', type: 'uses', from: 'a', to: 'gone' }],
-    })
-    expect(routed.edges.size).toBe(0)
-  })
-})
-
 function expectNoOverlap(boxes: readonly Box[]): void {
   for (const box of boxes) {
     const others = boxes.filter(candidate => candidate !== box)
-    expect(others.some(other => overlaps(box, other))).toBe(false)
+    expect(others.some(other => boxesOverlap(box, other))).toBe(false)
   }
-}
-
-function overlaps(one: Box, other: Box): boolean {
-  return one.x < other.x + other.width
-    && other.x < one.x + one.width
-    && one.y < other.y + other.height
-    && other.y < one.y + one.height
 }

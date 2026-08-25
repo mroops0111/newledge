@@ -1,17 +1,10 @@
-export interface Point {
-  readonly x: number
-  readonly y: number
-}
-
-export interface Box extends Point {
-  readonly width: number
-  readonly height: number
-}
+import type { Box, Point } from '@newledge/board-layout'
+import { centreOf } from '@newledge/board-layout'
 
 /**
  * How far out a curve reaches before it turns, as a share of the run.
- * A half puts both handles at the middle of the run, which is the furthest
- * either can reach without the curve doubling back on itself.
+ * A half puts both handles at the middle of the run,
+ * which is the furthest either reaches without the curve doubling back.
  */
 const REACH = 0.5
 
@@ -20,21 +13,24 @@ const LEAST_REACH = 30
 
 /**
  * How far it reaches however long the run is.
- * With both ends facing the same way the curve keeps to the box its two ends
- * make and crosses the straight run at the middle whatever it reaches, so the
- * reach is free to be generous. Facing different ways it can swing past an end
- * instead, and this is what stops it from swinging far.
+ * With both ends facing the same way,
+ * the curve keeps to the box its two ends make,
+ * and crosses the straight run at the middle whatever it reaches,
+ * so the reach is free to be generous.
+ * Facing different ways it can swing past an end instead,
+ * and this is what stops it from swinging far.
  */
 const MOST_REACH = 220
 
-/** The axis a line runs along as it leaves a card, set by the border it left by. */
+/** The axis a line runs along as it leaves a card, set by the border. */
 export type Facing = 'x' | 'y'
 
 /**
  * Which way a line runs as it leaves a card at this point.
- * A point on the left or right border is left along x, one on the top or
- * bottom along y. Read from whichever pair of borders the point is nearer,
- * since a point put on a border by an intersection sits exactly on one pair
+ * A point on the left or right border is left along x,
+ * one on the top or bottom along y.
+ * Read from whichever pair of borders the point is nearer,
+ * since a point put on a border by an intersection sits on one pair exactly,
  * and somewhere between the other.
  */
 export function facing(box: Box, at: Point): Facing {
@@ -45,10 +41,10 @@ export function facing(box: Box, at: Point): Facing {
 
 /**
  * Where a line between two cards should leave and arrive.
- * A card is a rectangle, not a point, so a line is anchored where the run
- * between the two centres crosses each border. That is what keeps a line
- * between a card and the one below it short, instead of leaving the bottom of
- * one and travelling round to the top of the other.
+ * A card is a rectangle, not a point,
+ * so a line is anchored where the run between two centres crosses a border.
+ * That is what keeps a line between a card and the one below it short,
+ * instead of leaving the bottom of one and going round to the top of the other.
  */
 export function borderRun(from: Box, to: Box): [Point, Point] {
   const start = centreOf(from)
@@ -57,13 +53,14 @@ export function borderRun(from: Box, to: Box): [Point, Point] {
 }
 
 /**
- * An S between two points, leaving each card square on to the border it crosses.
- * A straight line reads as a diagram and a whiteboard is not one. Bowed
- * sideways instead, a line leaves its card at whatever angle the two centres
- * happen to sit at, and the end it points with arrives across the corner
- * rather than into the card. Leaving square on and turning in the middle is
- * what a reader has seen everywhere else, and it says which border a relation
- * belongs to without anything having to be drawn there.
+ * An S between two points, leaving each card square on to its border.
+ * A straight line reads as a diagram and a whiteboard is not one.
+ * Bowed sideways instead,
+ * a line leaves its card at whatever angle the two centres happen to sit at,
+ * and the end it points with arrives across the corner, not into the card.
+ * Leaving square on and turning in the middle is what a reader sees everywhere,
+ * and it says which border a relation belongs to,
+ * without anything having to be drawn there.
  */
 export function curvePath(from: Point, to: Point, leaves?: Facing, arrives?: Facing): string {
   const dx = to.x - from.x
@@ -82,10 +79,6 @@ export function curvePath(from: Point, to: Point, leaves?: Facing, arrives?: Fac
   return `M ${from.x},${from.y} C ${first.x},${first.y} ${second.x},${second.y} ${to.x},${to.y}`
 }
 
-export function centreOf(box: Box): Point {
-  return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
-}
-
 /** Where the run from a box's centre towards a point leaves the box. */
 function onBorder(box: Box, from: Point, towards: Point): Point {
   const dx = towards.x - from.x
@@ -100,48 +93,17 @@ function onBorder(box: Box, from: Point, towards: Point): Point {
 }
 
 /**
- * How far back from a corner a route starts turning, which is nowhere.
- * A hierarchy is read as a family tree, and a family tree turns square. Rounded
- * off, the same lines read as wiring, and the two runs meeting at a corner stop
- * looking like one run that turned.
+ * An SVG path through the points a router handed back. Corners turn square,
+ * so an orthogonal route reads as a hierarchy rather than as a cable.
+ * Rounded off, the same lines read as wiring,
+ * and the two runs meeting at a corner stop looking like one run that turned.
  */
-const CORNER = 0
-
-/**
- * An SVG path through the points a router handed back.
- * Corners turn square, so an orthogonal route reads as a hierarchy rather than
- * as a cable. A radius can be asked for, and rounds the corner by cutting
- * inside the turn, which is never more than a third of it.
- */
-export function orthogonalPath(points: readonly Point[], radius = CORNER): string {
+export function orthogonalPath(points: readonly Point[]): string {
   const [first, ...rest] = points
   if (first === undefined)
     return ''
-  if (rest.length === 0)
-    return `M ${first.x},${first.y}`
-
-  let path = `M ${first.x},${first.y}`
-  for (let index = 1; index < points.length - 1; index += 1) {
-    const corner = points[index]!
-    if (radius === 0) {
-      path += ` L ${corner.x},${corner.y}`
-      continue
-    }
-    const into = towards(corner, points[index - 1]!, radius)
-    const outOf = towards(corner, points[index + 1]!, radius)
-    path += ` L ${into.x},${into.y} Q ${corner.x},${corner.y} ${outOf.x},${outOf.y}`
-  }
-  const last = points[points.length - 1]!
-  return `${path} L ${last.x},${last.y}`
-}
-
-/** A point short of the corner, so the curve has room without overshooting. */
-function towards(corner: Point, neighbour: Point, radius: number): Point {
-  const dx = neighbour.x - corner.x
-  const dy = neighbour.y - corner.y
-  const length = Math.hypot(dx, dy)
-  if (length === 0)
-    return corner
-  const reach = Math.min(radius, length / 2)
-  return { x: corner.x + (dx / length) * reach, y: corner.y + (dy / length) * reach }
+  return rest.reduce(
+    (path, point) => `${path} L ${point.x},${point.y}`,
+    `M ${first.x},${first.y}`,
+  )
 }

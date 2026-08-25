@@ -1,5 +1,5 @@
 import type { Board, BoardState } from '@newledge/board'
-import { nodeStyle } from './boardStyle.js'
+import { CARD_WIDTH, nodeStyle } from './boardStyle.js'
 import type { GraphNode } from './graph.js'
 
 export interface BoardClientOptions {
@@ -39,15 +39,16 @@ export function createBoardClient(options: BoardClientOptions): BoardClient {
 
 /**
  * The boards a workspace opens on, which are readings of one graph.
- * A board is a view and which kinds it shows is the first thing that makes one
- * view differ from another, so they differ in nothing else. One shows the
- * terms alone and one adds where they came from. Reading them side by side is
- * how a reader finds out which reading their work actually wants.
+ * A board is a view, and which kinds it shows is what makes one differ,
+ * so they differ in nothing else.
+ * One shows the terms alone and one adds where they came from.
+ * Reading them side by side is how a reader finds which one their work wants.
  *
  * Which kinds the second holds is read off the graph rather than written down,
- * so an ontology that grows does not leave a board behind. Left out are the
- * grounds, since a topic is drawn as the section itself, the kinds no board
- * places, and any reading that would come out the same as one already there.
+ * so an ontology that grows does not leave a board behind.
+ * Left out are the grounds, since a topic is drawn as the section itself,
+ * the kinds no board places,
+ * and any reading that would come out the same as one already there.
  */
 export function openingBoards(nodes: readonly GraphNode[]): readonly {
   readonly id: string
@@ -58,9 +59,9 @@ export function openingBoards(nodes: readonly GraphNode[]): readonly {
     .filter(type => nodeStyle(type).placed && !nodeStyle(type).ground)
     .sort((one, other) => nodeStyle(one).band - nodeStyle(other).band || one.localeCompare(other))
 
-  // Only the readings that actually differ. A graph of one kind read three
-  // ways is the same board three times, and a reading with nothing in it says
-  // nothing about the graph it was meant to be a reading of.
+  // Only the readings that actually differ.
+  // A graph of one kind read three ways is the same board three times,
+  // and a reading with nothing in it says nothing about the graph it reads.
   const already = new Set<string>()
   return [
     { id: 'board-terms', name: 'Terms', holds: ['Concept'] },
@@ -75,6 +76,23 @@ export function openingBoards(nodes: readonly GraphNode[]): readonly {
   })
 }
 
+/**
+ * A board a reader asked for, named so they can rename it.
+ * It says nothing about which kinds it holds,
+ * so it opens on whatever the drawing rules find worth placing,
+ * which is the widest reading of the graph and the easiest one to cut down.
+ *
+ * The id is the first one nothing has taken,
+ * so a board added after another was dropped never lands on its name.
+ */
+export function newBoard(state: BoardState): Board {
+  const taken = new Set(state.boards.map(board => board.id))
+  let count = state.boards.length + 1
+  while (taken.has(`board-${count}`))
+    count += 1
+  return { id: `board-${count}`, name: NEW_BOARD_NAME, cards: [], sections: [] }
+}
+
 /** Replace one board within the state, leaving the others as they were. */
 export function withBoard(state: BoardState, board: Board): BoardState {
   const known = state.boards.some(candidate => candidate.id === board.id)
@@ -85,43 +103,35 @@ export function withBoard(state: BoardState, board: Board): BoardState {
   }
 }
 
-const ARRIVAL = { x: 80, y: 120 }
-const SECTION_EXTENT = { width: 420, height: 300 }
+const ARRIVAL = { x: 96, y: 120 }
+/**
+ * How big a section a reader drew is, which is one card with room around it.
+ * A section that could not hold a single card,
+ * would refuse the first thing dragged into it,
+ * and a reader would have to resize before they could file.
+ */
+const SECTION_EXTENT = { width: 576, height: 408 }
 const NEW_SECTION_NAME = 'New section'
-const CARD_EXTENT = { width: 240, height: 120 }
-const CLEAR_OF_EVERYTHING = 60
+const NEW_BOARD_NAME = 'New board'
+const CLEAR_OF_EVERYTHING = 96
 
 /**
  * Where something new can land without covering what is already arranged.
- * A reader put the rest of the board where they meant it to be, so an arrival
- * goes to the side rather than on top of any of it.
+ * A reader put the rest of the board where they meant it to be,
+ * so an arrival goes to the side rather than on top of any of it.
  */
 function clearOfEverything(board: Board): number {
   const rightEdges = [
-    ...board.cards.map(card => card.x + CARD_EXTENT.width),
+    ...board.cards.map(card => card.x + CARD_WIDTH),
     ...board.sections.map(section => section.x + section.width),
   ]
   return Math.max(ARRIVAL.x, ...rightEdges.map(edge => edge + CLEAR_OF_EVERYTHING))
 }
 
 /**
- * Put something a reader chose onto the board.
- * Each arrival widens the board, so the next one lands beside it rather than
- * on top of it, and a reader can see what they just added.
- */
-export function withCard(board: Board, nodeId: string): Board {
-  if (board.cards.some(card => card.nodeId === nodeId))
-    return board
-  return {
-    ...board,
-    cards: [...board.cards, { nodeId, x: clearOfEverything(board), y: ARRIVAL.y }],
-  }
-}
-
-/**
  * Draw a section, named later by whoever drew it.
- * It lands clear of everything already on the board, so a section starts empty
- * and only holds what a reader drags into it.
+ * It lands clear of everything already on the board,
+ * so a section starts empty and only holds what a reader drags into it.
  */
 export function withSection(board: Board): Board {
   const taken = new Set(board.sections.map(section => section.id))

@@ -4,31 +4,34 @@ export interface Pull {
   /**
    * Whether the things being ordered pull on one another as well.
    *
-   * Off by default, since a set being ordered all at once out of nothing has
-   * no positions worth pulling towards, only the arbitrary ones it arrived
-   * with. On when they already sit somewhere and this is one pass of several,
+   * Off by default.
+   * A set ordered out of nothing has no positions worth pulling towards,
+   * only the arbitrary ones it arrived with.
+   * On when they already sit somewhere and this is one pass of several,
    * which is what lets a set that relates mostly to itself settle at all.
    */
   readonly feelEachOther?: boolean
 }
 
 /**
- * Order things whose order carries no meaning by where what they relate to sits.
+ * Order what has no order of its own, by where what it relates to sits.
  *
- * This is the barycentre heuristic, which is what a layered layout uses to
- * reduce crossings between one layer and the next. Give each thing the average
- * position of what it is attached to, then sort by that. It is the standard
- * answer to this exact question, it needs nothing tuned, and it gives the same
- * answer every time.
+ * This is the barycentre heuristic,
+ * which a layered layout uses to reduce crossings between layers.
+ * Give each thing the average position of what it is attached to,
+ * then sort by that. It is the standard answer to this question,
+ * it needs nothing tuned, and it gives the same answer every time.
  *
- * Siblings in a family are interchangeable, because which of them is drawn
- * leftmost says nothing about them. So their order is free, and spending it on
- * putting each of them nearest what it relates to costs the board nothing and
- * shortens every relation that leaves the family.
+ * Siblings in a family are interchangeable,
+ * because which of them is drawn leftmost says nothing about them.
+ * So their order is free.
+ * Spent on putting each of them nearest what it relates to,
+ * that order costs the board nothing,
+ * and shortens every relation that leaves the family.
  *
- * Anything nothing pulls on is given the position it already has, which is the
- * conventional treatment and means a board does not rearrange itself around
- * cards that have no reason to move.
+ * Anything nothing pulls on keeps the position it already has.
+ * That is the conventional treatment,
+ * and it stops a board rearranging itself around cards with no reason to move.
  */
 export function orderedByPull(
   interchangeable: readonly string[],

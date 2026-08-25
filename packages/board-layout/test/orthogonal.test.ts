@@ -34,8 +34,9 @@ describe('going round what is in the way', () => {
     expect(routed.edges.get('a-b')).toHaveLength(2)
   })
 
-  // A card is drawn over the lines that reach it, so a line through one is a
-  // line a reader cannot see, which is what left an arrow head in open space.
+  // A card is drawn over the lines that reach it,
+  // so a line through one is a line a reader cannot see,
+  // which is what left an arrow head in open space.
   it('goes round a card sitting between the two ends', async () => {
     const between = card('mid', 500, 0)
     const routed = await orthogonalRouting().route({
@@ -108,10 +109,10 @@ describe('going round what is in the way', () => {
 })
 
 describe('where a line meets the card it belongs to', () => {
-  // Three places to a side, evenly spaced. Left to meet a card wherever the
-  // run between two centres happened to cross its border, a line arrived at a
-  // different height for every card it came from, and a reader saw a scatter
-  // of ends down a side rather than places a line can be at.
+  // Three places to a side, evenly spaced.
+  // Left to meet a card wherever the run between two centres crossed it,
+  // a line arrived at a different height for every card it came from,
+  // and a reader saw a scatter of ends down a side, not places to be at.
   it('meets each card in the middle of the side facing the other', async () => {
     const routed = await orthogonalRouting().route({
       edges: [{ id: 'across', type: 'uses', from: 'left', to: 'right' }],
@@ -125,8 +126,9 @@ describe('where a line meets the card it belongs to', () => {
     expect(points[points.length - 1]).toEqual({ x: 400, y: 250 })
   })
 
-  // The other two are only there to tell lines apart, so nothing takes one
-  // while the middle is free, however much nearer it looks.
+  // The other two are only there to tell lines apart,
+  // so nothing takes one while the middle is free,
+  // however much nearer it looks.
   it('keeps to the middle even when another place is nearer what it reaches for', async () => {
     const routed = await orthogonalRouting().route({
       edges: [{ id: 'down', type: 'uses', from: 'here', to: 'well below' }],
@@ -186,9 +188,10 @@ describe('where a line meets the card it belongs to', () => {
 })
 
 describe('a board crowded enough that no obvious corridor is clear', () => {
-  // Every likely way round is blocked by something, so a router that tries a
-  // handful of corridors and keeps the cheapest keeps one that goes through a
-  // card. There is a way round, and it takes two turns to find.
+  // Every likely way round is blocked by something,
+  // so a router that tries a handful of corridors and keeps the cheapest,
+  // keeps one that goes through a card. There is a way round,
+  // and it takes two turns to find.
   const boxed = [
     { id: 'below', x: 400, y: 800, width: 400, height: 100 },
     { id: 'above', x: 400, y: 0, width: 400, height: 100 },
@@ -223,8 +226,9 @@ describe('a board crowded enough that no obvious corridor is clear', () => {
 })
 
 describe('two lines that would run down the same corridor', () => {
-  // Lying on top of each other they read as one line, and the one underneath
-  // is lost. Neither is wrong on its own, so the second is asked to move.
+  // Lying on top of each other they read as one line,
+  // and the one underneath is lost. Neither is wrong on its own,
+  // so the second is asked to move.
   const stacked = [
     { id: 'wall', x: 300, y: 200, width: 200, height: 400 },
     { id: 'oneStart', x: 0, y: 0, width: 100, height: 100 },
@@ -257,9 +261,10 @@ function through(one: { x: number, y: number }, other: { x: number, y: number },
 }
 
 describe('the cards a line belongs to are in its way as much as any other', () => {
-  // Aimed at the target's centre, a route reaches it by tunnelling through the
-  // card and comes in along the inside of its own target, which is drawn over
-  // the line, so the last stretch of it is not there.
+  // Aimed at the target's centre,
+  // a route reaches it by tunnelling through the card,
+  // and comes in along the inside of its own target,
+  // which is drawn over the line, so the last stretch of it is not there.
   it('never runs inside either of the cards it joins', async () => {
     const boxes = [
       { id: 'below', x: 500, y: 900, width: 400, height: 150 },
@@ -297,9 +302,10 @@ describe('the cards a line belongs to are in its way as much as any other', () =
 })
 
 describe('ground a line may run over', () => {
-  // A group is drawn under everything, so a line crossing one is in no danger
-  // of being hidden by it. Told to avoid one, a line on a board whose groups
-  // fill it finds no way through at all.
+  // A group is drawn under everything,
+  // so a line crossing one is in no danger of being hidden by it.
+  // Told to avoid one,
+  // a line on a board whose groups fill it finds no way through at all.
   it('runs straight over a group rather than round it', async () => {
     const routed = await orthogonalRouting().route({
       edges: [{ id: 'over', type: 'uses', from: 'here', to: 'there' }],
@@ -314,10 +320,10 @@ describe('ground a line may run over', () => {
 })
 
 describe('when a clear run is drawn as a curve and when it turns square', () => {
-  // A curve reads as one only while the two ends have more room along the way
-  // they face than they are offset across it. Almost stacked and facing
-  // sideways, the same curve turns through most of a right angle within a few
-  // pixels of each end and hooks into its own arrow head.
+  // A curve needs more room along the way its ends face than across it.
+  // Almost stacked and facing sideways,
+  // the same curve turns through most of a right angle at each end,
+  // and hooks into its own arrow head.
   async function between(here: Box, there: Box): Promise<readonly { x: number, y: number }[]> {
     const routed = await orthogonalRouting().route({
       edges: [{ id: 'run', type: 'uses', from: 'here', to: 'there' }],
@@ -333,8 +339,8 @@ describe('when a clear run is drawn as a curve and when it turns square', () => 
     )).toHaveLength(2)
   })
 
-  // Side by side, so both face sideways, but their facing borders are 80
-  // apart with 214 of climb between them.
+  // Side by side, so both face sideways,
+  // but their facing borders are 80 apart with 214 of climb between them.
   it('turns square when the offset across is the larger of the two', async () => {
     const run = await between(
       { x: 1080, y: 840, width: 400, height: 133 },
@@ -358,9 +364,10 @@ describe('when a clear run is drawn as a curve and when it turns square', () => 
 })
 
 describe('a side offers its middle until that is taken', () => {
-  // Offered the other two alongside it, a line coming down on top of one took
-  // it rather than pay the two turns it costs to reach the middle, and a card
-  // with a single line on a side had it enter a quarter of the way along.
+  // Offered the other two alongside it,
+  // a line coming down on top of one took it,
+  // rather than pay the two turns it costs to reach the middle,
+  // and a card with one line on a side had it enter a quarter along.
   it('meets the middle even when a line arrives straight above another place', async () => {
     const routed = await orthogonalRouting().route({
       edges: [{ id: 'down', type: 'uses', from: 'above', to: 'wide' }],
@@ -394,10 +401,11 @@ describe('a side offers its middle until that is taken', () => {
 })
 
 describe('how often a line turns', () => {
-  // A turn costs more than crossing the whole board, so a line turns only when
-  // it has no way through without turning. Priced against length instead, it
-  // buys a turn whenever the turn saves more than the turn costs, which on a
-  // board of any size is most of the time.
+  // A turn costs more than crossing the whole board,
+  // so a line turns only when it has no way through without turning.
+  // Priced against length instead,
+  // it buys a turn whenever the turn saves more than the turn costs,
+  // which on a board of any size is most of the time.
   function turns(run: readonly { x: number, y: number }[]): number {
     let count = 0
     for (let index = 2; index < run.length; index += 1) {
@@ -438,52 +446,10 @@ describe('how often a line turns', () => {
   })
 })
 
-describe('two cards that face each other across an overlap', () => {
-  // Two cards a grid step out of line have their middles a grid step apart,
-  // and a line between them turns twice to cross those few pixels.
-  it('runs straight, sliding both ends to the one coordinate', async () => {
-    const routed = await orthogonalRouting().route({
-      edges: [{ id: 'down', type: 'uses', from: 'above', to: 'below' }],
-      obstacles: [
-        { id: 'above', x: 0, y: 0, width: 400, height: 100 },
-        { id: 'below', x: 24, y: 400, width: 400, height: 100 },
-      ],
-    })
-    expect(routed.edges.get('down')).toEqual([{ x: 212, y: 100 }, { x: 212, y: 400 }])
-  })
-
-  // Slid any further the ends are no longer meeting the card in the middle,
-  // and a board of ends scattered down a side to save a jog is the worse one.
-  it('will not slide past the middle third of either side', async () => {
-    const routed = await orthogonalRouting().route({
-      edges: [{ id: 'down', type: 'uses', from: 'above', to: 'below' }],
-      obstacles: [
-        { id: 'above', x: 0, y: 0, width: 400, height: 100 },
-        { id: 'below', x: 340, y: 400, width: 400, height: 100 },
-      ],
-    })
-    expect(routed.edges.get('down')!.length).toBeGreaterThan(2)
-  })
-
-  it('gives up the straight run rather than take an end another line has', async () => {
-    const routed = await orthogonalRouting().route({
-      edges: [
-        { id: 'first', type: 'uses', from: 'above', to: 'below' },
-        { id: 'second', type: 'uses', from: 'beside', to: 'below' },
-      ],
-      obstacles: [
-        { id: 'above', x: 0, y: 0, width: 400, height: 100 },
-        { id: 'beside', x: 0, y: 0, width: 400, height: 100 },
-        { id: 'below', x: 0, y: 400, width: 400, height: 100 },
-      ],
-    })
-    expect(routed.edges.get('first')![0]).not.toEqual(routed.edges.get('second')![0])
-  })
-})
-
 describe('places that lines drawn some other way already end at', () => {
-  // A board may draw some of its relations itself. Those ends are as taken as
-  // any the router placed, and left unsaid a routed line lands on one of them
+  // A board may draw some of its relations itself.
+  // Those ends are as taken as any the router placed,
+  // and left unsaid a routed line lands on one of them,
   // and the two run along together as one.
   it('keeps off an end the board says is already spoken for', async () => {
     const obstacles = [
@@ -501,5 +467,47 @@ describe('places that lines drawn some other way already end at', () => {
       spoken: [taken],
     })
     expect(after.edges.get('down')![0]).not.toEqual(taken)
+  })
+})
+
+describe('places that already face each other', () => {
+  // Card widths divide four ways by the grid,
+  // so a layout that put two cards in line put their places in line too,
+  // and the line needs no bend at all.
+  it('runs place to place rather than sliding the ends off them', async () => {
+    const routed = await orthogonalRouting().route({
+      edges: [{ id: 'down', type: 'uses', from: 'above', to: 'below' }],
+      obstacles: [
+        { id: 'above', x: 0, y: 0, width: 480, height: 100 },
+        { id: 'below', x: 120, y: 400, width: 480, height: 100 },
+      ],
+      // A family trunk already meets the lower card at its middle, 360.
+      spoken: [{ x: 360, y: 400 }],
+    })
+    // The upper card keeps its middle at 240,
+    // and the lower card offers its quarter at 240,
+    // so the run is straight and neither end has slid.
+    expect(routed.edges.get('down')).toEqual([{ x: 240, y: 100 }, { x: 240, y: 400 }])
+  })
+
+  // Places are taken as lines are drawn,
+  // so in name order the first line to want one got it,
+  // however little it gained,
+  // and a line that would have run dead straight found it gone.
+  it('gives a place to the line that can run straight through it', async () => {
+    const routed = await orthogonalRouting().route({
+      edges: [
+        { id: 'a-bent', type: 'uses', from: 'askew', to: 'target' },
+        { id: 'b-straight', type: 'uses', from: 'inLine', to: 'target' },
+      ],
+      obstacles: [
+        { id: 'target', x: 0, y: 0, width: 480, height: 100 },
+        { id: 'askew', x: 700, y: 400, width: 480, height: 100 },
+        { id: 'inLine', x: 0, y: 400, width: 480, height: 100 },
+      ],
+    })
+    const straight = routed.edges.get('b-straight')!
+    expect(straight[0]!.x).toBe(straight[straight.length - 1]!.x)
+    expect(routed.edges.get('a-bent')![0]!.x).not.toBe(straight[0]!.x)
   })
 })

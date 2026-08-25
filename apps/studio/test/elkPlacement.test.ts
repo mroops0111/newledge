@@ -68,11 +68,11 @@ describe('handing a board to the layout kernel', () => {
     expect(sent[0]?.layoutOptions?.['elk.hierarchyHandling']).toBe('SEPARATE_CHILDREN')
   })
 
-  // An edge in a layered layout does not merely pull its two ends together, it
-  // says which of them goes above the other, and only a hierarchy has an
-  // answer. Handed every relation instead, the board grew by a quarter in both
-  // directions and drew fewer relations than before, because everything it had
-  // spread apart was then too far apart to follow.
+  // An edge in a layered layout does not merely pull its two ends together,
+  // it says which of them goes above the other,
+  // and only a hierarchy has an answer. Handed every relation instead,
+  // the board grew by a quarter both ways and drew fewer relations than before,
+  // because everything it had spread apart was then too far apart to follow.
   it('shapes the board by a hierarchy and by nothing else', async () => {
     const { sent, place } = asked()
     await place({
@@ -121,9 +121,9 @@ describe('handing a board to the layout kernel', () => {
     expect(section?.layoutOptions?.['elk.edgeRouting']).toBe('ORTHOGONAL')
   })
 
-  // A layered layout has nothing to go on in a section with almost no
-  // relations, and spreads the cards out to fill layers rather than sitting
-  // them together, which is what made a small board look empty.
+  // A layered layout has nothing to go on in a section with few relations,
+  // and spreads the cards out to fill layers rather than sitting them together,
+  // which is what made a small board look empty.
   it('sits a sparse section together instead of laying it out in layers', async () => {
     const { sent, place } = asked()
     await place({
@@ -169,14 +169,6 @@ describe('handing a board to the layout kernel', () => {
     expect(rag).toEqual({ x: group.x + 20, y: group.y })
   })
 
-  it('reads back where each line starts, bends, and ends', async () => {
-    const placed = await asked().place({
-      ...request,
-      edges: [{ id: 'e1', type: 'contains', from: 'rag', to: 'faster' }],
-    })
-    expect(placed.edges?.get('e1')).toEqual([{ x: 1, y: 2 }, { x: 3, y: 4 }])
-  })
-
   it('hands a relation to whichever container can see both of its ends', async () => {
     const { sent, place } = asked()
     await place({
@@ -190,23 +182,12 @@ describe('handing a board to the layout kernel', () => {
     expect(section?.edges?.map(one => one.id)).toEqual(['inside'])
     expect(sent[0]?.edges?.[0]?.sources).toEqual(['g1'])
   })
-
-  it('carries a line drawn inside a section out to where the board sees it', async () => {
-    const placed = await asked().place({
-      ...request,
-      edges: [{ id: 'inside', type: 'contains', from: 'rag', to: 'faster' }],
-    })
-    const group = placed.groups.get('g1')!
-    expect(placed.edges?.get('inside')).toEqual([
-      { x: group.x + 1, y: group.y + 2 },
-      { x: group.x + 3, y: group.y + 4 },
-    ])
-  })
 })
 
 describe('keeping grounds that are related together', () => {
-  // A group is opaque to the board, so an edge into a card inside one places
-  // nothing. Merged onto the groups, it asks the board to keep them near.
+  // A group is opaque to the board,
+  // so an edge into a card inside one places nothing. Merged onto the groups,
+  // it asks the board to keep them near.
   it('lays a relation that crosses groups out between the groups themselves', async () => {
     const { sent, place } = asked()
     await place({
@@ -240,9 +221,10 @@ describe('keeping grounds that are related together', () => {
 })
 
 describe('which container lays out a relation', () => {
-  // A group inside a group means two ends can share a container without the
-  // board seeing either of them, and a layout handed an edge between a group
-  // and the group holding it refuses to run at all.
+  // A group inside a group means two ends can share a container,
+  // without the board seeing either of them,
+  // and a layout handed an edge between a group and the group holding it,
+  // refuses to run at all.
   const nested: PlacementRequest = {
     nodes: [
       { id: 'whole', type: 'Concept', width: 240, height: 100, groupId: 'brood' },
@@ -270,8 +252,8 @@ describe('which container lays out a relation', () => {
     expect(laidBy(sent, 'inside')).toEqual(['brood:inside'])
   })
 
-  // Merged rather than kept whole, since the group is opaque from outside and
-  // an edge into a card it hides places nothing.
+  // Merged rather than kept whole, since the group is opaque from outside,
+  // and an edge into a card it hides places nothing.
   it('gives one that leaves a nested group to the group holding both', async () => {
     const { sent, place } = asked()
     await place(nested)
@@ -290,8 +272,9 @@ describe('which container lays out a relation', () => {
 })
 
 describe('a group that holds nothing of its own', () => {
-  // Skipped for having no cards directly in it, the board keeps an edge
-  // reaching a shape it never sent, and the layout refuses the graph outright.
+  // Skipped for having no cards directly in it,
+  // the board keeps an edge reaching a shape it never sent,
+  // and the layout refuses the graph outright.
   const emptied: PlacementRequest = {
     nodes: [
       { id: 'whole', type: 'Concept', width: 240, height: 100, groupId: 'brood' },

@@ -1,6 +1,6 @@
 import { getViewportForBounds, useReactFlow, useStore } from '@xyflow/react'
 import { useCallback, useEffect, useRef } from 'react'
-import type { Box } from '../lib/path.js'
+import type { Box } from '@newledge/board-layout'
 import { GLYPHS, Toolkit } from './Toolkit.js'
 
 const PADDING = '8%'
@@ -12,8 +12,8 @@ export interface BoardToolsProps {
   readonly extent: readonly Box[]
   /**
    * Whether the browser has laid the cards out yet.
-   * A board has its sections sized before a single card has been measured, so
-   * asking the extent alone would fit to the sections and stop there.
+   * A board has its sections sized before a single card has been measured,
+   * so asking the extent alone would fit to the sections and stop there.
    */
   readonly laidOut: boolean
   readonly onAddSection: () => void
@@ -24,17 +24,17 @@ export interface BoardToolsProps {
   readonly canFocus: boolean
   /**
    * Kept in step with how far the board is zoomed.
-   * Snapping is judged in screen pixels, and only something inside the canvas
-   * can say what a screen pixel is worth in board units.
+   * Snapping is judged in screen pixels,
+   * and only something inside the canvas can say what a screen pixel is worth.
    */
   readonly zoom: { current: number }
 }
 
 /**
  * The instruments a reader works a board with.
- * Fitting is worked out from where things are rather than from what the canvas
- * has managed to measure, so it takes the whole board in whether or not every
- * card has been laid out by the browser yet.
+ * Fitting is worked out from where things are,
+ * rather than from what the canvas has managed to measure,
+ * so it takes the whole board in whether or not every card is drawn yet.
  */
 export function BoardTools({ extent, laidOut, onAddSection, onRearrange, onFocus, focused, canFocus, zoom }: BoardToolsProps): React.JSX.Element {
   const flow = useReactFlow()
@@ -51,9 +51,10 @@ export function BoardTools({ extent, laidOut, onAddSection, onRearrange, onFocus
     && one.maxZoom === other.maxZoom)
   zoom.current = flow.getZoom()
 
-  // Fitted by hand rather than by fitBounds, which takes one padding for all
-  // four sides. The rail stands over the left of the canvas, so a board fitted
-  // evenly puts its leftmost cards underneath it.
+  // Fitted by hand rather than by fitBounds,
+  // which takes one padding for all four sides.
+  // The rail stands over the left of the canvas,
+  // so a board fitted evenly puts its leftmost cards underneath it.
   const fit = useCallback((duration: number) => {
     const bounds = enclosing(extent)
     if (bounds === undefined || canvas.width === 0)
@@ -68,9 +69,9 @@ export function BoardTools({ extent, laidOut, onAddSection, onRearrange, onFocus
     )
   }, [flow, extent, canvas])
 
-  // The first fit waits for the browser to have laid the cards out, since
-  // fitting before that takes in only the sections. It happens once, so a
-  // reader who has moved on is not yanked back.
+  // The first fit waits for the browser to have laid the cards out,
+  // since fitting before that takes in only the sections. It happens once,
+  // so a reader who has moved on is not yanked back.
   useEffect(() => {
     if (fitted.current || !laidOut)
       return
@@ -113,8 +114,8 @@ export function BoardTools({ extent, laidOut, onAddSection, onRearrange, onFocus
 
 /**
  * How much of the canvas the rail covers, plus as much again to sit clear of.
- * The inset the rail keeps from the edge is the same one worth keeping between
- * the rail and the board, so it is read off the rail rather than named twice.
+ * The rail stands off the edge by the same inset it keeps from the board,
+ * so it is read off the rail rather than named twice.
  */
 function behind(rail: HTMLElement | null): number {
   return rail === null ? 0 : rail.offsetLeft * 2 + rail.offsetWidth

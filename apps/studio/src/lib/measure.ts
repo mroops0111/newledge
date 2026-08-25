@@ -1,58 +1,34 @@
 import { nodeStyle } from './boardStyle.js'
-import type { NodeForm } from './boardStyle.js'
 import type { GraphNode } from './graph.js'
 
-const LINE = 20
-/** The row a card gives to each thing it says it hangs off. */
-const LINEAGE_ROW = 22
-const TITLE_ROW = 36
-const PADDING = 22
-const DEFINITION_LINES = 6
-const CLAIM_LINES = { least: 2, most: 10 }
-// A card 400 wide with 14px of padding either side fits about this many
-// characters of reading text per line, which is close enough to lay out with.
-const PER_LINE = 58
+/**
+ * The height of every card, whatever it holds.
+ *
+ * A card is put on the grid by its corner,
+ * but a card as tall as its words lands the places a line may meet it,
+ * between the grid lines, since those sit at a quarter, a half,
+ * and three quarters of a side.
+ * Two cards standing side by side then offer no pair of places,
+ * that a straight run could join, however carefully either is moved,
+ * and the line has to bend to cross a few pixels.
+ *
+ * One height for every card settles that. It divides four ways by the grid,
+ * the way the width does, so every place stands on a grid line,
+ * and two cards the layout put in line are in line by their places as well.
+ *
+ * Tall enough for the longest card the ontology can produce,
+ * which is a concept with its definition clamped to six lines,
+ * and two lineages under it. The room left under a shorter card,
+ * is the price of the board reading as though it were ruled.
+ */
+export const CARD_HEIGHT = 288
 
 /**
- * How tall a card will be before it has been drawn.
- * A layout has to know a size to place anything, and the real one is only
- * known once the browser has laid the text out, so this is the estimate the
- * arrangement is built from. A reader moving a card afterwards uses the real
- * one, since by then the card is on screen.
+ * How big a card is, which is one size for all of them.
+ * A layout has to know a size to place anything,
+ * and a size that waited on the browser would be known too late,
+ * so nothing here reads the words on a card.
  */
-export function cardExtent(node: GraphNode, lineages = 0): { width: number, height: number } {
-  const style = nodeStyle(node.type)
-  return {
-    width: style.cardWidth,
-    height: heightOf(node, style.form) + lineages * LINEAGE_ROW,
-  }
-}
-
-function heightOf(node: GraphNode, form: NodeForm): number {
-  switch (form) {
-    // The title carries the identity, so the definition under it is clamped
-    // and a long one costs no more room than a short one.
-    case 'concept': {
-      const lines = node.description === undefined ? 0 : Math.min(linesFor(node.description), DEFINITION_LINES)
-      return TITLE_ROW + lines * LINE + (lines === 0 ? 0 : PADDING)
-    }
-    // A claim is the sentence, so clipping it destroys the thing itself,
-    // and the card is as tall as saying it takes.
-    case 'claim': {
-      const lines = Math.min(Math.max(linesFor(node.name), CLAIM_LINES.least), CLAIM_LINES.most)
-      return PADDING + lines * LINE
-    }
-    case 'source':
-      return TITLE_ROW + LINE * 2 + PADDING / 2
-    case 'topic':
-      return TITLE_ROW
-    default: {
-      const exhaustive: never = form
-      throw new Error(`Unhandled node form: ${JSON.stringify(exhaustive)}`)
-    }
-  }
-}
-
-function linesFor(text: string): number {
-  return Math.max(1, Math.ceil(text.length / PER_LINE))
+export function cardExtent(node: GraphNode): { width: number, height: number } {
+  return { width: nodeStyle(node.type).cardWidth, height: CARD_HEIGHT }
 }

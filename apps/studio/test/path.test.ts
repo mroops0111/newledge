@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { Point } from '../src/lib/path.js'
+import type { Point } from '@newledge/board-layout'
 import { borderRun, curvePath, facing } from '../src/lib/path.js'
 
-/** The two handles of the drawn cubic, which say which way it leaves each end. */
+/** The two handles of the drawn cubic, saying which way it leaves each end. */
 function handles(path: string): [Point, Point] {
   const drawn = /C ([-\d.]+),([-\d.]+) ([-\d.]+),([-\d.]+)/.exec(path)!
   return [
@@ -49,9 +49,9 @@ describe('the S an association is drawn as', () => {
   })
 
   it('crosses the straight run at the middle, however far it reaches', () => {
-    // Which is why the reach can be generous. A curve that bulges one way and
-    // then the other stays about the line between its ends rather than leaving
-    // the ground a router cleared along that line.
+    // Which is why the reach can be generous.
+    // A curve bulging one way and then the other stays near its own chord,
+    // rather than leaving the ground a router cleared along it.
     const [out, into] = handles(curvePath({ x: 0, y: 0 }, { x: 400, y: 200 }, 'x', 'x'))
     expect((out.x + into.x) / 2).toBeCloseTo(200)
     expect((out.y + into.y) / 2).toBeCloseTo(100)

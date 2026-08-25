@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Box } from '../src/lib/aligning.js'
+import type { Box } from '@newledge/board-layout'
 import { align, TOLERANCE } from '../src/lib/aligning.js'
 
 function box(x: number, y: number, width = 200, height = 100): Box {
@@ -26,8 +26,8 @@ describe('lining one thing up with another', () => {
     expect(lined.at.x).toBe(TOLERANCE + 1)
   })
 
-  // Lining two cards up by their middles is as deliberate as lining them up by
-  // an edge, and a grid can express neither.
+  // Lining two cards up by their middles is as deliberate as by an edge,
+  // and a grid can express neither.
   it('lines middles up, not only edges', () => {
     const lined = align(box(45, 500, 100, 100), [box(0, 0, 200, 100)])
     expect(lined.at.x).toBe(50)
@@ -55,8 +55,8 @@ describe('lining one thing up with another', () => {
     expect(guide?.at).toBe(0)
   })
 
-  // A guide has to reach between the two things it is about, or it says
-  // nothing about which of them was lined up with.
+  // A guide has to reach between the two things it is about,
+  // or it says nothing about which of them was lined up with.
   it('runs the line between the two things it is about', () => {
     const [guide] = align(box(4, 500), [box(0, 0)]).guides
     expect(guide?.from).toBe(0)
@@ -71,8 +71,8 @@ describe('lining one thing up with another', () => {
 })
 
 describe('continuing a rhythm two others have set', () => {
-  // Even spacing is something a reader arranges for deliberately, and no edge
-  // or middle can express it, so it has to be offered on its own.
+  // Even spacing is something a reader arranges for deliberately,
+  // and no edge or middle can express it, so it has to be offered on its own.
   const spaced = [box(0, 0), box(300, 0)]
 
   it('pulls a third onto the gap the first two already set', () => {

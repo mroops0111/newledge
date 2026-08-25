@@ -11,37 +11,31 @@ function node(type: string, name: string, description?: string): {
   return { id: name, type, name, ...(description === undefined ? {} : { description }) }
 }
 
-describe('how tall a card will be', () => {
-  it('grows a claim with the sentence, since clipping one destroys it', () => {
-    const short = cardExtent(node('Claim', 'It is faster'))
-    const long = cardExtent(node('Claim', 'It is faster '.repeat(12)))
-    expect(long.height).toBeGreaterThan(short.height)
+describe('how big a card is', () => {
+  // The places a line may meet a card sit at a quarter, a half,
+  // and three quarters of a side,
+  // so a side the grid does not divide four ways lands them between lines,
+  // and no two cards can be moved into line by the places their line would use.
+  it('divides four ways by the grid, both ways', () => {
+    const card = cardExtent(node('Concept', 'RAG', 'A method.'))
+    expect(card.width % 96).toBe(0)
+    expect(card.height % 96).toBe(0)
   })
 
-  it('costs a concept no more for a long definition than for one that fills the clamp', () => {
+  it('gives every kind the same size, however much it holds', () => {
+    const sizes = ['Concept', 'Claim', 'Source', 'Topic', 'Question']
+      .map(type => `${cardExtent(node(type, 'A name', 'A description.')).width}x${cardExtent(node(type, 'A name', 'A description.')).height}`)
+    expect(new Set(sizes).size).toBe(1)
+  })
+
+  it('costs a concept no more for a long definition than for a short one', () => {
     const wordy = cardExtent(node('Concept', 'RAG', 'Retrieval augmented generation. '.repeat(14)))
     const endless = cardExtent(node('Concept', 'RAG', 'Retrieval augmented generation. '.repeat(90)))
     expect(endless.height).toBe(wordy.height)
   })
 
-  it('costs a concept with no definition less than one with a definition', () => {
-    const bare = cardExtent(node('Concept', 'RAG'))
-    const defined = cardExtent(node('Concept', 'RAG', 'Retrieval augmented generation.'))
-    expect(bare.height).toBeLessThan(defined.height)
-  })
-
-  it('keeps provenance small, so it never competes with a thought', () => {
-    expect(cardExtent(node('Source', 'A paper')).height)
-      .toBeLessThan(cardExtent(node('Concept', 'RAG', 'A method. '.repeat(40))).height)
-  })
-
   it('gives a type the ontology adds a size rather than none', () => {
     expect(cardExtent(node('Question', 'What is this?')).height).toBeGreaterThan(0)
-  })
-
-  it('draws a topic as a heading rather than as a card of substance', () => {
-    expect(cardExtent(node('Topic', 'Retrieval')).height)
-      .toBeLessThan(cardExtent(node('Claim', 'It is faster')).height)
   })
 })
 
@@ -58,21 +52,6 @@ describe('drawing a line along the route it was given', () => {
   it('turns a corner square', () => {
     expect(orthogonalPath([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }]))
       .toBe('M 0,0 L 100,0 L 100,100')
-  })
-
-  it('rounds one off when it is asked to', () => {
-    const path = orthogonalPath([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }], 20)
-    expect(path).toContain('Q 100,0')
-  })
-
-  it('never rounds past the middle of a run that is shorter than the corner', () => {
-    const path = orthogonalPath([{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 4, y: 4 }], 10)
-    expect(path).toContain('L 2,0')
-  })
-
-  it('leaves a corner where it is when a route doubles back on itself', () => {
-    const path = orthogonalPath([{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 10, y: 0 }], 10)
-    expect(path).toContain('Q 0,0')
   })
 })
 
@@ -109,26 +88,10 @@ describe('anchoring a line on a card rather than on a point', () => {
   })
 })
 
-describe('how wide a card is', () => {
-  // A card is a card. A section is sized by what it holds instead, which is a
-  // different mechanism entirely and never reads a width from a type.
-  it('gives every card the same width, whatever kind it is', () => {
-    const widths = ['Concept', 'Claim', 'Source', 'Topic', 'Question']
-      .map(type => cardExtent(node(type, 'A name', 'A description.')).width)
-    expect(new Set(widths).size).toBe(1)
-  })
-
-  it('still lets a kind be its own height, since that is what it holds', () => {
-    const heights = ['Concept', 'Claim', 'Source', 'Topic']
-      .map(type => cardExtent(node(type, 'A name', 'A description.')).height)
-    expect(new Set(heights).size).toBeGreaterThan(1)
-  })
-})
-
 describe('following a route rather than cutting across it', () => {
-  // A route with bends was worked out to go round the cards in between, so
-  // bowing from one end to the other instead runs through them and leaves the
-  // line hidden under one.
+  // A route with bends was worked out to go round the cards in between,
+  // so bowing from end to end instead runs through them,
+  // and leaves the line hidden under one.
   it('keeps every bend a router handed back', () => {
     const path = orthogonalPath([{ x: 0, y: 0 }, { x: 0, y: 50 }, { x: 90, y: 50 }, { x: 90, y: 90 }])
     expect(path).toBe('M 0,0 L 0,50 L 90,50 L 90,90')

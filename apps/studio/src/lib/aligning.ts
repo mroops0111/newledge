@@ -1,14 +1,6 @@
-export interface Point {
-  readonly x: number
-  readonly y: number
-}
+import type { Box, Point } from '@newledge/board-layout'
 
-export interface Box extends Point {
-  readonly width: number
-  readonly height: number
-}
-
-/** A line shown while dragging, saying what the thing being moved lined up with. */
+/** A line shown while dragging, saying what the moving thing lined up with. */
 export interface Guide {
   readonly axis: 'x' | 'y'
   /** Where the line sits on its own axis. */
@@ -17,8 +9,8 @@ export interface Guide {
   readonly from: number
   readonly to: number
   /**
-   * What the line is saying.
-   * An edge two things share, or a gap that now matches another gap.
+   * What the line is saying. An edge two things share,
+   * or a gap that now matches another gap.
    */
   readonly kind: 'edge' | 'gap'
 }
@@ -29,20 +21,22 @@ export interface Alignment {
 }
 
 /**
- * How near an edge has to come, in screen pixels, before it is taken to mean
- * the same line. A reader judges nearness by what they can see, so this is
- * divided by the zoom to reach board units. Measured in board units it would
- * demand pixel precision on a board zoomed out and snap wildly on one zoomed
- * in.
+ * How near an edge has to come, in screen pixels,
+ * before it is taken to mean the same line.
+ * A reader judges nearness by what they can see,
+ * so this is divided by the zoom to reach board units.
+ * Measured in board units it would want pixel precision on a zoomed-out board,
+ * and snap wildly on one zoomed in.
  */
 export const TOLERANCE = 8
 
 /**
  * Pull what is being dragged onto a line something else already sits on.
- * Edges and middles both count, since lining two cards up by their middles is
- * as deliberate a thing to do as lining them up by their left sides. A grid
- * cannot do this, because what a reader wants to line up with is wherever the
- * other card happens to be rather than a multiple of anything.
+ * Edges and middles both count,
+ * since lining two cards up by their middles is deliberate,
+ * just as lining them up by their left sides is. A grid cannot do this,
+ * because what a reader lines up with is wherever the other card happens to be,
+ * rather than a multiple of anything.
  */
 export function align(moving: Box, others: readonly Box[], tolerance = TOLERANCE): Alignment {
   const across = nearest(spans(moving, 'x'), others, 'x', tolerance)
@@ -68,8 +62,8 @@ export function align(moving: Box, others: readonly Box[], tolerance = TOLERANCE
 /**
  * Continue a rhythm two other things have already set.
  * Two cards a gap apart propose a third at the same gap beyond either of them.
- * Even spacing is something a reader arranges for deliberately, and no edge or
- * middle can express it, so it has to be offered on its own.
+ * Even spacing is something a reader arranges for deliberately,
+ * and no edge or middle can express it, so it has to be offered on its own.
  */
 function rhythm(moving: Box, others: readonly Box[], axis: 'x' | 'y', tolerance: number): Match | undefined {
   const length = axis === 'x' ? moving.width : moving.height
@@ -99,7 +93,7 @@ function rhythm(moving: Box, others: readonly Box[], axis: 'x' | 'y', tolerance:
   return best
 }
 
-/** The three lines a box offers on one axis, being its two edges and its middle. */
+/** The three lines a box offers on one axis, its two edges and its middle. */
 function spans(box: Box, axis: 'x' | 'y'): number[] {
   const start = axis === 'x' ? box.x : box.y
   const length = axis === 'x' ? box.width : box.height
@@ -115,8 +109,8 @@ interface Match {
 
 /**
  * The closest line worth snapping to, or nothing when none is close enough.
- * Ties go to the first candidate, so a drag between two equally near lines
- * settles rather than flickering between them.
+ * Ties go to the first candidate,
+ * so a drag between two equally near lines settles rather than flickering.
  */
 function nearest(mine: readonly number[], others: readonly Box[], axis: 'x' | 'y', tolerance: number): Match | undefined {
   let best: Match | undefined

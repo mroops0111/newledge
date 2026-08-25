@@ -2,10 +2,10 @@ import type { Board, BoardState } from '@newledge/board'
 import { describe, expect, it } from 'vitest'
 import {
   createBoardClient,
+  newBoard,
   openingBoards,
   renameSection,
   withBoard,
-  withCard,
   withSection,
 } from '../src/lib/boards.js'
 
@@ -26,25 +26,20 @@ describe('keeping one board among several', () => {
   })
 })
 
-describe('putting something on a board', () => {
-  it('lands an arrival clear of everything already arranged', () => {
-    const arranged = board({
-      cards: [{ nodeId: 'rag', x: 0, y: 0 }],
-      sections: [{ id: 's1', name: 'Basics', x: 0, y: 0, width: 600, height: 200 }],
-    })
-    const [arrival] = withCard(arranged, 'graphRag').cards.slice(-1)
-    expect(arrival!.x).toBeGreaterThan(600)
+describe('a board a reader added', () => {
+  it('takes an id nothing has taken', () => {
+    const state = { boards: [board({ id: 'board-1' }), board({ id: 'board-2' })] }
+    expect(state.boards.some(one => one.id === newBoard(state).id)).toBe(false)
   })
 
-  it('lands a second arrival beside the first, not on top of it', () => {
-    const two = withCard(withCard(board(), 'rag'), 'graphRag')
-    const [first, second] = two.cards
-    expect(second!.x).toBeGreaterThan(first!.x)
+  it('says nothing about which kinds it holds, so it opens on the widest reading', () => {
+    expect(newBoard({ boards: [] }).holds).toBeUndefined()
   })
 
-  it('leaves a board alone when what was chosen is already on it', () => {
-    const once = withCard(board(), 'rag')
-    expect(withCard(once, 'rag')).toBe(once)
+  it('opens empty, for the arrangement to fill', () => {
+    const fresh = newBoard({ boards: [] })
+    expect(fresh.cards).toEqual([])
+    expect(fresh.sections).toEqual([])
   })
 })
 
@@ -136,8 +131,9 @@ describe('the boards a workspace opens on', () => {
     expect(sources!.holds).toEqual(['Concept', 'Source'])
   })
 
-  // A claim is evidence about a concept, read inside the concept rather than
-  // arranged beside it, so no board opens holding one.
+  // A claim is evidence about a concept,
+  // read inside the concept rather than arranged beside it,
+  // so no board opens holding one.
   it('leaves out a kind no board places', () => {
     expect(openingBoards(nodes).flatMap(board => board.holds)).not.toContain('Claim')
   })
