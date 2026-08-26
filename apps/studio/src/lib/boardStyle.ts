@@ -65,6 +65,22 @@ export type EdgeTone = 'structure' | 'quiet' | 'supports' | 'contradicts'
 export const STROKE = 2.25
 
 /**
+ * How far out a canvas has to be before type on it stops being readable.
+ *
+ * A card drawn below this puts its type at a few pixels,
+ * which is not small writing, it is a texture.
+ * A board answers by drawing a card's name and nothing else past here.
+ * A survey answers by not framing itself further out than this to begin with.
+ * Both are answering the same fact about the type.
+ *
+ * Two figures rather than one,
+ * so a canvas held near the line does not strobe between the two,
+ * while a reader is still moving the wheel.
+ */
+export const READABLE = 0.5
+export const READABLE_AGAIN = 0.6
+
+/**
  * How far a mark may be grown to stop the board thinning it away.
  *
  * A card's name is the tightest thing this has to fit,

@@ -2,8 +2,9 @@ import { Handle, Position, useStore } from '@xyflow/react'
 import { useRef } from 'react'
 import type { GraphNode } from '../lib/graph.js'
 import type { NodeForm } from '../lib/boardStyle.js'
-import { growthAt } from '../lib/boardStyle.js'
+import { growthAt, READABLE, READABLE_AGAIN } from '../lib/boardStyle.js'
 import type { Said } from '../lib/kinship.js'
+import { KindBadge } from './KindBadge.js'
 
 export interface BoardCardData {
   readonly node: GraphNode
@@ -24,25 +25,8 @@ export interface BoardCardData {
   [key: string]: unknown
 }
 
-/**
- * How far out the board has to be before a card gives up on being read.
- *
- * A board zoomed to hold all of itself puts a card at a third of its size,
- * and a paragraph set at a third of its size is five pixel type,
- * which is not small writing, it is a texture. Nothing on it can be read,
- * and the space it takes says nothing either.
- *
- * Past this a card says its name and nothing else,
- * at a size that does not change with the board,
- * so a reader looking at the whole of it reads a map of names,
- * rather than squinting at prose. What was on the card is still there,
- * one turn of the wheel away.
- *
- * Two thresholds rather than one.
- * A board held near one line strobes while a reader is still moving the wheel.
- */
-const FAR = 0.5
-const NEAR = 0.6
+const FAR = READABLE
+const NEAR = READABLE_AGAIN
 
 /** How wide the band of family colour down a card's edge is drawn. */
 const FAMILY_BAND = 5
@@ -82,22 +66,11 @@ function nameOnly(node: GraphNode, growth: number): React.JSX.Element {
 }
 
 /**
- * What kind of thing a card is, said in a word. In a colour instead,
- * it would be the third thing colour means on this board,
- * after the family a card is in, and whether a relation agrees or conflicts,
- * so a reader would have to know which of the three a patch of colour meant.
- * The word needs nothing known in advance.
+ * The kind, said only where a board holds more than one.
+ * A board of one kind says it on every card and so says nothing.
  */
 function named(kind: string | undefined): React.JSX.Element | null {
-  if (kind === undefined)
-    return null
-  return (
-    <p className="mb-1">
-      <span className="rounded-full bg-raised px-1.5 py-px font-ui text-label font-semibold uppercase text-ink-subtle">
-        {kind}
-      </span>
-    </p>
-  )
+  return kind === undefined ? null : <p className="mb-1"><KindBadge kind={kind} /></p>
 }
 
 /**

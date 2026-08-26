@@ -1,4 +1,5 @@
 import dagre from '@dagrejs/dagre'
+import { nodeStyle } from './boardStyle.js'
 import type { GraphEdge, GraphNode } from './graph.js'
 
 /** Where one node sits, which is all this layout decides about it. */
@@ -7,39 +8,85 @@ export interface Spot {
   readonly y: number
 }
 
-const NODE_WIDTH = 240
-const NODE_HEIGHT = 96
+/**
+ * How big a card is taken to be while it is being placed.
+ * The height is the taller case,
+ * a card carrying a description as well as a name,
+ * so a line going round one has room even where the card renders short.
+ */
+export const NODE_WIDTH = 200
+export const NODE_HEIGHT = 92
 
 /**
- * Place nodes that have never been placed, and leave the rest where they are.
- * Asking for another relation should not rearrange what is already on screen,
- * so an arrival is laid out around the rest rather than everything anew.
+ * How far apart the layout stands things.
+ * The rank gap is wide enough for a verb to sit in it,
+ * without touching the cards on either side,
+ * since a line is labelled where a reader has asked about it.
+ * The sibling gap is what makes a rank read as a row rather than a wall.
  */
-export function placeArrivals(
+const RANK_GAP = 110
+const SIBLING_GAP = 64
+const EDGE_GAP = 24
+
+/**
+ * Which way round a relation is ranked.
+ *
+ * The ontology writes containment from the container to what it holds,
+ * and filing the other way, from the thing filed to the topic it sits under.
+ * Ranking both as written puts a topic below everything standing on it,
+ * which is the one arrangement a container must never be drawn in.
+ *
+ * So filing alone is turned round,
+ * and every other relation ranks as the graph declares it.
+ * Turning the rest round as well flattens the whole survey onto three ranks,
+ * because most of what a graph holds answers to a source,
+ * and a source is then above all of it.
+ */
+export function ranked(
+  edge: GraphEdge,
+  typeOf: (nodeId: string) => string | undefined,
+): readonly [string, string] {
+  const under = typeOf(edge.toNodeId)
+  return under !== undefined && nodeStyle(under).ground
+    ? [edge.toNodeId, edge.fromNodeId]
+    : [edge.fromNodeId, edge.toNodeId]
+}
+
+/**
+ * Where every node goes, worked out fresh from what is on the canvas.
+ *
+ * A survey is arranged by the machine rather than by a reader,
+ * so there is nothing of theirs to preserve across a change,
+ * and keeping old positions preserves an arrangement of a graph,
+ * that is no longer the one being shown.
+ * Asking for another kind re-reads the whole shape,
+ * which is what a reader asking for it wanted to see.
+ */
+export function laidOut(
   nodes: readonly GraphNode[],
   edges: readonly GraphEdge[],
-  placed: ReadonlyMap<string, Spot>,
 ): ReadonlyMap<string, Spot> {
-  const arrivals = nodes.filter(node => !placed.has(node.id))
-  if (arrivals.length === 0)
-    return placed
-
   const graph = new dagre.graphlib.Graph()
-  graph.setGraph({ rankdir: 'TB', nodesep: 36, ranksep: 64 })
+  graph.setGraph({ rankdir: 'TB', ranksep: RANK_GAP, nodesep: SIBLING_GAP, edgesep: EDGE_GAP })
   graph.setDefaultEdgeLabel(() => ({}))
+  const kind = new Map(nodes.map(node => [node.id, node.type]))
+  const typeOf = (nodeId: string): string | undefined => kind.get(nodeId)
+
   for (const node of nodes)
     graph.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT })
-  for (const edge of edges)
-    graph.setEdge(edge.fromNodeId, edge.toNodeId)
+  for (const edge of edges) {
+    const ends = ranked(edge, typeOf)
+    // A layout throws on a relation reaching a node it was never given.
+    if (graph.node(ends[0]) && graph.node(ends[1]))
+      graph.setEdge(ends[0], ends[1])
+  }
   dagre.layout(graph)
 
-  const next = new Map(placed)
-  for (const node of arrivals) {
+  return new Map(nodes.map((node) => {
     const laid = graph.node(node.id) as { x?: number, y?: number } | undefined
-    next.set(node.id, {
+    return [node.id, {
       x: (laid?.x ?? 0) - NODE_WIDTH / 2,
       y: (laid?.y ?? 0) - NODE_HEIGHT / 2,
-    })
-  }
-  return next
+    }]
+  }))
 }

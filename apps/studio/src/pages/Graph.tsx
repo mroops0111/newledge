@@ -1,12 +1,16 @@
-import type { Edge, Node } from '@xyflow/react'
+import type { Node } from '@xyflow/react'
 import { Background, Controls, ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
+import { nodeStyle } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import type { GraphEdge, GraphNode, GraphView, Ontology } from '../lib/graph.js'
 import { openingView, visibleGraph, withType } from '../lib/graph.js'
-import { placeArrivals } from '../lib/layout.js'
+import { laidOut } from '../lib/layout.js'
 import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
+import { BoardMarkers } from '../ui/BoardMarkers.js'
+import { graphEdges } from '../ui/graphEdges.js'
 import { Inspector } from '../ui/Inspector.js'
 import type { NodeCardData } from '../ui/NodeCard.js'
 import { NodeCard } from '../ui/NodeCard.js'
@@ -15,29 +19,19 @@ import '@xyflow/react/dist/style.css'
 
 const NODE_TYPES = { card: NodeCard }
 
-// A disagreement is drawn as one, so it reads as tension rather than structure.
-const DISPUTED = 'contradicts'
-
 // A type the ontology declares without a colour still has to be drawn.
 const UNTYPED = 'var(--ink-subtle)'
 
-function toFlowEdges(edges: readonly GraphEdge[]): Edge[] {
-  return edges.map((edge) => {
-    const disputed = edge.type === DISPUTED
-    return {
-      id: edge.id,
-      source: edge.fromNodeId,
-      target: edge.toNodeId,
-      label: edge.type,
-      animated: false,
-      style: disputed
-        ? { stroke: 'var(--claim)', strokeDasharray: '4 4' }
-        : { stroke: 'var(--line-strong)' },
-      labelStyle: { fontSize: 11, fill: disputed ? 'var(--claim)' : 'var(--ink-subtle)' },
-      labelBgStyle: { fill: 'var(--canvas)' },
-    }
-  })
-}
+/**
+ * How the graph is framed, on arrival and whenever a reader asks for it.
+ *
+ * Nothing floors how far out this goes.
+ * Fitting is a reader saying show me all of it,
+ * and a fit that stops short of all of it has answered a question nobody asked.
+ * Whether what it frames can then be read is a separate matter,
+ * answered by the wheel, not by refusing to frame.
+ */
+const FRAME = { padding: 0.16 }
 
 /**
  * Frame the graph once its nodes have somewhere to be.
@@ -53,7 +47,7 @@ function FitOnPlacement({ ready }: { ready: boolean }): null {
     framed.current = true
     // The nodes reach the canvas a tick before their positions do,
     // so the frame is taken after the browser has drawn them.
-    const timer = setTimeout(() => flow.fitView({ padding: 0.2, minZoom: 0.55, maxZoom: 1 }), 0)
+    const timer = setTimeout(() => flow.fitView(FRAME), 0)
     return () => clearTimeout(timer)
   }, [ready, flow])
   return null
@@ -71,8 +65,8 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
   const [ontology, setOntology] = useState<Ontology | undefined>(undefined)
   const [graph, setGraph] = useState<{ nodes: readonly GraphNode[], edges: readonly GraphEdge[] }>({ nodes: [], edges: [] })
   const [view, setView] = useState<GraphView | undefined>(undefined)
-  const [placed, setPlaced] = useState<ReadonlyMap<string, { x: number, y: number }>>(new Map())
   const [selected, setSelected] = useState<string | undefined>(undefined)
+  const [focused, setFocused] = useState(false)
   const [error, setError] = useState<string | undefined>(undefined)
 
   useEffect(() => {
@@ -99,19 +93,63 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
     [graph, view],
   )
 
-  useEffect(() => {
-    setPlaced(current => placeArrivals(shown.nodes, shown.edges, current))
-  }, [shown])
+  // Laid out again whenever the canvas gains or loses something,
+  // and not when a node's own contents change,
+  // since a description a reader edited is no reason to move every card.
+  const membership = `${shown.nodes.map(node => node.id).join('|')}#${shown.edges.map(edge => edge.id).join('|')}`
+  const placed = useMemo(() => laidOut(shown.nodes, shown.edges), [membership])
 
-  const flowNodes: Node<NodeCardData>[] = useMemo(() => shown.nodes.map(node => ({
-    id: node.id,
-    type: 'card',
-    position: placed.get(node.id) ?? { x: 0, y: 0 },
-    data: { node, colour: colourOf(node.type), selected: node.id === selected },
-  })), [shown, placed, colourOf, selected])
+  /**
+   * A reader who picked something wants the rest out of the way,
+   * gently while they glance and entirely once they ask to focus.
+   * Coming back is the same gesture undone, so nothing is lost by trying it.
+   */
+  const attention = selected === undefined ? IDLE : { selectedId: selected, focused }
+  const near = useMemo(
+    () => neighbourhood(
+      attention.selectedId,
+      shown.edges.map(edge => ({ id: edge.id, from: edge.fromNodeId, to: edge.toNodeId })),
+    ),
+    [attention.selectedId, shown],
+  )
+
+  const flowNodes: Node<NodeCardData>[] = useMemo(() => shown.nodes.flatMap((node): Node<NodeCardData>[] => {
+    const emphasis = emphasisOf(node.id, near.nodes, attention)
+    if (emphasis === 'gone')
+      return []
+    return [{
+      id: node.id,
+      type: 'card',
+      position: placed.get(node.id) ?? { x: 0, y: 0 },
+      data: {
+        node,
+        colour: colourOf(node.type),
+        selected: node.id === selected,
+        dimmed: emphasis === 'dimmed',
+      },
+    }]
+  }), [shown, placed, colourOf, selected, near, attention])
+
+  const flowEdges = useMemo(
+    () => graphEdges(shown.edges, shown.nodes, near.edges, attention),
+    [shown, near, attention],
+  )
 
   // Fitting before every node has a position frames a canvas at the origin.
   const placedAll = shown.nodes.length > 0 && shown.nodes.every(node => placed.has(node.id))
+
+  /**
+   * The kinds in the order they stand on each other. Ground first,
+   * since it is what the rest sits on,
+   * and then the bands a section is read down: terms,
+   * then what is asserted about them, then where that came from.
+   * Read off the same facts a board arranges by,
+   * so the two surfaces never disagree about which kind comes first.
+   */
+  const kindsInOrder = useMemo(() => [...(ontology?.nodeTypes ?? [])].sort((one, other) => {
+    const [a, b] = [nodeStyle(one.id), nodeStyle(other.id)]
+    return Number(b.ground) - Number(a.ground) || a.band - b.band
+  }), [ontology])
 
   const toggle = useCallback((kind: 'nodeTypes' | 'edgeTypes', id: string) => {
     setView(current => current === undefined ? current : { ...current, [kind]: withType(current[kind], id) })
@@ -139,7 +177,7 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
       <header className="flex flex-wrap items-center gap-x-8 gap-y-3 border-b border-line px-6 py-3">
         <TypeToggles
           label="Nodes"
-          options={ontology.nodeTypes.map(type => ({ id: type.id, colour: type.color ?? undefined }))}
+          options={kindsInOrder.map(type => ({ id: type.id, colour: type.color ?? undefined }))}
           active={view.nodeTypes}
           onToggle={id => toggle('nodeTypes', id)}
         />
@@ -149,19 +187,38 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
           active={view.edgeTypes}
           onToggle={id => toggle('edgeTypes', id)}
         />
+        {/*
+          Offered only once a reader has picked something, since there is
+          nothing to narrow to before that, and a control that does nothing
+          is a question a reader has to answer before they can ignore it.
+        */}
+        {selected !== undefined && (
+          <button
+            type="button"
+            onClick={() => setFocused(now => !now)}
+            className={`ml-auto rounded-control px-2.5 py-1 font-ui text-label transition-colors ${focused
+              ? 'bg-ink text-surface'
+              : 'text-ink-subtle hover:bg-raised hover:text-ink'}`}
+          >
+            {focused ? 'Show the rest' : 'Only this'}
+          </button>
+        )}
       </header>
 
-      <div className="min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1">
+        <BoardMarkers />
         <ReactFlow
           nodes={flowNodes}
-          edges={toFlowEdges(shown.edges)}
+          edges={flowEdges}
           nodeTypes={NODE_TYPES}
           onNodeClick={(_, node) => setSelected(node.id)}
+          onPaneClick={() => { setSelected(undefined); setFocused(false) }}
           fitView
           // A view that fits everything on screen fits nothing legible,
           // so the opening frame stays readable and leaves the rest to pan.
-          fitViewOptions={{ padding: 0.2, minZoom: 0.55, maxZoom: 1 }}
-          minZoom={0.2}
+          fitViewOptions={FRAME}
+          minZoom={0.1}
+          maxZoom={2}
           proOptions={{ hideAttribution: true }}
         >
           <FitOnPlacement ready={placedAll} />

@@ -1,3 +1,5 @@
+import { nodeStyle } from './boardStyle.js'
+
 export interface GraphNode {
   readonly id: string
   readonly type: string
@@ -23,7 +25,7 @@ export interface EdgeTypeDescriptor {
   readonly id: string
 }
 
-/** The type sets an ontology declares, which is what the board draws itself from. */
+/** The type sets an ontology declares, which a view is drawn from. */
 export interface Ontology {
   readonly nodeTypes: readonly NodeTypeDescriptor[]
   readonly edgeTypes: readonly EdgeTypeDescriptor[]
@@ -47,6 +49,12 @@ export interface VisibleGraph {
  * and dropping the relation takes those claims away again.
  * Nothing is special-cased by type, so an ontology can add one and be drawn.
  */
+/** Whether a relation ends on ground, which everything is filed under. */
+function reaches(edge: GraphEdge, byId: ReadonlyMap<string, GraphNode>): boolean {
+  const ends = [byId.get(edge.fromNodeId), byId.get(edge.toNodeId)]
+  return ends.some(node => node !== undefined && nodeStyle(node.type).ground)
+}
+
 export function visibleGraph(graph: VisibleGraph, view: GraphView): VisibleGraph {
   const byId = new Map(graph.nodes.map(node => [node.id, node]))
   const edges = graph.edges.filter(edge =>
@@ -58,7 +66,15 @@ export function visibleGraph(graph: VisibleGraph, view: GraphView): VisibleGraph
     if (view.nodeTypes.has(node.type))
       drawn.add(node.id)
   }
+  // Turning a relation on draws what is at both ends of it,
+  // so a reader asking about disagreement sees the two claims, kinds aside.
+  // Filing is the exception.
+  // Everything a reader has absorbed is filed somewhere,
+  // so filing that reached in would draw the whole graph,
+  // and the kinds would then decide nothing.
   for (const edge of edges) {
+    if (reaches(edge, byId))
+      continue
     drawn.add(edge.fromNodeId)
     drawn.add(edge.toNodeId)
   }
@@ -67,7 +83,8 @@ export function visibleGraph(graph: VisibleGraph, view: GraphView): VisibleGraph
 }
 
 /**
- * The view a reader starts from, read off the ontology rather than written here.
+ * The view a reader starts from,
+ * read off the ontology rather than written here.
  * Concepts and the themes they sit under carry the shape of the graph.
  * Contradictions come too, since a disagreement is the reason to look.
  * Everything else is a toggle away.

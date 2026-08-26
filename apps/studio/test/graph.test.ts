@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GraphEdge, GraphNode, Ontology } from '../src/lib/graph.js'
 import { openingView, visibleGraph, withType } from '../src/lib/graph.js'
-import { placeArrivals } from '../src/lib/layout.js'
+import { laidOut } from '../src/lib/layout.js'
 
 function node(id: string, type: string): GraphNode {
   return { id, type, name: id }
@@ -58,9 +58,21 @@ describe('visibleGraph', () => {
     expect(shown.edges.map(e => e.id).sort()).toEqual(['e1', 'e2', 'e3'])
   })
 
+  it('draws filing without letting it reach in for what is filed', () => {
+    const view = openingView(ontology)
+    expect(view.edgeTypes.has('belongsTo')).toBe(true)
+
+    // `rag` is filed under `retrieval` and both are on, so the line is drawn.
+    // No claim arrives with it, though every claim is filed somewhere too.
+    const shown = visibleGraph(graph, view)
+    expect(shown.edges.map(e => e.id)).toContain('e2')
+    expect(shown.nodes.map(n => n.id)).not.toContain('unrelated')
+  })
+
   it('brings a claim in dispute along with the disagreement', () => {
     const shown = visibleGraph(graph, openingView(ontology))
-    // `faster` is reached by the contradiction, `unrelated` is not reached at all.
+    // `faster` is reached by the contradiction,
+    // `unrelated` is not reached at all.
     expect(shown.nodes.map(n => n.id)).toContain('faster')
     expect(shown.nodes.map(n => n.id)).toContain('slower')
     expect(shown.nodes.map(n => n.id)).not.toContain('unrelated')
@@ -109,23 +121,33 @@ describe('withType', () => {
   })
 })
 
-describe('placeArrivals', () => {
-  it('places a node that has never been placed', () => {
-    const placed = placeArrivals([node('a', 'Concept'), node('b', 'Concept')], [edge('e', 'extends', 'a', 'b')], new Map())
+describe('laidOut', () => {
+  it('gives every node a place', () => {
+    const placed = laidOut(
+      [node('a', 'Concept'), node('b', 'Concept')],
+      [edge('e', 'extends', 'a', 'b')],
+    )
     expect(placed.size).toBe(2)
     expect(placed.get('a')).toBeDefined()
-  })
-
-  it('leaves a position a reader chose exactly where it was', () => {
-    const chosen = new Map([['a', { x: 42, y: 99 }]])
-    const placed = placeArrivals([node('a', 'Concept'), node('b', 'Concept')], [], chosen)
-
-    expect(placed.get('a')).toEqual({ x: 42, y: 99 })
     expect(placed.get('b')).toBeDefined()
   })
 
-  it('does no work when everything is already placed', () => {
-    const chosen = new Map([['a', { x: 1, y: 2 }]])
-    expect(placeArrivals([node('a', 'Concept')], [], chosen)).toBe(chosen)
+  it('reads the whole shape again when the canvas gains a node', () => {
+    const two = laidOut([node('a', 'Concept'), node('b', 'Concept')], [edge('e', 'contains', 'a', 'b')])
+    const three = laidOut(
+      [node('a', 'Concept'), node('b', 'Concept'), node('c', 'Concept')],
+      [edge('e', 'contains', 'a', 'b'), edge('f', 'contains', 'a', 'c')],
+    )
+    // Both children hang off the same parent, so gaining one moves the other,
+    // which is the arrangement a reader asked to see rather than the old one.
+    expect(three.get('b')).not.toEqual(two.get('b'))
+  })
+
+  it('draws a topic above what is filed under it, however the graph writes it', () => {
+    const placed = laidOut(
+      [node('theme', 'Topic'), node('idea', 'Concept')],
+      [edge('e', 'belongsTo', 'idea', 'theme')],
+    )
+    expect(placed.get('theme')!.y).toBeLessThan(placed.get('idea')!.y)
   })
 })

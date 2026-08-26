@@ -36,21 +36,34 @@ function role(id: string, label: string, extra: Omit<SourceRoleInput, 'id' | 'la
   return { id, label, ...extra }
 }
 
+/**
+ * What each kind is drawn in,
+ * pinned to one lightness and one chroma so no kind shouts over another,
+ * and hue alone tells them apart.
+ * A kind lighter or more saturated than the rest reads as the important one.
+ *
+ * A topic is the ground others stand on rather than a thing in its own right,
+ * so it is given almost no chroma and sits back where ground belongs.
+ * Nothing is drawn in the red an argument is drawn in,
+ * since that colour is already spoken for by a relation that contradicts.
+ */
 const nodeTypes: readonly NodeTypeDescriptor[] = [
-  node('Concept', 'Concept', 'A durable unit of knowledge, an idea, a technique, or a definition. The dominant node type.', '#7c3aed'),
-  node('Claim', 'Claim', 'A specific assertion with a truth value the user can accept, reject, or contest. Carries provenance to the exact source moment.', '#ef4444'),
-  node('Source', 'Source', 'An ingested artifact (a web page, article, video, or podcast) with its metadata. The anchor every claim traces back to.', '#0ea5e9'),
-  node('Topic', 'Topic', 'A named grouping or theme, a concept-map section made first-class, reusable, nestable, and many-to-many, so a node can sit under several topics.', '#f59e0b'),
+  node('Concept', 'Concept', 'A durable unit of knowledge, an idea, a technique, or a definition. The dominant node type.', 'oklch(0.52 0.12 279)'),
+  node('Claim', 'Claim', 'A specific assertion with a truth value the user can accept, reject, or contest. Carries provenance to the exact source moment.', 'oklch(0.52 0.12 63)'),
+  node('Source', 'Source', 'An ingested artifact (a web page, article, video, or podcast) with its metadata. The anchor every claim traces back to.', 'oklch(0.52 0.12 243)'),
+  node('Topic', 'Topic', 'A named grouping or theme, a concept-map section made first-class, reusable, nestable, and many-to-many, so a node can sit under several topics.', 'oklch(0.52 0.04 82)'),
 ]
 
 const edgeTypes: readonly EdgeTypeDescriptor[] = [
-  // Every edge is an active present-tense verb read "from verb to" with one direction.
-  // How a line is drawn on a whiteboard is a view concern mapped onto these edges.
+  // Every edge is an active present-tense verb, read "from verb to".
+  // How a line is drawn on a whiteboard is a view concern,
+  // mapped onto these edges.
 
   // Is-a, instance-of, and part-of stay distinct (ISO 25964),
   // because is-a chains are transitive but part-of chains are not.
-  // These two are close enough to be mixed up, so each says how to tell them
-  // apart. The test is whether the narrower end could itself have kinds.
+  // These two are close enough to be mixed up,
+  // so each says how to tell them apart.
+  // The test is whether the narrower end could itself have kinds.
   edge('extends', 'extends', 'A kind of another concept (is-a), where both ends are categories, e.g. GraphRAG extends RAG. Use this when "all X" makes sense, because X could have kinds of its own.', ['Concept'], ['Concept'], 'N:N'),
   edge('instantiates', 'instantiates', 'One particular thing of a kind (instance-of), where the narrow end is an individual and the wide end a category, e.g. GPT-4 instantiates FoundationModel. Use this when "all X" makes no sense, because there is only one X.', ['Concept'], ['Concept'], 'N:N'),
   edge('contains', 'contains', 'A concept contains another as a component, from whole to part.', ['Concept'], ['Concept'], 'N:N'),
@@ -77,14 +90,14 @@ const edgeTypes: readonly EdgeTypeDescriptor[] = [
   edge('contradicts', 'contradicts', 'One claim conflicts with another, surfaced rather than force-merged, because conflict drives learning.', ['Claim'], ['Claim'], 'N:N'),
 ]
 
-// `feed` is external content enumerated into batch units that drive the Reactor.
+// `feed` is external content enumerated into batch units driving the Reactor.
 // `stance` is the user's own sparse authored input.
 const sourceRoles: readonly SourceRoleInput[] = [
   role('feed', 'Feed', { unitBearing: true, pathSegment: 'feeds' }),
   role('stance', 'Stance', { pathSegment: 'stances' }),
 ]
 
-// SKILL.md prompts shipped with this ontology, run by the agent runtime.
+// SKILL. md prompts shipped with this ontology, run by the agent runtime.
 // Each id composes as `<ontologyId>:<directory basename>`,
 // so the directory named extract becomes `knowledge:extract`.
 function skillDir(verb: string): URL {
@@ -108,11 +121,12 @@ function claimsPerConcept(): string {
 }
 
 /**
- * The knowledge ontology, declared as a third-party braid plugin.
- * Node, edge, and source-role types are passed as data to `defineOntologyPlugin`,
- * which auto-attaches the framework's OntologyTypeValidator and StructuralValidator.
+ * The knowledge ontology, declared as a third-party braid plugin. Node, edge,
+ * and source-role types are passed as data to `defineOntologyPlugin`,
+ * which auto-attaches the framework's type and structural validators.
  * Endpoints, cardinality, and duplicate ids are checked at build time,
- * so a mistyped or reversed edge throws from this file, not silently at runtime.
+ * so a mistyped or reversed edge throws from this file,
+ * not silently at runtime.
  */
 export const knowledgeOntology = defineOntologyPlugin({
   ontologyId: ONTOLOGY_ID,
@@ -127,13 +141,13 @@ export const knowledgeOntology = defineOntologyPlugin({
   ],
 
   // Shared vocabulary and wiring rules every skill above consults,
-  // mounted into each skill session so the ontology contract lives in one place.
+  // mounted into each skill session, so the contract lives in one place.
   referenceDir: new URL('../skills/shared', import.meta.url),
 
   // Batch and reactor binding. `knowledge:extract` runs once per unit,
-  // and the checkpoint `knowledge:converge` fires every five successful extracts,
-  // then once more at the end for a graph-wide pass.
-  // There is no deriveUnits, a feed source already writes the unit it yields.
+  // and `knowledge:converge` fires every five successful extracts,
+  // then once more at the end for a graph-wide pass. There is no deriveUnits,
+  // a feed source already writes the unit it yields.
   batch: {
     perUnit: {
       skillId: skillId('extract'),
