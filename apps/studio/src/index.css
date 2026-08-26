@@ -20,6 +20,55 @@
     --claim: #dc2626;
     --source: #0284c7;
     --topic: #d97706;
+
+    /* A section is ground a reader has to see the edge of, so it is a warm
+       sand rather than another shade of the canvas. Hue stays unspent here,
+       because a board will want it for something it can measure. */
+    --section: #f0eae0;
+    --section-line: #ddd2c0;
+
+    /* What a card belongs to, worn down its side and carried by the lines of
+       its hierarchy.
+
+       A family colour says which family, never which family matters, so no
+       colour here may weigh more than another. They are set in OKLCH, which is
+       even to the eye where a hex triple is not, and every one of them holds
+       the same lightness of 0.52 and the same chroma of 0.12. Only the hue
+       differs. Picked by eye instead they ranged from a chroma of 0.09 to one
+       of 0.25, and the violet among them read as the important family.
+
+       The hues are spread evenly through what is left of the wheel once the
+       35 degrees either side of the green and the red that mean agreement and
+       conflict are set aside, since a family drawn in red reads as a dispute.
+       They are handed out farthest apart first, so a board of two or three
+       families gets colours nobody could confuse.
+
+       Every one of them clears 4.5 to 1 against a card, which is what the
+       eleven pixel line naming a family on a card needs to be read. */
+    --kin-none: oklch(0.62 0.012 82);
+    --kin-1: oklch(0.52 0.12 243);
+    --kin-2: oklch(0.52 0.12 63);
+    --kin-3: oklch(0.52 0.12 316);
+    --kin-4: oklch(0.52 0.12 207);
+    --kin-5: oklch(0.52 0.12 279);
+    --kin-6: oklch(0.52 0.12 99);
+
+    /* A guide is not part of the board, it is a reading of it while a reader
+       is moving something, so it is the one thing drawn in a colour nothing
+       else uses. */
+    --guide: #e11d74;
+
+    /* A relation has to be followed across a board, so it is drawn darker than
+       the rules and borders that only need to separate things. */
+    --edge: #8c857a;
+    --edge-quiet: #b8b1a6;
+
+    /* Agreement and conflict are the two things a line has to say at a glance,
+       so they are the only relations that carry a colour of their own. Same
+       lightness as a family colour and more chroma, since a family colour must
+       not compete with its neighbours and a state has to be noticed. */
+    --supports: oklch(0.52 0.16 150);
+    --contradicts: oklch(0.52 0.16 27);
   }
 
   body {

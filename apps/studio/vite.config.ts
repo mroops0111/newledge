@@ -1,7 +1,7 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-const API_TARGET = process.env.NEWLEDGE_API ?? 'http://localhost:4321'
+const API_TARGET = process.env.NEWLEDGE_API ?? 'http://localhost:4399'
 
 // The reader talks to the local runtime through a same-origin path,
 // so the browser never makes a cross-origin request during development.
