@@ -10,11 +10,11 @@ import { laidOut } from '../lib/layout.js'
 import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
 import { BoardMarkers } from '../ui/BoardMarkers.js'
+import { GraphFilters } from '../ui/GraphFilters.js'
 import { graphEdges } from '../ui/graphEdges.js'
 import { Inspector } from '../ui/Inspector.js'
 import type { NodeCardData } from '../ui/NodeCard.js'
 import { NodeCard } from '../ui/NodeCard.js'
-import { TypeToggles } from '../ui/TypeToggles.js'
 import '@xyflow/react/dist/style.css'
 
 const NODE_TYPES = { card: NodeCard }
@@ -155,6 +155,22 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
     setView(current => current === undefined ? current : { ...current, [kind]: withType(current[kind], id) })
   }, [])
 
+  /**
+   * How much of each kind and each relation the graph holds.
+   * Counted over the whole graph rather than over what is drawn,
+   * so a switch says what turning it on would bring, not what it has already.
+   */
+  const kindCounts = useMemo(() => kindsInOrder.map(type => ({
+    id: type.id,
+    ...(type.color === undefined ? {} : { colour: type.color }),
+    count: graph.nodes.filter(node => node.type === type.id).length,
+  })), [kindsInOrder, graph])
+
+  const relationCounts = useMemo(() => (ontology?.edgeTypes ?? []).map(type => ({
+    id: type.id,
+    count: graph.edges.filter(edge => edge.type === type.id).length,
+  })), [ontology, graph])
+
   const inspected = graph.nodes.find(node => node.id === selected)
   const claimsAbout = inspected === undefined
     ? []
@@ -171,22 +187,20 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
   return (
     <AppShell
       {...nav}
+      beneath={(
+        <GraphFilters
+          kinds={kindCounts}
+          relations={relationCounts}
+          activeKinds={view.nodeTypes}
+          activeRelations={view.edgeTypes}
+          onToggle={toggle}
+        />
+      )}
       panel={inspected === undefined ? undefined : <Inspector node={inspected} claims={claimsAbout} />}
     >
     <div className="flex h-screen flex-col">
-      <header className="flex flex-wrap items-center gap-x-8 gap-y-3 border-b border-line px-6 py-3">
-        <TypeToggles
-          label="Nodes"
-          options={kindsInOrder.map(type => ({ id: type.id, colour: type.color ?? undefined }))}
-          active={view.nodeTypes}
-          onToggle={id => toggle('nodeTypes', id)}
-        />
-        <TypeToggles
-          label="Relations"
-          options={ontology.edgeTypes.map(type => ({ id: type.id }))}
-          active={view.edgeTypes}
-          onToggle={id => toggle('edgeTypes', id)}
-        />
+      <header className="flex items-center gap-3 border-b border-line px-6 py-3">
+        <p className="font-ui text-sm font-semibold text-ink">Everything you have absorbed</p>
         {/*
           Offered only once a reader has picked something, since there is
           nothing to narrow to before that, and a control that does nothing
