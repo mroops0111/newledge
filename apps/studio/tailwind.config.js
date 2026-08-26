@@ -1,6 +1,5 @@
 /**
- * Newledge design tokens.
- * The palette is warm and low contrast where you read,
+ * Newledge design tokens. The palette is warm and low contrast where you read,
  * and precise where you operate,
  * so one system carries both the reading inbox and the board.
  * Components name tokens by role, never by a raw scale value.
@@ -11,12 +10,15 @@ export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
-      // Every colour resolves to the variables declared in index.css,
+      // Every colour resolves to the variables declared in index. css,
       // so a utility class and a canvas stroke cannot drift apart.
       colors: {
         canvas: 'var(--canvas)',
         surface: 'var(--surface)',
         raised: 'var(--raised)',
+        guide: 'var(--guide)',
+        section: 'var(--section)',
+        'section-line': 'var(--section-line)',
 
         ink: {
           DEFAULT: 'var(--ink)',
@@ -44,6 +46,12 @@ export default {
       },
       fontSize: {
         // Reading sizes carry generous leading, interface sizes stay tight.
+        //
+        // A title names the thing a card is about,
+        // so it is set on the interface stack rather than the reading one,
+        // and it is the one size that is tracked in rather than out,
+        // which is what a heading wants and a label does not.
+        title: ['1.125rem', { lineHeight: '1.35', letterSpacing: '-0.01em' }],
         prose: ['1.0625rem', { lineHeight: '1.7' }],
         'prose-sm': ['0.9375rem', { lineHeight: '1.6' }],
         label: ['0.75rem', { lineHeight: '1.2', letterSpacing: '0.04em' }],

@@ -6,6 +6,7 @@ import { kuzuStoragePlugin } from '@braidhq/storage-kuzu'
 import type { WebSearchProvider } from '@newledge/source-loader-web'
 import { knowledgeOntology } from '@newledge/ontology-knowledge'
 import { createWebSourceLoaderPlugin } from '@newledge/source-loader-web'
+import { mountBoards } from './boards.js'
 
 export type KnowledgeApp = ReturnType<typeof createApp>
 
@@ -42,5 +43,7 @@ export async function composeKnowledgeRuntime(
   }, { braidHome: options.braidHome, apiUrl: options.apiUrl })
 
   const app = createApp(deps, { apiUrl: options.apiUrl })
+  // A board is Newledge's own view state, so its routes ride alongside braid's.
+  mountBoards(app, deps)
   return { deps, app }
 }

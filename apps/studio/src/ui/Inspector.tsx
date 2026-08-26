@@ -13,7 +13,7 @@ function hostOf(url: string): string {
 /**
  * What one node holds, shown beside the board rather than on it.
  * A card carries only enough to be recognised,
- * so the claims made about it are read here, where they do not crowd the canvas.
+ * so the claims made about it are read here, clear of the canvas.
  */
 export function Inspector({ node, claims }: {
   node: GraphNode
@@ -45,7 +45,7 @@ export function Inspector({ node, claims }: {
 
       {sources.length > 0 && (
         <section className="mt-6">
-          <GroupLabel>Traces to</GroupLabel>
+          <GroupLabel>Sources</GroupLabel>
           <ul className="mt-2 space-y-1">
             {sources.map(url => (
               <li key={url}>

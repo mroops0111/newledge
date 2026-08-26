@@ -5,8 +5,7 @@ import type { ReactNode } from 'react'
 const RAIL = 'sticky top-0 h-screen shrink-0 overflow-y-auto'
 
 /**
- * The frame every surface sits in.
- * A narrow column names the surfaces.
+ * The frame every surface sits in. A narrow column names the surfaces.
  * Main is left full width so each surface takes the measure it needs,
  * which lets a dense surface and a reading one share this frame.
  * The panel beside main is a slot rather than a fixed occupant.
@@ -27,10 +26,18 @@ export interface Nav {
   readonly onSelect: (id: string) => void
 }
 
-export function AppShell({ surfaces, activeId, onSelect, panel, children }: {
+export function AppShell({ surfaces, activeId, onSelect, beneath, panel, children }: {
   surfaces: readonly SurfaceLink[]
   activeId: string
   onSelect: (id: string) => void
+  /**
+   * What the surface a reader is on keeps under its own name.
+   * A surface that is one of several of its kind, as a board is,
+   * names them here rather than in a strip over its canvas,
+   * since which one is open is the same kind of choice,
+   * as which surface is open, and belongs beside it.
+   */
+  beneath?: ReactNode
   panel?: ReactNode
   children: ReactNode
 }): React.JSX.Element {
@@ -53,6 +60,7 @@ export function AppShell({ surfaces, activeId, onSelect, panel, children }: {
                     <span className="font-ui text-xs tabular-nums text-ink-subtle">{surface.count}</span>
                   )}
                 </button>
+                {surface.id === activeId && beneath}
               </li>
             )
           })}
