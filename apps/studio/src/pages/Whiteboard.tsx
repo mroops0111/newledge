@@ -9,7 +9,7 @@ import { firstArrangement } from '../lib/arrange.js'
 import { DIMMED, emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { elkPlacement } from '../lib/elkPlacement.js'
 import type { BoardClient } from '../lib/boards.js'
-import { newBoard, openingBoards, renameSection, withBoard, withSection } from '../lib/boards.js'
+import { newBoard, openingBoards, renameSection, withBoard, withoutCard, withSection } from '../lib/boards.js'
 import { nodeStyle, STROKE } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import { drawnCards, drawnRelations } from '../lib/drawing.js'
@@ -420,6 +420,19 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
 
   // Opening a concept is what shows what is asserted about it,
   // and where that came from, since a board draws neither.
+  /**
+   * Take what is selected off this board.
+   * The node stays in the graph and on every other board,
+   * so this narrows one reading rather than losing anything.
+   */
+  const takeOff = useCallback(() => {
+    const current = latestBoard.current
+    if (current === undefined || pickedId === undefined)
+      return
+    persist(withoutCard(current, pickedId))
+    setFocused(false)
+  }, [pickedId, persist])
+
   const opened = pickedId === undefined ? undefined : byId.get(pickedId)
 
   if (error !== undefined)
@@ -484,6 +497,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
               onFocus={() => setFocused(now => !now)}
               focused={focused}
               canFocus={pickedId !== undefined}
+              onTakeOff={takeOff}
               zoom={zoom}
             />
           </div>
