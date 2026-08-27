@@ -52,46 +52,50 @@ describe('openingView', () => {
 })
 
 describe('visibleGraph', () => {
-  it('draws the chosen types and the relations between them', () => {
+  it('draws the kinds a reader asked for, and the relations between them', () => {
     const shown = visibleGraph(graph, openingView(ontology))
-    expect(shown.nodes.map(n => n.id).sort()).toEqual(['faster', 'graphRag', 'rag', 'retrieval', 'slower'])
-    expect(shown.edges.map(e => e.id).sort()).toEqual(['e1', 'e2', 'e3'])
-  })
-
-  it('draws filing without letting it reach in for what is filed', () => {
-    const view = openingView(ontology)
-    expect(view.edgeTypes.has('belongsTo')).toBe(true)
-
-    // `rag` is filed under `retrieval` and both are on, so the line is drawn.
-    // No claim arrives with it, though every claim is filed somewhere too.
-    const shown = visibleGraph(graph, view)
-    expect(shown.edges.map(e => e.id)).toContain('e2')
-    expect(shown.nodes.map(n => n.id)).not.toContain('unrelated')
-  })
-
-  it('brings a claim in dispute along with the disagreement', () => {
-    const shown = visibleGraph(graph, openingView(ontology))
-    // `faster` is reached by the contradiction,
-    // `unrelated` is not reached at all.
-    expect(shown.nodes.map(n => n.id)).toContain('faster')
-    expect(shown.nodes.map(n => n.id)).toContain('slower')
-    expect(shown.nodes.map(n => n.id)).not.toContain('unrelated')
-  })
-
-  it('takes those claims away again when the disagreement is turned off', () => {
-    const view = openingView(ontology)
-    const quiet = { ...view, edgeTypes: withType(view.edgeTypes, 'contradicts') }
-    const shown = visibleGraph(graph, quiet)
-
     expect(shown.nodes.map(n => n.id).sort()).toEqual(['graphRag', 'rag', 'retrieval'])
+    expect(shown.edges.map(e => e.id).sort()).toEqual(['e1', 'e2'])
   })
 
-  it('draws every claim once aboutness is asked for', () => {
+  it('empties the canvas once every kind is off', () => {
     const view = openingView(ontology)
-    const withClaims = { ...view, edgeTypes: withType(view.edgeTypes, 'concerns') }
+    const shown = visibleGraph(graph, { ...view, nodeTypes: new Set() })
+
+    expect(shown.nodes).toEqual([])
+    expect(shown.edges).toEqual([])
+  })
+
+  it('leaves a relation undrawn while either of its ends is off', () => {
+    const view = openingView(ontology)
+    expect(view.edgeTypes.has('contradicts')).toBe(true)
+
+    // The two claims in dispute are not on the canvas,
+    // so the disagreement between them has nowhere to be drawn.
+    const shown = visibleGraph(graph, view)
+    expect(shown.edges.map(e => e.id)).not.toContain('e3')
+  })
+
+  it('draws the disagreement once the claims are asked for', () => {
+    const view = openingView(ontology)
+    const withClaims = { ...view, nodeTypes: new Set([...view.nodeTypes, 'Claim']) }
     const shown = visibleGraph(graph, withClaims)
 
-    expect(shown.nodes.map(n => n.id)).toContain('unrelated')
+    expect(shown.nodes.map(n => n.id)).toContain('faster')
+    expect(shown.nodes.map(n => n.id)).toContain('slower')
+    expect(shown.edges.map(e => e.id)).toContain('e3')
+  })
+
+  it('takes the disagreement away again when the relation is turned off', () => {
+    const view = openingView(ontology)
+    const quiet = {
+      nodeTypes: new Set([...view.nodeTypes, 'Claim']),
+      edgeTypes: withType(view.edgeTypes, 'contradicts'),
+    }
+    const shown = visibleGraph(graph, quiet)
+
+    expect(shown.nodes.map(n => n.id)).toContain('faster')
+    expect(shown.edges.map(e => e.id)).not.toContain('e3')
   })
 
   it('special-cases no type, so a type an ontology adds is drawn like the rest', () => {

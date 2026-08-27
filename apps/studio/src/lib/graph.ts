@@ -1,5 +1,3 @@
-import { nodeStyle } from './boardStyle.js'
-
 export interface GraphNode {
   readonly id: string
   readonly type: string
@@ -44,42 +42,29 @@ export interface VisibleGraph {
 
 /**
  * Decide what the graph draws, from the types a reader has turned on.
- * A node is drawn when its own type is on, or when a drawn relation reaches it,
- * so asking for contradictions brings the claims in dispute along with them,
- * and dropping the relation takes those claims away again.
+ *
+ * The kinds decide what stands on the canvas,
+ * and the relations decide what is drawn between whatever is standing there.
+ * Neither can reach in for the other.
+ *
+ * A relation that drew its own two ends made the kinds advisory,
+ * since a reader who turned every kind off still had a canvas full of cards,
+ * and the switch they had just pressed was then not about anything.
+ * A reader reads the kinds as saying what is here,
+ * so that is what they have to say.
+ *
  * Nothing is special-cased by type, so an ontology can add one and be drawn.
  */
-/** Whether a relation ends on ground, which everything is filed under. */
-function reaches(edge: GraphEdge, byId: ReadonlyMap<string, GraphNode>): boolean {
-  const ends = [byId.get(edge.fromNodeId), byId.get(edge.toNodeId)]
-  return ends.some(node => node !== undefined && nodeStyle(node.type).ground)
-}
-
 export function visibleGraph(graph: VisibleGraph, view: GraphView): VisibleGraph {
-  const byId = new Map(graph.nodes.map(node => [node.id, node]))
+  const nodes = graph.nodes.filter(node => view.nodeTypes.has(node.type))
+  const standing = new Set(nodes.map(node => node.id))
   const edges = graph.edges.filter(edge =>
-    view.edgeTypes.has(edge.type) && byId.has(edge.fromNodeId) && byId.has(edge.toNodeId),
+    view.edgeTypes.has(edge.type)
+    && standing.has(edge.fromNodeId)
+    && standing.has(edge.toNodeId),
   )
 
-  const drawn = new Set<string>()
-  for (const node of graph.nodes) {
-    if (view.nodeTypes.has(node.type))
-      drawn.add(node.id)
-  }
-  // Turning a relation on draws what is at both ends of it,
-  // so a reader asking about disagreement sees the two claims, kinds aside.
-  // Filing is the exception.
-  // Everything a reader has absorbed is filed somewhere,
-  // so filing that reached in would draw the whole graph,
-  // and the kinds would then decide nothing.
-  for (const edge of edges) {
-    if (reaches(edge, byId))
-      continue
-    drawn.add(edge.fromNodeId)
-    drawn.add(edge.toNodeId)
-  }
-
-  return { nodes: graph.nodes.filter(node => drawn.has(node.id)), edges }
+  return { nodes, edges }
 }
 
 /**

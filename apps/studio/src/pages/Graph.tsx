@@ -1,5 +1,5 @@
 import type { Node } from '@xyflow/react'
-import { Background, Controls, getViewportForBounds, ReactFlow, ReactFlowProvider, useReactFlow, useStore } from '@xyflow/react'
+import { Background, Controls, getViewportForBounds, ReactFlow, ReactFlowProvider, useReactFlow, useStoreApi } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { nodeStyle, SURVEY_STROKE } from '../lib/boardStyle.js'
@@ -37,48 +37,43 @@ const UNTYPED = 'var(--ink-subtle)'
 const PADDING = '8%'
 
 /**
- * Frame the graph once its nodes have somewhere to be,
- * and again whenever the room it has to stand in changes.
+ * Frame the graph once its nodes have somewhere to be.
  *
  * Placement lands after the graph is read,
  * so fitting on mount would frame a canvas still at the origin.
- * Opening or closing the column over it changes how much room the graph has,
- * and a frame taken for the old width leaves the graph off to one side.
  *
- * Every frame is taken at once rather than eased.
+ * Framed on arrival and then left alone.
+ * A reader who has moved the canvas is somewhere they went on purpose,
+ * and a surface that reframes itself whenever its room changes
+ * takes that away for a reason the reader never gave.
+ * Opening the column beside it is the plainest case of that,
+ * and asking for the frame back is one button, which is where asking belongs.
+ *
+ * Taken at once rather than eased.
  * The canvas takes an eased viewport only while nothing else is moving,
- * and a reframe is asked for by the very thing that is,
- * so easing it is a frame that silently never arrives.
+ * so easing this one is a frame that silently never arrives.
  */
-function FitOnPlacement({ ready, covers }: {
-  ready: boolean
-  /** The panel standing over the canvas, or nothing while it is away. */
-  covers: HTMLElement | null
-}): null {
+function FitOnPlacement({ ready }: { ready: boolean }): null {
   const flow = useReactFlow()
-  const canvas = useStore(
-    state => ({ width: state.width, height: state.height, min: state.minZoom, max: state.maxZoom }),
-    (one, other) => one.width === other.width && one.height === other.height,
-  )
-  const hidden = covers === null ? 0 : covers.offsetWidth
+  // Read when the frame is taken rather than watched,
+  // since watching the canvas is what would reframe on every resize,
+  // and a resize is not a reader asking to be shown everything again.
+  const canvas = useStoreApi()
 
   useEffect(() => {
-    if (!ready || canvas.width === 0)
+    if (!ready)
       return
     // The nodes reach the canvas a tick before their positions do,
     // so the frame is taken after the browser has drawn them.
     const timer = setTimeout(() => {
-      // Framed into the room the panel leaves rather than into the whole
-      // canvas, and then slid across by what it stands over. Asking for a
-      // padding on one side alone is answered differently depending on what
-      // else the padding says, and this is the same sum written plainly.
+      const { width, height, minZoom, maxZoom } = canvas.getState()
+      if (width === 0)
+        return
       const bounds = flow.getNodesBounds(flow.getNodes())
-      const room = Math.max(1, canvas.width - hidden)
-      const framing = getViewportForBounds(bounds, room, canvas.height, canvas.min, canvas.max, PADDING)
-      flow.setViewport({ ...framing, x: framing.x + hidden })
+      flow.setViewport(getViewportForBounds(bounds, width, height, minZoom, maxZoom, PADDING))
     }, 0)
     return () => clearTimeout(timer)
-  }, [ready, hidden, canvas, flow])
+  }, [ready, canvas, flow])
   return null
 }
 
@@ -97,10 +92,6 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
   const [selected, setSelected] = useState<string | undefined>(undefined)
   const [focused, setFocused] = useState(false)
   const [shows, setShows] = useState(true)
-  // Held as state rather than in a ref, since the fit has to be worked out
-  // again once the panel is there, and setting a ref tells nobody. Measured
-  // rather than assumed, so the width is not written down twice.
-  const [panel, setPanel] = useState<HTMLElement | null>(null)
   const [error, setError] = useState<string | undefined>(undefined)
 
   useEffect(() => {
@@ -248,10 +239,9 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
         )}
       </header>
 
-      <div className="relative min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1">
         {shows && (
           <GraphFilters
-            ref={setPanel}
             kinds={kindCounts}
             relations={relationCounts}
             activeKinds={view.nodeTypes}
@@ -260,7 +250,7 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
             onOnly={only}
           />
         )}
-        <div className="relative h-full">
+        <div className="relative min-w-0 flex-1">
           {/*
             The switch stands on the canvas rather than in the panel it opens,
             since a panel that is away has nowhere to put the thing that brings
@@ -291,11 +281,15 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
             maxZoom={2}
             proOptions={{ hideAttribution: true }}
           >
-            <FitOnPlacement ready={placedAll} covers={shows ? panel : null} />
+            <FitOnPlacement ready={placedAll} />
             <Background color="var(--line-strong)" gap={24} size={1} />
-            {/* Out from under the panel, which stands down the left of the canvas. */}
+            {/*
+              Down the same edge the panel and the switch that opens it are on,
+              so everything a reader operates the canvas with is on one side,
+              and the far corner is left to the graph.
+            */}
             <Controls
-              position="bottom-right"
+              position="bottom-left"
               showInteractive={false}
               className="!border-line !bg-surface !shadow-card"
             />
