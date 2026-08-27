@@ -6,7 +6,7 @@ import type { Facing } from '../lib/path.js'
 import { curvePath, orthogonalPath } from '../lib/path.js'
 import { heldAt } from './boardEdges.js'
 
-export interface RoutedEdgeData {
+export interface CanvasEdgeData {
   /** Where the router said this line bends, when a router has been asked. */
   readonly points?: readonly Point[]
   readonly curved: boolean
@@ -17,20 +17,33 @@ export interface RoutedEdgeData {
 }
 
 /**
- * A line drawn along the route it was given.
+ * A line on either canvas, drawn along the route it was given.
+ *
  * A router that knows where the cards are can get a line around them,
  * which the two ends alone never could,
  * so its answer is used when there is one,
  * and a plain curve is drawn when there is not.
+ * A survey is laid out afresh whenever it changes and has no arrangement
+ * worth routing around, so it is always the second case,
+ * which is the same drawing rather than a second one.
+ *
+ * The weight is read here rather than handed down from the page,
+ * so a reader turning the wheel redraws the lines and nothing else.
  */
-export function RoutedEdge(props: EdgeProps): React.JSX.Element {
-  const data = props.data as RoutedEdgeData | undefined
+export function CanvasEdge(props: EdgeProps): React.JSX.Element {
+  const data = props.data as CanvasEdgeData | undefined
   const [path, labelX, labelY] = pathFor(props, data)
   const growth = growthAt(useStore(state => state.transform[2]))
 
   return (
     <>
-      <BaseEdge id={props.id} path={path} style={heldAt(props.style, growth)} markerEnd={props.markerEnd} />
+      <BaseEdge
+        id={props.id}
+        path={path}
+        style={heldAt(props.style, growth)}
+        {...(props.markerStart === undefined ? {} : { markerStart: props.markerStart })}
+        {...(props.markerEnd === undefined ? {} : { markerEnd: props.markerEnd })}
+      />
       {props.label !== undefined && (
         <EdgeLabelRenderer>
           <div
@@ -45,7 +58,7 @@ export function RoutedEdge(props: EdgeProps): React.JSX.Element {
   )
 }
 
-function pathFor(props: EdgeProps, data: RoutedEdgeData | undefined): [string, number, number] {
+function pathFor(props: EdgeProps, data: CanvasEdgeData | undefined): [string, number, number] {
   const points = data?.points
   if (points !== undefined && points.length > 1) {
     // More than two points means something worked a way round what is between,

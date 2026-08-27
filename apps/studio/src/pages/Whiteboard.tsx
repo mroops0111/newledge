@@ -29,7 +29,7 @@ import { BoardMarkers } from '../ui/BoardMarkers.js'
 import { boardEdges } from '../ui/boardEdges.js'
 import { BoardList } from '../ui/BoardList.js'
 import { ConceptPanel, inside } from '../ui/ConceptPanel.js'
-import { RoutedEdge } from '../ui/RoutedEdge.js'
+import { CanvasEdge } from '../ui/CanvasEdge.js'
 import { BoardTools } from '../ui/BoardTools.js'
 import { Guides } from '../ui/Guides.js'
 import type { SectionBoxData } from '../ui/SectionBox.js'
@@ -39,7 +39,7 @@ import { useRoutes } from '../ui/useRoutes.js'
 import '@xyflow/react/dist/style.css'
 
 const NODE_TYPES: NodeTypes = { card: BoardCard, section: SectionBox }
-const EDGE_TYPES = { routed: RoutedEdge }
+const EDGE_TYPES = { line: CanvasEdge }
 const PLACEMENT = elkPlacement()
 const ROUTING = orthogonalRouting()
 const MIN_NAME_WIDTH = 10

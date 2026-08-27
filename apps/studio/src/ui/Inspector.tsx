@@ -1,14 +1,7 @@
 import type { GraphNode } from '../lib/graph.js'
+import { sourcesOf } from '../lib/graph.js'
+import { hostOf } from '../lib/naming.js'
 import { GroupLabel } from './Surface.js'
-
-function hostOf(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '')
-  }
-  catch {
-    return url
-  }
-}
 
 /**
  * What one node holds, shown beside the board rather than on it.
@@ -19,9 +12,7 @@ export function Inspector({ node, claims }: {
   node: GraphNode
   claims: readonly GraphNode[]
 }): React.JSX.Element {
-  const sources = (node.metadata?.sourceReferences ?? [])
-    .map(reference => reference.location?.uri)
-    .filter((uri): uri is string => uri !== undefined)
+  const sources = sourcesOf(node)
 
   return (
     <div className="w-80 px-5 py-6">

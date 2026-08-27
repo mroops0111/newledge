@@ -7,7 +7,7 @@ import type { DrawnEdge } from '../lib/drawing.js'
 import { lineColour, NO_FAMILY } from '../lib/kinship.js'
 import type { Facing } from '../lib/path.js'
 import { borderRun, facing } from '../lib/path.js'
-import { markerId } from './BoardMarkers.js'
+import { markEnds } from './BoardMarkers.js'
 
 export interface EdgeSurroundings {
   /** Where each card sits, and how big it turned out once drawn. */
@@ -43,7 +43,7 @@ export function boardEdges(lines: readonly DrawnEdge[], around: EdgeSurroundings
       id: line.id,
       source: line.source,
       target: line.target,
-      type: 'routed',
+      type: 'line',
       ...(line.label === undefined ? {} : { label: line.label }),
       data: {
         ...(points === undefined ? {} : { points }),
@@ -56,7 +56,7 @@ export function boardEdges(lines: readonly DrawnEdge[], around: EdgeSurroundings
         ...(line.style.dash === undefined ? {} : { strokeDasharray: line.style.dash }),
         ...(emphasis === 'dimmed' ? { opacity: DIMMED } : {}),
       },
-      markerEnd: markerId(line.style.marker, paint),
+      ...markEnds(line.style, paint, { from: line.source, to: line.target }, drawnTowards(line, around)),
       // Above the ground a section paints, below the cards it holds.
       zIndex: 2,
     }]
@@ -130,6 +130,23 @@ function extentOfEnd(id: string, around: EdgeSurroundings): Box | undefined {
   return around.boxes.get(id) ?? around.grounds.find(ground => ground.id === id)
 }
 
+/** Which of a relation's two ends its kind stands several of itself at. */
+function rootOf(line: DrawnEdge): string | undefined {
+  return line.style.rootAt === 'from'
+    ? line.source
+    : line.style.rootAt === 'to' ? line.target : undefined
+}
+
+/**
+ * Which card the line is drawn towards, which is what decides where its mark
+ * stands. A trunk is built from each child up to the root its siblings share,
+ * so a relation drawn as one arrives at its root however it is written.
+ * Everything else runs the way the relation is written.
+ */
+function drawnTowards(line: DrawnEdge, around: EdgeSurroundings): string {
+  return around.trunks.has(line.id) ? rootOf(line) ?? line.target : line.target
+}
+
 /**
  * Which family's colour a line carries.
  * A relation drawn between two grounds belongs to neither family,
@@ -138,6 +155,5 @@ function extentOfEnd(id: string, around: EdgeSurroundings): Box | undefined {
 function paintOf(line: DrawnEdge, familyLed: ReadonlyMap<string, string>): string {
   if (line.style.kin !== 'tree')
     return line.style.tone
-  const root = line.style.rootAt === 'from' ? line.source : line.target
-  return familyLed.get(root) ?? NO_FAMILY
+  return familyLed.get(rootOf(line) ?? line.target) ?? NO_FAMILY
 }

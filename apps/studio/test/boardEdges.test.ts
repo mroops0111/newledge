@@ -113,3 +113,39 @@ describe('heldAt', () => {
     expect(heldAt({ strokeWidth: 1, stroke: 'red', opacity: 0.22 }, 2).opacity).toEqual(0.22)
   })
 })
+
+describe('standing a relation\'s mark at its root', () => {
+  // Containment is written from the whole to the part,
+  // and a class diagram stands the diamond against the whole.
+  const containment = { source: 'parent', target: 'child' }
+
+  it('marks the whole rather than the end the line happens to arrive at', () => {
+    const [edge] = boardEdges([line('contains', containment)], around())
+    expect(edge!.markerStart).toBeDefined()
+    expect(edge!.markerEnd).toBeUndefined()
+  })
+
+  it('marks the arriving end when a trunk carried the line to the root', () => {
+    // A trunk runs from each child up to the root its siblings share,
+    // so the line already arrives at the whole and needs nothing turned round.
+    const trunk: Point[] = [{ x: 120, y: 300 }, { x: 120, y: 100 }]
+    const [edge] = boardEdges(
+      [line('contains', containment)],
+      around({ trunks: new Map([['e-contains', trunk]]) }),
+    )
+    expect(edge!.markerEnd).toBeDefined()
+    expect(edge!.markerStart).toBeUndefined()
+  })
+
+  it('marks the general, which a kind hierarchy writes as its second end', () => {
+    const [edge] = boardEdges([line('extends')], around())
+    expect(edge!.markerEnd).toBeDefined()
+    expect(edge!.markerStart).toBeUndefined()
+  })
+
+  it('leaves a relation with no root pointing at what it reaches', () => {
+    const [edge] = boardEdges([line('uses')], around())
+    expect(edge!.markerEnd).toBeDefined()
+    expect(edge!.markerStart).toBeUndefined()
+  })
+})

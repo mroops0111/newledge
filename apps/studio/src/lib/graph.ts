@@ -29,6 +29,18 @@ export interface Ontology {
   readonly edgeTypes: readonly EdgeTypeDescriptor[]
 }
 
+/**
+ * Where a node says it came from.
+ * Provenance arrives as a list of references,
+ * each of which may or may not have got as far as a location,
+ * so what is left once the locations are asked for is what there is.
+ */
+export function sourcesOf(node: GraphNode): readonly string[] {
+  return (node.metadata?.sourceReferences ?? [])
+    .map(reference => reference.location?.uri)
+    .filter((uri): uri is string => uri !== undefined)
+}
+
 /** Which types a reader has chosen to see. */
 export interface GraphView {
   readonly nodeTypes: ReadonlySet<string>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GraphEdge, GraphNode, Ontology } from '../src/lib/graph.js'
-import { openingView, visibleGraph, withType } from '../src/lib/graph.js'
+import { openingView, sourcesOf, visibleGraph, withType } from '../src/lib/graph.js'
 import { laidOut } from '../src/lib/layout.js'
 
 function node(id: string, type: string): GraphNode {
@@ -153,5 +153,27 @@ describe('laidOut', () => {
       [edge('e', 'belongsTo', 'idea', 'theme')],
     )
     expect(placed.get('theme')!.y).toBeLessThan(placed.get('idea')!.y)
+  })
+})
+
+describe('sourcesOf', () => {
+  it('gives back only the references that got as far as a location', () => {
+    const cited: GraphNode = {
+      id: 'paper',
+      type: 'Source',
+      name: 'paper',
+      metadata: {
+        sourceReferences: [
+          { location: { uri: 'https://example.org/a' } },
+          { location: {} },
+          {},
+        ],
+      },
+    }
+    expect(sourcesOf(cited)).toEqual(['https://example.org/a'])
+  })
+
+  it('gives back nothing for a node that says nothing about where it came from', () => {
+    expect(sourcesOf(node('rag', 'Concept'))).toEqual([])
   })
 })

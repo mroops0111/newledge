@@ -1,38 +1,11 @@
 import type { Edge } from '@xyflow/react'
 import type { Attention } from '../lib/attention.js'
 import { DIMMED, emphasisOf } from '../lib/attention.js'
-import type { EdgeStyle } from '../lib/boardStyle.js'
 import { edgeStyle, SURVEY_STROKE, TONE_COLOURS } from '../lib/boardStyle.js'
 import type { GraphEdge, GraphNode } from '../lib/graph.js'
 import { ranked } from '../lib/layout.js'
-import { markerId } from './BoardMarkers.js'
-
-/**
- * Which end of a line carries its mark.
- *
- * A class diagram stands the diamond against the whole,
- * and the hollow triangle against the general,
- * so a reader who has read one already knows which way to read these.
- * Which end a line is drawn from is the layout's business and moves with it,
- * so the mark is placed by the root the relation declares,
- * rather than by the end it happens to be drawn from.
- *
- * A relation with no root points at what it reaches,
- * so its arrow stays at the end it arrives by.
- */
-function marks(
-  style: EdgeStyle,
-  edge: GraphEdge,
-  above: string,
-): { markerStart?: string, markerEnd?: string } {
-  const mark = markerId(style.marker, style.tone)
-  if (mark === undefined)
-    return {}
-  const root = style.rootAt === 'from'
-    ? edge.fromNodeId
-    : style.rootAt === 'to' ? edge.toNodeId : undefined
-  return root === above ? { markerStart: mark } : { markerEnd: mark }
-}
+import { worded } from '../lib/naming.js'
+import { markEnds } from './BoardMarkers.js'
 
 /**
  * The relations as the survey canvas is given them.
@@ -71,19 +44,17 @@ export function graphEdges(
 
     return [{
       id: edge.id,
-      type: 'survey',
+      type: 'line',
       source: above,
       target: below,
-      ...(asked ? { label: edge.type } : {}),
+      ...(asked ? { label: worded(edge.type) } : {}),
       style: {
         stroke: paint,
         strokeWidth: SURVEY_STROKE,
         ...(style.dash === undefined ? {} : { strokeDasharray: style.dash }),
         ...(emphasis === 'dimmed' ? { opacity: DIMMED } : {}),
       },
-      ...marks(style, edge, above),
-      labelStyle: { fill: paint, fontSize: 11 },
-      labelBgStyle: { fill: 'var(--canvas)' },
+      ...markEnds(style, style.tone, { from: edge.fromNodeId, to: edge.toNodeId }, below),
     }]
   })
 }

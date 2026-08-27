@@ -1,5 +1,7 @@
 import type { EdgeStyle } from '../lib/boardStyle.js'
-import { TONE_COLOURS } from '../lib/boardStyle.js'
+import { worded } from '../lib/naming.js'
+import { edgeStyle, nodeStyle, TONE_COLOURS } from '../lib/boardStyle.js'
+import type { GraphEdge, GraphNode, Ontology } from '../lib/graph.js'
 import { markerShape } from './BoardMarkers.js'
 import { GroupLabel } from './Surface.js'
 import { GLYPHS } from './Toolkit.js'
@@ -25,6 +27,45 @@ export interface Filterable {
   readonly id: string
   readonly legend: Legend
   readonly count: number
+}
+
+/**
+ * The switches the panel offers, worked out from the ontology and the graph.
+ *
+ * The kinds come in the order they stand on each other. Ground first,
+ * since it is what the rest sits on,
+ * and then the bands a section is read down,
+ * which is terms, then what is asserted about them,
+ * then where that came from.
+ * Read off the same facts a board arranges by,
+ * so the two surfaces never disagree about which kind comes first.
+ *
+ * Both are counted over the whole graph rather than over what is drawn,
+ * so a switch says what turning it on would bring,
+ * rather than what it has brought already.
+ */
+export function switchesFor(
+  ontology: Ontology,
+  graph: { readonly nodes: readonly GraphNode[], readonly edges: readonly GraphEdge[] },
+  colourOf: (typeId: string) => string,
+): { readonly kinds: readonly Filterable[], readonly relations: readonly Filterable[] } {
+  const standing = [...ontology.nodeTypes].sort((one, other) => {
+    const [a, b] = [nodeStyle(one.id), nodeStyle(other.id)]
+    return Number(b.ground) - Number(a.ground) || a.band - b.band
+  })
+
+  return {
+    kinds: standing.map(type => ({
+      id: type.id,
+      legend: { as: 'colour', colour: colourOf(type.id) },
+      count: graph.nodes.filter(node => node.type === type.id).length,
+    })),
+    relations: ontology.edgeTypes.map(type => ({
+      id: type.id,
+      legend: { as: 'line', line: edgeStyle(type.id) },
+      count: graph.edges.filter(edge => edge.type === type.id).length,
+    })),
+  }
 }
 
 /**
@@ -129,15 +170,6 @@ function Sweep({ word, spent, onClick }: {
       {word}
     </button>
   )
-}
-
-/**
- * A type's name set as words rather than as the identifier it is written as.
- * A name is read here, not typed,
- * and `relatesTo` read in capitals is one word nobody can see the seam in.
- */
-function worded(id: string): string {
-  return id.replace(/(?<=[a-z])(?=[A-Z])/g, ' ')
 }
 
 /**

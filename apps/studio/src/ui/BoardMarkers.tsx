@@ -1,5 +1,5 @@
 import { useStore } from '@xyflow/react'
-import type { MarkerKind } from '../lib/boardStyle.js'
+import type { EdgeStyle, MarkerKind } from '../lib/boardStyle.js'
 import { growthAt, MARKER_TO_STROKE } from '../lib/boardStyle.js'
 import { LINE_PAINTS } from '../lib/kinship.js'
 
@@ -11,13 +11,50 @@ const KINDS: readonly Exclude<MarkerKind, 'none'>[] = ['triangleHollow', 'diamon
 const PAINTS: readonly (readonly [string, string])[] = [...LINE_PAINTS]
 
 /**
- * What an edge points its end at, or nothing when it has no direction.
+ * What an edge points its end at.
  * The bare id, since the canvas wraps it in a reference itself,
  * and wrapping it here as well produces one nested inside another,
  * which resolves to nothing.
+ *
+ * The one place this name is spelled.
+ * A mark that is defined under one name and asked for under another
+ * is a line that quietly loses its end.
  */
-export function markerId(kind: MarkerKind, paint: string): string | undefined {
-  return kind === 'none' ? undefined : `board-${kind}-${paint}`
+function markerId(kind: Exclude<MarkerKind, 'none'>, paint: string): string {
+  return `board-${kind}-${paint}`
+}
+
+/**
+ * Which end of a line carries its mark.
+ *
+ * A class diagram stands the diamond against the whole
+ * and the hollow triangle against the general,
+ * so a reader who has read one already knows which way to read these.
+ *
+ * Which way a line is drawn is the layout's business and moves with it.
+ * A hierarchy runs from each child up to the root its siblings share,
+ * and the same relation drawn without one runs the way it is written,
+ * so the mark is placed by the root the relation declares
+ * rather than by the end the line happens to arrive at.
+ *
+ * A relation with no root points at what it reaches,
+ * so its mark stays at the end it arrives by.
+ */
+export function markEnds(
+  style: EdgeStyle,
+  paint: string,
+  ends: { readonly from: string, readonly to: string },
+  drawnTowards: string,
+): { markerStart?: string, markerEnd?: string } {
+  if (style.marker === 'none')
+    return {}
+  const mark = markerId(style.marker, paint)
+  const root = style.rootAt === 'from'
+    ? ends.from
+    : style.rootAt === 'to' ? ends.to : undefined
+  return root !== undefined && root !== drawnTowards
+    ? { markerStart: mark }
+    : { markerEnd: mark }
 }
 
 /**
@@ -48,7 +85,7 @@ export function BoardMarkers({ weight }: {
         {KINDS.flatMap(kind => PAINTS.map(([paint, colour]) => (
           <marker
             key={`${kind}-${paint}`}
-            id={`board-${kind}-${paint}`}
+            id={markerId(kind, paint)}
             viewBox="0 0 12 12"
             // Every end stands just outside the border it points at.
             // Centred on it instead,

@@ -14,8 +14,8 @@ export interface Spot {
  * a card carrying a description as well as a name,
  * so a line going round one has room even where the card renders short.
  */
-export const NODE_WIDTH = 200
-export const NODE_HEIGHT = 92
+const NODE_WIDTH = 200
+const NODE_HEIGHT = 92
 
 /**
  * How far apart the layout stands things.

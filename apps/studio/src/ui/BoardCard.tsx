@@ -1,6 +1,8 @@
 import { Handle, Position, useStore } from '@xyflow/react'
 import { useRef } from 'react'
 import type { GraphNode } from '../lib/graph.js'
+import { sourcesOf } from '../lib/graph.js'
+import { hostOf } from '../lib/naming.js'
 import type { NodeForm } from '../lib/boardStyle.js'
 import { growthAt, READABLE, READABLE_AGAIN } from '../lib/boardStyle.js'
 import type { Said } from '../lib/kinship.js'
@@ -91,19 +93,6 @@ function lines(says: readonly Said[]): React.JSX.Element[] {
   ))
 }
 
-/** Where a source came from, which is the only part of a URL worth drawing. */
-function domainOf(node: GraphNode): string | undefined {
-  const uri = node.metadata?.sourceReferences?.[0]?.location?.uri
-  if (uri === undefined)
-    return undefined
-  try {
-    return new URL(uri).hostname.replace(/^www\./, '')
-  }
-  catch {
-    return undefined
-  }
-}
-
 /**
  * A node drawn as the kind of thing it is. A term, an assertion, a link,
  * and a heading are not the same object, so they are not the same card,
@@ -183,12 +172,12 @@ function body(
     // The thumbnail a preview usually carries needs a fetch per source,
     // so the row is kept for it and nothing is requested yet.
     case 'source': {
-      const domain = domainOf(node)
+      const [came] = sourcesOf(node)
       return (
         <div className="px-5 py-4">
           {named(kind)}
           <p className="truncate font-ui text-label uppercase text-ink-subtle">
-            {domain ?? 'a source'}
+            {came === undefined ? 'a source' : hostOf(came)}
           </p>
           <p className="mt-2 line-clamp-3 font-ui text-title font-medium text-ink">
             {node.name}

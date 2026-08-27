@@ -2,7 +2,7 @@ import type { Node } from '@xyflow/react'
 import { Controls, getViewportForBounds, ReactFlow, ReactFlowProvider, useReactFlow, useStoreApi } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
-import { edgeStyle, nodeStyle, onSurface, SURVEY_STROKE } from '../lib/boardStyle.js'
+import { onSurface, SURVEY_STROKE } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import type { GraphEdge, GraphNode, GraphView, Ontology } from '../lib/graph.js'
 import { openingView, visibleGraph, withType } from '../lib/graph.js'
@@ -11,17 +11,17 @@ import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
 import { BoardMarkers } from '../ui/BoardMarkers.js'
 import { CanvasGrid } from '../ui/CanvasGrid.js'
-import { GraphFilters } from '../ui/GraphFilters.js'
+import { GraphFilters, switchesFor } from '../ui/GraphFilters.js'
 import { graphEdges } from '../ui/graphEdges.js'
 import { Inspector } from '../ui/Inspector.js'
 import { GLYPHS } from '../ui/Toolkit.js'
 import type { NodeCardData } from '../ui/NodeCard.js'
 import { NodeCard } from '../ui/NodeCard.js'
-import { SurveyEdge } from '../ui/SurveyEdge.js'
+import { CanvasEdge } from '../ui/CanvasEdge.js'
 import '@xyflow/react/dist/style.css'
 
 const NODE_TYPES = { card: NodeCard }
-const EDGE_TYPES = { survey: SurveyEdge }
+const EDGE_TYPES = { line: CanvasEdge }
 
 // A type the ontology declares without a colour still has to be drawn.
 const UNTYPED = 'var(--ink-subtle)'
@@ -170,19 +170,6 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
   // Fitting before every node has a position frames a canvas at the origin.
   const placedAll = shown.nodes.length > 0 && shown.nodes.every(node => placed.has(node.id))
 
-  /**
-   * The kinds in the order they stand on each other. Ground first,
-   * since it is what the rest sits on,
-   * and then the bands a section is read down: terms,
-   * then what is asserted about them, then where that came from.
-   * Read off the same facts a board arranges by,
-   * so the two surfaces never disagree about which kind comes first.
-   */
-  const kindsInOrder = useMemo(() => [...(ontology?.nodeTypes ?? [])].sort((one, other) => {
-    const [a, b] = [nodeStyle(one.id), nodeStyle(other.id)]
-    return Number(b.ground) - Number(a.ground) || a.band - b.band
-  }), [ontology])
-
   const only = useCallback((kind: 'nodeTypes' | 'edgeTypes', ids: readonly string[]) => {
     setView(current => current === undefined ? current : { ...current, [kind]: new Set(ids) })
   }, [])
@@ -191,22 +178,10 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
     setView(current => current === undefined ? current : { ...current, [kind]: withType(current[kind], id) })
   }, [])
 
-  /**
-   * How much of each kind and each relation the graph holds.
-   * Counted over the whole graph rather than over what is drawn,
-   * so a switch says what turning it on would bring, not what it has already.
-   */
-  const kindCounts = useMemo(() => kindsInOrder.map(type => ({
-    id: type.id,
-    legend: { as: 'colour' as const, colour: colourOf(type.id) },
-    count: graph.nodes.filter(node => node.type === type.id).length,
-  })), [kindsInOrder, colourOf, graph])
-
-  const relationCounts = useMemo(() => (ontology?.edgeTypes ?? []).map(type => ({
-    id: type.id,
-    legend: { as: 'line' as const, line: edgeStyle(type.id) },
-    count: graph.edges.filter(edge => edge.type === type.id).length,
-  })), [ontology, graph])
+  const switches = useMemo(
+    () => ontology === undefined ? undefined : switchesFor(ontology, graph, colourOf),
+    [ontology, graph, colourOf],
+  )
 
   const inspected = graph.nodes.find(node => node.id === selected)
   const claimsAbout = inspected === undefined
@@ -250,8 +225,8 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
       <div className="flex min-h-0 flex-1">
         {shows && (
           <GraphFilters
-            kinds={kindCounts}
-            relations={relationCounts}
+            kinds={switches?.kinds ?? []}
+            relations={switches?.relations ?? []}
             activeKinds={view.nodeTypes}
             activeRelations={view.edgeTypes}
             onToggle={toggle}
