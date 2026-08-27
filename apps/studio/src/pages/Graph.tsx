@@ -2,7 +2,7 @@ import type { Node } from '@xyflow/react'
 import { Background, Controls, getViewportForBounds, ReactFlow, ReactFlowProvider, useReactFlow, useStoreApi } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
-import { nodeStyle, SURVEY_STROKE } from '../lib/boardStyle.js'
+import { nodeStyle, onSurface, SURVEY_STROKE } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import type { GraphEdge, GraphNode, GraphView, Ontology } from '../lib/graph.js'
 import { openingView, visibleGraph, withType } from '../lib/graph.js'
@@ -108,8 +108,14 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
     })()
   }, [client])
 
+  // Only a declared colour goes through the ramp, since the ramp sets a chroma
+  // and the fallback is a grey, which would come back out of it as a colour.
   const colourOf = useMemo(() => {
-    const byType = new Map((ontology?.nodeTypes ?? []).map(type => [type.id, type.color ?? UNTYPED]))
+    const byType = new Map(
+      (ontology?.nodeTypes ?? []).flatMap(type =>
+        type.color === undefined ? [] : [[type.id, onSurface(type.color)] as const],
+      ),
+    )
     return (type: string): string => byType.get(type) ?? UNTYPED
   }, [ontology])
 
@@ -191,9 +197,9 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
    */
   const kindCounts = useMemo(() => kindsInOrder.map(type => ({
     id: type.id,
-    ...(type.color === undefined ? {} : { colour: type.color }),
+    colour: colourOf(type.id),
     count: graph.nodes.filter(node => node.type === type.id).length,
-  })), [kindsInOrder, graph])
+  })), [kindsInOrder, colourOf, graph])
 
   const relationCounts = useMemo(() => (ontology?.edgeTypes ?? []).map(type => ({
     id: type.id,

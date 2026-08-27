@@ -131,6 +131,21 @@ export function growthAt(zoom: number, limit = GROWS_TO): number {
   return Math.min(Math.max(1 / zoom, 1), limit)
 }
 
+/**
+ * A declared colour, re-read at the lightness and chroma this surface uses.
+ *
+ * An ontology says what a kind is, which is a hue,
+ * and how light that hue has to be drawn is a fact about what it is drawn on.
+ * A colour tuned to be read on paper white sinks into a dark surface.
+ * Taking the hue from the declaration and the rest from the surface
+ * lets one theme answer for every kind at once,
+ * where a theme re-stating each kind would be one chance per kind
+ * to let one of them drift away from the others.
+ */
+export function onSurface(declared: string): string {
+  return `oklch(from ${declared} var(--kind-lightness) var(--kind-chroma) h)`
+}
+
 /** UML says what these mean, so a reader who knows a diagram knows these. */
 export type MarkerKind = 'triangleHollow' | 'diamond' | 'arrow' | 'dot' | 'none'
 

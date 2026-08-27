@@ -16,6 +16,16 @@
     --line-strong: #d3cec5;
     --accent: #1c1917;
     --accent-hover: #3b3734;
+    /* What every kind of node is drawn in, held apart by hue alone.
+
+       Lightness and chroma are set here rather than in the ontology, because
+       they are a fact about the surface a colour is read against and not
+       about the kind. A colour tuned to be read on paper white sinks into a
+       dark surface, and a theme that re-set each kind would be four chances
+       to let one drift away from the others. These two are the whole knob. */
+    --kind-lightness: 0.52;
+    --kind-chroma: 0.12;
+
     --concept: #7c3aed;
     --claim: #dc2626;
     --source: #0284c7;

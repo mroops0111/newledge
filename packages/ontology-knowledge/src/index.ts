@@ -37,21 +37,31 @@ function role(id: string, label: string, extra: Omit<SourceRoleInput, 'id' | 'la
 }
 
 /**
- * What each kind is drawn in,
- * pinned to one lightness and one chroma so no kind shouts over another,
- * and hue alone tells them apart.
- * A kind lighter or more saturated than the rest reads as the important one.
+ * What each kind is drawn in, which is a hue and nothing else.
  *
- * A topic is the ground others stand on rather than a thing in its own right,
- * so it is given almost no chroma and sits back where ground belongs.
- * Nothing is drawn in the red an argument is drawn in,
- * since that colour is already spoken for by a relation that contradicts.
+ * Every kind shares one lightness and one chroma,
+ * so no kind shouts over another and hue alone tells them apart.
+ * A kind lighter or more saturated than the rest reads as the important one.
+ * The two they share are written against a pale surface,
+ * and a surface that is not pale re-reads them from the hue,
+ * so what is declared here is a hue and a starting point rather than a fact.
+ *
+ * The hues are held apart by at least thirty degrees,
+ * and none of them comes within thirty five of the green and the red
+ * that agreement and conflict are drawn in,
+ * since a kind drawn in red reads as a dispute.
+ *
+ * A topic carries a hue like the rest.
+ * It is ground rather than a thing in its own right,
+ * but that is said by drawing it as a section under what stands on it,
+ * which is a section painted in its own sand and not in this at all,
+ * so draining the colour bought nothing there and cost a legend everywhere.
  */
 const nodeTypes: readonly NodeTypeDescriptor[] = [
   node('Concept', 'Concept', 'A durable unit of knowledge, an idea, a technique, or a definition. The dominant node type.', 'oklch(0.52 0.12 279)'),
   node('Claim', 'Claim', 'A specific assertion with a truth value the user can accept, reject, or contest. Carries provenance to the exact source moment.', 'oklch(0.52 0.12 63)'),
   node('Source', 'Source', 'An ingested artifact (a web page, article, video, or podcast) with its metadata. The anchor every claim traces back to.', 'oklch(0.52 0.12 243)'),
-  node('Topic', 'Topic', 'A named grouping or theme, a concept-map section made first-class, reusable, nestable, and many-to-many, so a node can sit under several topics.', 'oklch(0.52 0.04 82)'),
+  node('Topic', 'Topic', 'A named grouping or theme, a concept-map section made first-class, reusable, nestable, and many-to-many, so a node can sit under several topics.', 'oklch(0.52 0.12 316)'),
 ]
 
 const edgeTypes: readonly EdgeTypeDescriptor[] = [
