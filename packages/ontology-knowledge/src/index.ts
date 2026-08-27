@@ -48,8 +48,8 @@ function role(id: string, label: string, extra: Omit<SourceRoleInput, 'id' | 'la
  *
  * The hues are handed out as far apart as the wheel allows,
  * which is seventy degrees between the nearest two.
- * Reserving a wider berth than that around the green and the red
- * that agreement and conflict are drawn in
+ * A wider berth around the green and the red,
+ * which agreement and conflict are drawn in,
  * spent enough of the wheel that three of the four came out as one colour,
  * and a berth that wide is not what tells a badge from a line anyway,
  * since one is a word on a filled corner and the other is a stroke.

@@ -23,8 +23,9 @@ export interface CanvasEdgeData {
  * which the two ends alone never could,
  * so its answer is used when there is one,
  * and a plain curve is drawn when there is not.
- * A survey is laid out afresh whenever it changes and has no arrangement
- * worth routing around, so it is always the second case,
+ * A survey has no arrangement worth routing around,
+ * since it is laid out afresh whenever it changes,
+ * so it is always the second case,
  * which is the same drawing rather than a second one.
  *
  * The weight is read here rather than handed down from the page,

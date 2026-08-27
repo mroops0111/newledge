@@ -33,10 +33,8 @@ export interface Filterable {
  * The switches the panel offers, worked out from the ontology and the graph.
  *
  * The kinds come in the order they stand on each other. Ground first,
- * since it is what the rest sits on,
- * and then the bands a section is read down,
- * which is terms, then what is asserted about them,
- * then where that came from.
+ * since it is what the rest sits on. Then the bands a section is read down,
+ * which is terms, then what is asserted about them, then where it came from.
  * Read off the same facts a board arranges by,
  * so the two surfaces never disagree about which kind comes first.
  *

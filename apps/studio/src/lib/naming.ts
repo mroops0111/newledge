@@ -1,8 +1,8 @@
 /**
  * How a machine's own strings are set for someone to read.
  * A type id and a URL are both written for a program first,
- * so what a reader sees of either is decided here rather than at each place
- * one of them happens to be drawn.
+ * so what a reader sees of either is decided here,
+ * rather than at each place one of them happens to be drawn.
  */
 
 /**

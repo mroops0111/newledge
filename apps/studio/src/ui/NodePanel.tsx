@@ -5,8 +5,8 @@ import { GroupLabel } from './Surface.js'
 /**
  * What one node holds, read beside the canvas rather than on it.
  *
- * One panel for both canvases. A reader crossing between a board and a survey
- * is asking the same question of the same node when they pick one,
+ * One panel for both canvases.
+ * A reader picking a node on either one asks the same question of it,
  * so they are owed the same answer, laid out the same way.
  * Two panels drifted into each showing what the other did not,
  * which made which canvas a reader happened to be on decide what they learned.

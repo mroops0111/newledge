@@ -78,7 +78,7 @@ export const SURVEY_STROKE = 1.25
  *
  * An end is read as the head of its own line rather than as a mark beside it,
  * so it is sized from the weight it terminates, not from the surface it is on.
- * A head sized for a board's weight and set on a survey's hairline
+ * A head sized for a board's weight, set on a survey's hairline,
  * reads as an arrow that has been dropped onto a thread.
  * Saying the ratio once is what keeps the two surfaces agreeing about it.
  */
@@ -137,10 +137,9 @@ export function growthAt(zoom: number, limit = GROWS_TO): number {
  * An ontology says what a kind is, which is a hue,
  * and how light that hue has to be drawn is a fact about what it is drawn on.
  * A colour tuned to be read on paper white sinks into a dark surface.
- * Taking the hue from the declaration and the rest from the surface
- * lets one theme answer for every kind at once,
- * where a theme re-stating each kind would be one chance per kind
- * to let one of them drift away from the others.
+ * Taking the hue from the declaration and the rest from the surface,
+ * one theme answers for every kind at once.
+ * A theme re-stating each kind would be one chance per kind to drift.
  */
 export function onSurface(declared: string): string {
   return `oklch(from ${declared} var(--kind-lightness) var(--kind-chroma) h)`

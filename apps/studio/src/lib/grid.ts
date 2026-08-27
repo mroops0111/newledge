@@ -3,8 +3,7 @@
  * A layout answers in whatever coordinates suit it,
  * and a board that opens half a pixel off the grid can never be tidied by eye.
  *
- * The canvas paints its dots at this spacing or at a multiple of it,
- * off this same figure.
+ * The canvas paints its dots at this spacing or a multiple of it.
  * Dots at one spacing, over a board that snaps to another,
  * give a reader the wrong lines to line anything up against.
  */
@@ -35,7 +34,7 @@ export function onGrid(value: number): number {
  * so going out does not only shrink the dots, it crowds them.
  * One fixed spacing therefore cannot serve both ends of the wheel,
  * and a board is read across a wide stretch of it,
- * since a card here is wider than a card on most canvases
+ * since a card here is wider than a card on most canvases,
  * and a whole board is read from further out to fit.
  *
  * So the grid steps out by doubling rather than thinning away.

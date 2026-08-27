@@ -138,8 +138,9 @@ function rootOf(line: DrawnEdge): string | undefined {
 }
 
 /**
- * Which card the line is drawn towards, which is what decides where its mark
- * stands. A trunk is built from each child up to the root its siblings share,
+ * Which card the line is drawn towards,
+ * which is what decides where its mark stands.
+ * A trunk is built from each child up to the root its siblings share,
  * so a relation drawn as one arrives at its root however it is written.
  * Everything else runs the way the relation is written.
  */

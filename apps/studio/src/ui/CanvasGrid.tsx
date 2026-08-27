@@ -8,8 +8,8 @@ import { gridAt } from '../lib/grid.js'
  * which is otherwise only found out by trying,
  * and it gives a reader dragging an empty stretch something to move against.
  *
- * On a board it is doing a second job.
- * Every card lands on this spacing, or on a multiple of it,
+ * On a board it is doing a second job. Every card lands on this spacing,
+ * or on a multiple of it,
  * so the dots are also what a card can be lined up against.
  */
 export function CanvasGrid(): React.JSX.Element {

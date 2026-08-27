@@ -45,9 +45,9 @@ const PADDING = '8%'
  * so fitting on mount would frame a canvas still at the origin.
  *
  * Framed on arrival and then left alone.
- * A reader who has moved the canvas is somewhere they went on purpose,
- * and a surface that reframes itself whenever its room changes
- * takes that away for a reason the reader never gave.
+ * A reader who has moved the canvas is somewhere they went on purpose.
+ * Reframing whenever the room changes takes that away,
+ * for a reason the reader never gave.
  * Opening the column beside it is the plainest case of that,
  * and asking for the frame back is one button, which is where asking belongs.
  *
@@ -110,8 +110,9 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
     })()
   }, [client])
 
-  // Only a declared colour goes through the ramp, since the ramp sets a chroma
-  // and the fallback is a grey, which would come back out of it as a colour.
+  // Only a declared colour goes through the ramp,
+  // since the ramp sets a chroma and the fallback is a grey,
+  // which would come back out of it as a colour.
   const colourOf = useMemo(() => {
     const byType = new Map(
       (ontology?.nodeTypes ?? []).flatMap(type =>

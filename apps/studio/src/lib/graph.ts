@@ -30,8 +30,7 @@ export interface Ontology {
 }
 
 /**
- * Where a node says it came from.
- * Provenance arrives as a list of references,
+ * Where a node says it came from, which arrives as a list of references,
  * each of which may or may not have got as far as a location,
  * so what is left once the locations are asked for is what there is.
  */

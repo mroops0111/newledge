@@ -11,14 +11,14 @@ const KINDS: readonly Exclude<MarkerKind, 'none'>[] = ['triangleHollow', 'diamon
 const PAINTS: readonly (readonly [string, string])[] = [...LINE_PAINTS]
 
 /**
- * What an edge points its end at.
- * The bare id, since the canvas wraps it in a reference itself,
+ * What an edge points its end at, which is the bare id,
+ * since the canvas wraps it in a reference itself,
  * and wrapping it here as well produces one nested inside another,
  * which resolves to nothing.
  *
  * The one place this name is spelled.
- * A mark that is defined under one name and asked for under another
- * is a line that quietly loses its end.
+ * Defined under one name and asked for under another,
+ * a mark is a line that quietly loses its end.
  */
 function markerId(kind: Exclude<MarkerKind, 'none'>, paint: string): string {
   return `board-${kind}-${paint}`
@@ -27,14 +27,14 @@ function markerId(kind: Exclude<MarkerKind, 'none'>, paint: string): string {
 /**
  * Which end of a line carries its mark.
  *
- * A class diagram stands the diamond against the whole
+ * A class diagram stands the diamond against the whole,
  * and the hollow triangle against the general,
  * so a reader who has read one already knows which way to read these.
  *
  * Which way a line is drawn is the layout's business and moves with it.
  * A hierarchy runs from each child up to the root its siblings share,
  * and the same relation drawn without one runs the way it is written,
- * so the mark is placed by the root the relation declares
+ * so the mark is placed by the root the relation declares,
  * rather than by the end the line happens to arrive at.
  *
  * A relation with no root points at what it reaches,
@@ -71,8 +71,8 @@ export function markEnds(
 export function BoardMarkers({ weight }: {
   /**
    * The weight of the lines these ends terminate,
-   * which is what they are sized against.
-   * A surface says its own, since a board and a survey do not share one.
+   * which is what they are sized against. A surface says its own,
+   * since a board and a survey do not share one.
    */
   weight: number
 }): React.JSX.Element {
@@ -107,7 +107,7 @@ export function BoardMarkers({ weight }: {
 
 /**
  * One end, drawn in a twelve by twelve box.
- * Shared with whatever has to show a reader what an end looks like
+ * Shared with whatever has to show a reader what an end looks like,
  * away from the canvas that defines it,
  * so a legend and the thing it is a legend for cannot come apart.
  */
