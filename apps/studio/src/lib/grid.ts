@@ -3,40 +3,53 @@
  * A layout answers in whatever coordinates suit it,
  * and a board that opens half a pixel off the grid can never be tidied by eye.
  *
- * The canvas paints its dots at this same spacing, off this same figure.
+ * The canvas paints its dots at this spacing or at a multiple of it,
+ * off this same figure.
  * Dots at one spacing, over a board that snaps to another,
  * give a reader the wrong lines to line anything up against.
  */
 export const GRID = 24
 
-/** How big a dot on the grid is drawn, in the units the board is laid out in. */
-export const GRID_DOT = 3
+/**
+ * How wide a dot is drawn on the screen, whatever the canvas is scaled to.
+ * A dot is texture rather than a thing on the board,
+ * so it wants a size on the screen and not a size in board units,
+ * which is what the canvas would otherwise give it.
+ */
+const DOT_ACROSS = 2
 
 /**
- * How far apart the dots have to land on the screen to be worth drawing.
- *
- * The canvas scales the grid with everything else,
- * so going out does not only shrink the dots, it crowds them,
- * and a board read whole puts these a few pixels apart.
- * That is a haze over the paper rather than marks a card can be lined up
- * against, and it is worst exactly where it is least use,
- * since a reader that far out is looking at the shape of the board
- * and not placing anything on it.
- *
- * It comes up across a range rather than at a line,
- * so a board held near it does not strobe while a reader is still moving
- * the wheel, and so that the grid arrives as a reader zooms towards the work.
+ * The closest together a reader should ever see the dots stand.
+ * Nearer than this they stop reading as a grid and become a haze on the paper.
  */
-const GRID_FADES_IN = 8
-const GRID_FULL_AT = 16
-
-export function gridStrength(zoom: number): number {
-  const apart = GRID * zoom
-  return Math.min(Math.max((apart - GRID_FADES_IN) / (GRID_FULL_AT - GRID_FADES_IN), 0), 1)
-}
+const DOTS_AT_LEAST = 16
 
 export function onGrid(value: number): number {
   return Math.round(value / GRID) * GRID
+}
+
+/**
+ * The grid to draw at this zoom, and the size the canvas wants for its dot.
+ *
+ * The canvas scales the spacing along with everything standing on it,
+ * so going out does not only shrink the dots, it crowds them.
+ * One fixed spacing therefore cannot serve both ends of the wheel,
+ * and a board is read across a wide stretch of it,
+ * since a card here is wider than a card on most canvases
+ * and a whole board is read from further out to fit.
+ *
+ * So the grid steps out by doubling rather than thinning away.
+ * Every spacing it lands on is a multiple of the one the board snaps to,
+ * so a dot always stands where a card could be lined up,
+ * and a coarser grid is a subset of the finer one rather than another grid.
+ * It is never drawn finer than the board snaps,
+ * which would offer lines no card can land on.
+ */
+export function gridAt(zoom: number): { readonly spacing: number, readonly dot: number } {
+  let spacing = GRID
+  while (spacing * zoom < DOTS_AT_LEAST)
+    spacing *= 2
+  return { spacing, dot: DOT_ACROSS / zoom }
 }
 
 /**

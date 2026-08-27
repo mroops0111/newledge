@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { boxOnGrid, GRID, gridStrength, onGrid } from '../src/lib/grid.js'
+import { boxOnGrid, GRID, gridAt, onGrid } from '../src/lib/grid.js'
 
 describe('onGrid', () => {
   it('puts a value on the nearest grid line', () => {
@@ -18,23 +18,45 @@ describe('boxOnGrid', () => {
   })
 })
 
-describe('gridStrength', () => {
-  it('draws nothing where the dots would crowd into a haze', () => {
-    // A whole board read at once puts these a few pixels apart.
-    expect(gridStrength(0.24)).toBe(0)
-    expect(gridStrength(1 / 3)).toBe(0)
+describe('gridAt', () => {
+  const ZOOMS = [0.1, 0.24, 0.35, 0.5, 0.75, 1, 1.5, 2]
+
+  it('never lets the dots crowd closer than they can be read', () => {
+    for (const zoom of ZOOMS)
+      expect(gridAt(zoom).spacing * zoom).toBeGreaterThanOrEqual(16)
   })
 
-  it('draws the grid whole once its spacing is worth reading', () => {
-    expect(gridStrength(1)).toBe(1)
-    expect(gridStrength(2)).toBe(1)
+  it('takes the closest spacing that clears it, so it is never sparser than it has to be', () => {
+    for (const zoom of ZOOMS) {
+      const { spacing } = gridAt(zoom)
+      // Either the board's own grid, which is as fine as it goes,
+      // or a spacing whose next step down would crowd.
+      if (spacing !== GRID)
+        expect((spacing / 2) * zoom).toBeLessThan(16)
+    }
   })
 
-  it('comes up across a range, so a board held near it does not strobe', () => {
-    const half = gridStrength(0.5)
-    expect(half).toBeGreaterThan(0)
-    expect(half).toBeLessThan(1)
-    expect(gridStrength(0.45)).toBeLessThan(half)
-    expect(gridStrength(0.6)).toBeGreaterThan(half)
+  it('only ever draws a spacing the board itself lands on', () => {
+    for (const zoom of [0.1, 0.24, 0.35, 0.5, 0.75, 1, 2])
+      expect(gridAt(zoom).spacing % GRID).toBe(0)
+  })
+
+  it('never offers a line finer than the board snaps to', () => {
+    expect(gridAt(2).spacing).toBe(GRID)
+    expect(gridAt(8).spacing).toBe(GRID)
+  })
+
+  it('steps out by doubling as a reader goes out', () => {
+    expect(gridAt(1).spacing).toBe(GRID)
+    expect(gridAt(0.5).spacing).toBe(GRID * 2)
+    expect(gridAt(0.24).spacing).toBe(GRID * 4)
+  })
+
+  it('holds one dot size on the screen, whatever the canvas is scaled to', () => {
+    // The canvas draws a dot at half this and then scales it by the zoom,
+    // so what a reader sees is the same at either end of the wheel.
+    const seen = (zoom: number): number => (gridAt(zoom).dot / 2) * zoom
+    expect(seen(0.24)).toBeCloseTo(seen(1))
+    expect(seen(2)).toBeCloseTo(seen(1))
   })
 })

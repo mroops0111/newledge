@@ -24,7 +24,7 @@ import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
 import type { BoardCardData } from '../ui/BoardCard.js'
 import { BoardCard } from '../ui/BoardCard.js'
-import { BoardGrid } from '../ui/BoardGrid.js'
+import { CanvasGrid } from '../ui/CanvasGrid.js'
 import { BoardMarkers } from '../ui/BoardMarkers.js'
 import { boardEdges } from '../ui/boardEdges.js'
 import { BoardList } from '../ui/BoardList.js'
@@ -472,7 +472,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
               maxZoom={2}
               proOptions={{ hideAttribution: true }}
             >
-              <BoardGrid />
+              <CanvasGrid />
               <Guides guides={drag.guides} />
             </ReactFlow>
             <BoardTools

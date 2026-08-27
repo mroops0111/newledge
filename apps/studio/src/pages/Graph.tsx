@@ -10,6 +10,7 @@ import { laidOut } from '../lib/layout.js'
 import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
 import { BoardMarkers } from '../ui/BoardMarkers.js'
+import { CanvasGrid } from '../ui/CanvasGrid.js'
 import { GraphFilters } from '../ui/GraphFilters.js'
 import { graphEdges } from '../ui/graphEdges.js'
 import { Inspector } from '../ui/Inspector.js'
@@ -288,14 +289,8 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
             maxZoom={2}
             proOptions={{ hideAttribution: true }}
           >
-            {/*
-              No grid under this one. A board is arranged by a reader and
-              lands on a grid, so drawing that grid shows what a card can be
-              lined up against. A survey is arranged by the machine and lands
-              wherever the layout puts it, so the same dots would be lines
-              nothing on the canvas stands on.
-            */}
             <FitOnPlacement ready={placedAll} />
+            <CanvasGrid />
             {/*
               Down the same edge the panel and the switch that opens it are on,
               so everything a reader operates the canvas with is on one side,
