@@ -1,6 +1,6 @@
 import { useStore } from '@xyflow/react'
 import type { MarkerKind } from '../lib/boardStyle.js'
-import { growthAt } from '../lib/boardStyle.js'
+import { growthAt, MARKER_TO_STROKE } from '../lib/boardStyle.js'
 import { LINE_PAINTS } from '../lib/kinship.js'
 
 const KINDS: readonly Exclude<MarkerKind, 'none'>[] = ['triangleHollow', 'diamond', 'arrow', 'dot']
@@ -20,9 +20,6 @@ export function markerId(kind: MarkerKind, paint: string): string | undefined {
   return kind === 'none' ? undefined : `board-${kind}-${paint}`
 }
 
-/** How wide and tall an end is drawn, in the units the board is laid out in. */
-const MARKER = 13
-
 /**
  * The ends a relation can be drawn with.
  * A hollow triangle and a diamond mean what they mean in a class diagram,
@@ -30,13 +27,20 @@ const MARKER = 13
  * They are defined once for the document rather than once per edge,
  * which is the point of an SVG marker.
  *
- * An end is held against the board's scale on the same terms as its line.
+ * An end is held against the canvas scale on the same terms as its line.
  * Left to shrink alone it becomes a speck on a line still clearly drawn,
  * and which way a relation runs is the first thing lost.
  */
-export function BoardMarkers(): React.JSX.Element {
+export function BoardMarkers({ weight }: {
+  /**
+   * The weight of the lines these ends terminate,
+   * which is what they are sized against.
+   * A surface says its own, since a board and a survey do not share one.
+   */
+  weight: number
+}): React.JSX.Element {
   const growth = growthAt(useStore(state => state.transform[2]))
-  const size = MARKER * growth
+  const size = weight * MARKER_TO_STROKE * growth
 
   return (
     <svg className="pointer-events-none absolute size-0" aria-hidden>

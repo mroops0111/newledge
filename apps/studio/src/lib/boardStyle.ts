@@ -65,6 +65,26 @@ export type EdgeTone = 'structure' | 'quiet' | 'supports' | 'contradicts'
 export const STROKE = 2.25
 
 /**
+ * How thick a line is drawn on the survey.
+ * Thinner than the weight a board draws,
+ * because a board holds a dozen lines between cards twice this wide,
+ * and a survey holds every line there is between cards half the size.
+ * The weight that reads as structure on one reads as a thicket on the other.
+ */
+export const SURVEY_STROKE = 1.25
+
+/**
+ * How big an end is drawn against the line it stands on.
+ *
+ * An end is read as the head of its own line rather than as a mark beside it,
+ * so it is sized from the weight it terminates, not from the surface it is on.
+ * A head sized for a board's weight and set on a survey's hairline
+ * reads as an arrow that has been dropped onto a thread.
+ * Saying the ratio once is what keeps the two surfaces agreeing about it.
+ */
+export const MARKER_TO_STROKE = 5.8
+
+/**
  * How far out a canvas has to be before type on it stops being readable.
  *
  * A card drawn below this puts its type at a few pixels,

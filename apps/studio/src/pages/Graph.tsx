@@ -1,8 +1,8 @@
 import type { Node } from '@xyflow/react'
-import { Background, Controls, ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Background, Controls, getViewportForBounds, ReactFlow, ReactFlowProvider, useReactFlow, useStore } from '@xyflow/react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
-import { nodeStyle } from '../lib/boardStyle.js'
+import { nodeStyle, SURVEY_STROKE } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import type { GraphEdge, GraphNode, GraphView, Ontology } from '../lib/graph.js'
 import { openingView, visibleGraph, withType } from '../lib/graph.js'
@@ -13,11 +13,14 @@ import { BoardMarkers } from '../ui/BoardMarkers.js'
 import { GraphFilters } from '../ui/GraphFilters.js'
 import { graphEdges } from '../ui/graphEdges.js'
 import { Inspector } from '../ui/Inspector.js'
+import { GLYPHS } from '../ui/Toolkit.js'
 import type { NodeCardData } from '../ui/NodeCard.js'
 import { NodeCard } from '../ui/NodeCard.js'
+import { SurveyEdge } from '../ui/SurveyEdge.js'
 import '@xyflow/react/dist/style.css'
 
 const NODE_TYPES = { card: NodeCard }
+const EDGE_TYPES = { survey: SurveyEdge }
 
 // A type the ontology declares without a colour still has to be drawn.
 const UNTYPED = 'var(--ink-subtle)'
@@ -31,25 +34,51 @@ const UNTYPED = 'var(--ink-subtle)'
  * Whether what it frames can then be read is a separate matter,
  * answered by the wheel, not by refusing to frame.
  */
-const FRAME = { padding: 0.16 }
+const PADDING = '8%'
 
 /**
- * Frame the graph once its nodes have somewhere to be.
+ * Frame the graph once its nodes have somewhere to be,
+ * and again whenever the room it has to stand in changes.
+ *
  * Placement lands after the graph is read,
  * so fitting on mount would frame a canvas still at the origin.
+ * Opening or closing the column over it changes how much room the graph has,
+ * and a frame taken for the old width leaves the graph off to one side.
+ *
+ * Every frame is taken at once rather than eased.
+ * The canvas takes an eased viewport only while nothing else is moving,
+ * and a reframe is asked for by the very thing that is,
+ * so easing it is a frame that silently never arrives.
  */
-function FitOnPlacement({ ready }: { ready: boolean }): null {
+function FitOnPlacement({ ready, covers }: {
+  ready: boolean
+  /** The panel standing over the canvas, or nothing while it is away. */
+  covers: HTMLElement | null
+}): null {
   const flow = useReactFlow()
-  const framed = useRef(false)
+  const canvas = useStore(
+    state => ({ width: state.width, height: state.height, min: state.minZoom, max: state.maxZoom }),
+    (one, other) => one.width === other.width && one.height === other.height,
+  )
+  const hidden = covers === null ? 0 : covers.offsetWidth
+
   useEffect(() => {
-    if (framed.current || !ready)
+    if (!ready || canvas.width === 0)
       return
-    framed.current = true
     // The nodes reach the canvas a tick before their positions do,
     // so the frame is taken after the browser has drawn them.
-    const timer = setTimeout(() => flow.fitView(FRAME), 0)
+    const timer = setTimeout(() => {
+      // Framed into the room the panel leaves rather than into the whole
+      // canvas, and then slid across by what it stands over. Asking for a
+      // padding on one side alone is answered differently depending on what
+      // else the padding says, and this is the same sum written plainly.
+      const bounds = flow.getNodesBounds(flow.getNodes())
+      const room = Math.max(1, canvas.width - hidden)
+      const framing = getViewportForBounds(bounds, room, canvas.height, canvas.min, canvas.max, PADDING)
+      flow.setViewport({ ...framing, x: framing.x + hidden })
+    }, 0)
     return () => clearTimeout(timer)
-  }, [ready, flow])
+  }, [ready, hidden, canvas, flow])
   return null
 }
 
@@ -67,6 +96,11 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
   const [view, setView] = useState<GraphView | undefined>(undefined)
   const [selected, setSelected] = useState<string | undefined>(undefined)
   const [focused, setFocused] = useState(false)
+  const [shows, setShows] = useState(true)
+  // Held as state rather than in a ref, since the fit has to be worked out
+  // again once the panel is there, and setting a ref tells nobody. Measured
+  // rather than assumed, so the width is not written down twice.
+  const [panel, setPanel] = useState<HTMLElement | null>(null)
   const [error, setError] = useState<string | undefined>(undefined)
 
   useEffect(() => {
@@ -151,6 +185,10 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
     return Number(b.ground) - Number(a.ground) || a.band - b.band
   }), [ontology])
 
+  const only = useCallback((kind: 'nodeTypes' | 'edgeTypes', ids: readonly string[]) => {
+    setView(current => current === undefined ? current : { ...current, [kind]: new Set(ids) })
+  }, [])
+
   const toggle = useCallback((kind: 'nodeTypes' | 'edgeTypes', id: string) => {
     setView(current => current === undefined ? current : { ...current, [kind]: withType(current[kind], id) })
   }, [])
@@ -187,15 +225,6 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
   return (
     <AppShell
       {...nav}
-      beneath={(
-        <GraphFilters
-          kinds={kindCounts}
-          relations={relationCounts}
-          activeKinds={view.nodeTypes}
-          activeRelations={view.edgeTypes}
-          onToggle={toggle}
-        />
-      )}
       panel={inspected === undefined ? undefined : <Inspector node={inspected} claims={claimsAbout} />}
     >
     <div className="flex h-screen flex-col">
@@ -220,25 +249,58 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
       </header>
 
       <div className="relative min-h-0 flex-1">
-        <BoardMarkers />
-        <ReactFlow
-          nodes={flowNodes}
-          edges={flowEdges}
-          nodeTypes={NODE_TYPES}
-          onNodeClick={(_, node) => setSelected(node.id)}
-          onPaneClick={() => { setSelected(undefined); setFocused(false) }}
-          fitView
-          // A view that fits everything on screen fits nothing legible,
-          // so the opening frame stays readable and leaves the rest to pan.
-          fitViewOptions={FRAME}
-          minZoom={0.1}
-          maxZoom={2}
-          proOptions={{ hideAttribution: true }}
-        >
-          <FitOnPlacement ready={placedAll} />
-          <Background color="var(--line-strong)" gap={24} size={1} />
-          <Controls showInteractive={false} className="!border-line !bg-surface !shadow-card" />
-        </ReactFlow>
+        {shows && (
+          <GraphFilters
+            ref={setPanel}
+            kinds={kindCounts}
+            relations={relationCounts}
+            activeKinds={view.nodeTypes}
+            activeRelations={view.edgeTypes}
+            onToggle={toggle}
+            onOnly={only}
+          />
+        )}
+        <div className="relative h-full">
+          {/*
+            The switch stands on the canvas rather than in the panel it opens,
+            since a panel that is away has nowhere to put the thing that brings
+            it back, and it stays in one place rather than moving with the
+            panel, so a reader closing it does not have to find it again.
+          */}
+          <button
+            type="button"
+            onClick={() => setShows(now => !now)}
+            aria-pressed={shows}
+            title={shows ? 'Hide what is drawn' : 'Choose what is drawn'}
+            className={`absolute left-3 top-3 z-20 rounded-control border border-line bg-surface p-1.5 shadow-card transition-colors ${shows
+              ? 'text-ink'
+              : 'text-ink-subtle hover:text-ink'}`}
+          >
+            {GLYPHS.panel}
+          </button>
+          <BoardMarkers weight={SURVEY_STROKE} />
+          <ReactFlow
+            nodes={flowNodes}
+            edges={flowEdges}
+            nodeTypes={NODE_TYPES}
+            edgeTypes={EDGE_TYPES}
+            onNodeClick={(_, node) => setSelected(node.id)}
+            onPaneClick={() => { setSelected(undefined); setFocused(false) }}
+            fitView
+            minZoom={0.1}
+            maxZoom={2}
+            proOptions={{ hideAttribution: true }}
+          >
+            <FitOnPlacement ready={placedAll} covers={shows ? panel : null} />
+            <Background color="var(--line-strong)" gap={24} size={1} />
+            {/* Out from under the panel, which stands down the left of the canvas. */}
+            <Controls
+              position="bottom-right"
+              showInteractive={false}
+              className="!border-line !bg-surface !shadow-card"
+            />
+          </ReactFlow>
+        </div>
       </div>
     </div>
     </AppShell>

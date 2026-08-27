@@ -10,7 +10,7 @@ import { DIMMED, emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { elkPlacement } from '../lib/elkPlacement.js'
 import type { BoardClient } from '../lib/boards.js'
 import { newBoard, openingBoards, renameSection, withBoard, withSection } from '../lib/boards.js'
-import { nodeStyle } from '../lib/boardStyle.js'
+import { nodeStyle, STROKE } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import { drawnCards, drawnRelations } from '../lib/drawing.js'
 import { GRID } from '../lib/grid.js'
@@ -456,7 +456,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
         */}
         <ReactFlowProvider>
           <div className="relative min-h-0 flex-1">
-            <BoardMarkers />
+            <BoardMarkers weight={STROKE} />
             <ReactFlow
               nodes={attended}
               edges={edges}

@@ -2,19 +2,10 @@ import type { Edge } from '@xyflow/react'
 import type { Attention } from '../lib/attention.js'
 import { DIMMED, emphasisOf } from '../lib/attention.js'
 import type { EdgeStyle } from '../lib/boardStyle.js'
-import { edgeStyle, TONE_COLOURS } from '../lib/boardStyle.js'
+import { edgeStyle, SURVEY_STROKE, TONE_COLOURS } from '../lib/boardStyle.js'
 import type { GraphEdge, GraphNode } from '../lib/graph.js'
 import { ranked } from '../lib/layout.js'
 import { markerId } from './BoardMarkers.js'
-
-/**
- * How thick a line is drawn on the survey.
- * Thinner than the weight a board draws,
- * because a board holds a dozen lines between cards twice this wide,
- * and a survey holds every line there is between cards half the size.
- * The weight that reads as structure on one reads as a thicket on the other.
- */
-const SURVEY_STROKE = 1.25
 
 /**
  * Which end of a line carries its mark.
@@ -80,6 +71,7 @@ export function graphEdges(
 
     return [{
       id: edge.id,
+      type: 'survey',
       source: above,
       target: below,
       ...(asked ? { label: edge.type } : {}),
