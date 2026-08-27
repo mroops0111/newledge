@@ -65,6 +65,42 @@ export type EdgeTone = 'structure' | 'quiet' | 'supports' | 'contradicts'
 export const STROKE = 2.25
 
 /**
+ * How thick a line is drawn on the survey.
+ * Thinner than the weight a board draws,
+ * because a board holds a dozen lines between cards twice this wide,
+ * and a survey holds every line there is between cards half the size.
+ * The weight that reads as structure on one reads as a thicket on the other.
+ */
+export const SURVEY_STROKE = 1.25
+
+/**
+ * How big an end is drawn against the line it stands on.
+ *
+ * An end is read as the head of its own line rather than as a mark beside it,
+ * so it is sized from the weight it terminates, not from the surface it is on.
+ * A head sized for a board's weight, set on a survey's hairline,
+ * reads as an arrow that has been dropped onto a thread.
+ * Saying the ratio once is what keeps the two surfaces agreeing about it.
+ */
+export const MARKER_TO_STROKE = 5.8
+
+/**
+ * How far out a canvas has to be before type on it stops being readable.
+ *
+ * A card drawn below this puts its type at a few pixels,
+ * which is not small writing, it is a texture.
+ * A board answers by drawing a card's name and nothing else past here.
+ * A survey answers by not framing itself further out than this to begin with.
+ * Both are answering the same fact about the type.
+ *
+ * Two figures rather than one,
+ * so a canvas held near the line does not strobe between the two,
+ * while a reader is still moving the wheel.
+ */
+export const READABLE = 0.5
+export const READABLE_AGAIN = 0.6
+
+/**
  * How far a mark may be grown to stop the board thinning it away.
  *
  * A card's name is the tightest thing this has to fit,
@@ -93,6 +129,20 @@ const GROWS_TO = 2.6
  */
 export function growthAt(zoom: number, limit = GROWS_TO): number {
   return Math.min(Math.max(1 / zoom, 1), limit)
+}
+
+/**
+ * A declared colour, re-read at the lightness and chroma this surface uses.
+ *
+ * An ontology says what a kind is, which is a hue,
+ * and how light that hue has to be drawn is a fact about what it is drawn on.
+ * A colour tuned to be read on paper white sinks into a dark surface.
+ * Taking the hue from the declaration and the rest from the surface,
+ * one theme answers for every kind at once.
+ * A theme re-stating each kind would be one chance per kind to drift.
+ */
+export function onSurface(declared: string): string {
+  return `oklch(from ${declared} var(--kind-lightness) var(--kind-chroma) h)`
 }
 
 /** UML says what these mean, so a reader who knows a diagram knows these. */

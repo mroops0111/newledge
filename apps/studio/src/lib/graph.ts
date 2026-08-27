@@ -23,10 +23,21 @@ export interface EdgeTypeDescriptor {
   readonly id: string
 }
 
-/** The type sets an ontology declares, which is what the board draws itself from. */
+/** The type sets an ontology declares, which a view is drawn from. */
 export interface Ontology {
   readonly nodeTypes: readonly NodeTypeDescriptor[]
   readonly edgeTypes: readonly EdgeTypeDescriptor[]
+}
+
+/**
+ * Where a node says it came from, which arrives as a list of references,
+ * each of which may or may not have got as far as a location,
+ * so what is left once the locations are asked for is what there is.
+ */
+export function sourcesOf(node: GraphNode): readonly string[] {
+  return (node.metadata?.sourceReferences ?? [])
+    .map(reference => reference.location?.uri)
+    .filter((uri): uri is string => uri !== undefined)
 }
 
 /** Which types a reader has chosen to see. */
@@ -42,32 +53,34 @@ export interface VisibleGraph {
 
 /**
  * Decide what the graph draws, from the types a reader has turned on.
- * A node is drawn when its own type is on, or when a drawn relation reaches it,
- * so asking for contradictions brings the claims in dispute along with them,
- * and dropping the relation takes those claims away again.
+ *
+ * The kinds decide what stands on the canvas,
+ * and the relations decide what is drawn between whatever is standing there.
+ * Neither can reach in for the other.
+ *
+ * A relation that drew its own two ends made the kinds advisory,
+ * since a reader who turned every kind off still had a canvas full of cards,
+ * and the switch they had just pressed was then not about anything.
+ * A reader reads the kinds as saying what is here,
+ * so that is what they have to say.
+ *
  * Nothing is special-cased by type, so an ontology can add one and be drawn.
  */
 export function visibleGraph(graph: VisibleGraph, view: GraphView): VisibleGraph {
-  const byId = new Map(graph.nodes.map(node => [node.id, node]))
+  const nodes = graph.nodes.filter(node => view.nodeTypes.has(node.type))
+  const standing = new Set(nodes.map(node => node.id))
   const edges = graph.edges.filter(edge =>
-    view.edgeTypes.has(edge.type) && byId.has(edge.fromNodeId) && byId.has(edge.toNodeId),
+    view.edgeTypes.has(edge.type)
+    && standing.has(edge.fromNodeId)
+    && standing.has(edge.toNodeId),
   )
 
-  const drawn = new Set<string>()
-  for (const node of graph.nodes) {
-    if (view.nodeTypes.has(node.type))
-      drawn.add(node.id)
-  }
-  for (const edge of edges) {
-    drawn.add(edge.fromNodeId)
-    drawn.add(edge.toNodeId)
-  }
-
-  return { nodes: graph.nodes.filter(node => drawn.has(node.id)), edges }
+  return { nodes, edges }
 }
 
 /**
- * The view a reader starts from, read off the ontology rather than written here.
+ * The view a reader starts from,
+ * read off the ontology rather than written here.
  * Concepts and the themes they sit under carry the shape of the graph.
  * Contradictions come too, since a disagreement is the reason to look.
  * Everything else is a toggle away.

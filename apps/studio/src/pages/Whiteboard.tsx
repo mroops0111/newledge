@@ -1,7 +1,7 @@
 import type { Board } from '@newledge/board'
 import { sectionHolding } from '@newledge/board'
 import type { Edge, Node, NodeTypes } from '@xyflow/react'
-import { Background, ReactFlow, ReactFlowProvider, useNodesState } from '@xyflow/react'
+import { ReactFlow, ReactFlowProvider, useNodesState } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Box } from '@newledge/board-layout'
 import { orthogonalRouting } from '@newledge/board-layout'
@@ -10,10 +10,9 @@ import { DIMMED, emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { elkPlacement } from '../lib/elkPlacement.js'
 import type { BoardClient } from '../lib/boards.js'
 import { newBoard, openingBoards, renameSection, withBoard, withSection } from '../lib/boards.js'
-import { nodeStyle } from '../lib/boardStyle.js'
+import { nodeStyle, STROKE } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import { drawnCards, drawnRelations } from '../lib/drawing.js'
-import { GRID } from '../lib/grid.js'
 import { grownSections } from '../lib/grounds.js'
 import { worthFollowing } from '../lib/legibility.js'
 import { topicOf } from '../lib/topic.js'
@@ -25,11 +24,13 @@ import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
 import type { BoardCardData } from '../ui/BoardCard.js'
 import { BoardCard } from '../ui/BoardCard.js'
+import { CanvasGrid } from '../ui/CanvasGrid.js'
 import { BoardMarkers } from '../ui/BoardMarkers.js'
 import { boardEdges } from '../ui/boardEdges.js'
 import { BoardList } from '../ui/BoardList.js'
-import { ConceptPanel, inside } from '../ui/ConceptPanel.js'
-import { RoutedEdge } from '../ui/RoutedEdge.js'
+import { inside } from '../lib/inside.js'
+import { NodePanel } from '../ui/NodePanel.js'
+import { CanvasEdge } from '../ui/CanvasEdge.js'
 import { BoardTools } from '../ui/BoardTools.js'
 import { Guides } from '../ui/Guides.js'
 import type { SectionBoxData } from '../ui/SectionBox.js'
@@ -39,7 +40,7 @@ import { useRoutes } from '../ui/useRoutes.js'
 import '@xyflow/react/dist/style.css'
 
 const NODE_TYPES: NodeTypes = { card: BoardCard, section: SectionBox }
-const EDGE_TYPES = { routed: RoutedEdge }
+const EDGE_TYPES = { line: CanvasEdge }
 const PLACEMENT = elkPlacement()
 const ROUTING = orthogonalRouting()
 const MIN_NAME_WIDTH = 10
@@ -430,7 +431,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     <AppShell
       {...nav}
       beneath={<BoardList boards={boards} openId={openId} onOpen={setOpenId} onAdd={addBoard} />}
-      panel={opened === undefined ? undefined : <ConceptPanel node={opened} held={inside(opened, graph)} />}
+      panel={opened === undefined ? undefined : <NodePanel node={opened} held={inside(opened, graph)} />}
     >
       <div className="flex h-screen flex-col">
         <header className="flex items-center gap-3 border-b border-line px-6 py-3">
@@ -456,7 +457,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
         */}
         <ReactFlowProvider>
           <div className="relative min-h-0 flex-1">
-            <BoardMarkers />
+            <BoardMarkers weight={STROKE} />
             <ReactFlow
               nodes={attended}
               edges={edges}
@@ -472,7 +473,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
               maxZoom={2}
               proOptions={{ hideAttribution: true }}
             >
-              <Background color="var(--line-strong)" gap={GRID} size={1} />
+              <CanvasGrid />
               <Guides guides={drag.guides} />
             </ReactFlow>
             <BoardTools
