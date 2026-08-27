@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GraphEdge, GraphNode, Ontology } from '../src/lib/graph.js'
-import { openingView, visibleGraph, withType } from '../src/lib/graph.js'
-import { placeArrivals } from '../src/lib/layout.js'
+import { openingView, sourcesOf, visibleGraph, withType } from '../src/lib/graph.js'
+import { laidOut } from '../src/lib/layout.js'
 
 function node(id: string, type: string): GraphNode {
   return { id, type, name: id }
@@ -52,34 +52,50 @@ describe('openingView', () => {
 })
 
 describe('visibleGraph', () => {
-  it('draws the chosen types and the relations between them', () => {
+  it('draws the kinds a reader asked for, and the relations between them', () => {
     const shown = visibleGraph(graph, openingView(ontology))
-    expect(shown.nodes.map(n => n.id).sort()).toEqual(['faster', 'graphRag', 'rag', 'retrieval', 'slower'])
-    expect(shown.edges.map(e => e.id).sort()).toEqual(['e1', 'e2', 'e3'])
-  })
-
-  it('brings a claim in dispute along with the disagreement', () => {
-    const shown = visibleGraph(graph, openingView(ontology))
-    // `faster` is reached by the contradiction, `unrelated` is not reached at all.
-    expect(shown.nodes.map(n => n.id)).toContain('faster')
-    expect(shown.nodes.map(n => n.id)).toContain('slower')
-    expect(shown.nodes.map(n => n.id)).not.toContain('unrelated')
-  })
-
-  it('takes those claims away again when the disagreement is turned off', () => {
-    const view = openingView(ontology)
-    const quiet = { ...view, edgeTypes: withType(view.edgeTypes, 'contradicts') }
-    const shown = visibleGraph(graph, quiet)
-
     expect(shown.nodes.map(n => n.id).sort()).toEqual(['graphRag', 'rag', 'retrieval'])
+    expect(shown.edges.map(e => e.id).sort()).toEqual(['e1', 'e2'])
   })
 
-  it('draws every claim once aboutness is asked for', () => {
+  it('empties the canvas once every kind is off', () => {
     const view = openingView(ontology)
-    const withClaims = { ...view, edgeTypes: withType(view.edgeTypes, 'concerns') }
+    const shown = visibleGraph(graph, { ...view, nodeTypes: new Set() })
+
+    expect(shown.nodes).toEqual([])
+    expect(shown.edges).toEqual([])
+  })
+
+  it('leaves a relation undrawn while either of its ends is off', () => {
+    const view = openingView(ontology)
+    expect(view.edgeTypes.has('contradicts')).toBe(true)
+
+    // The two claims in dispute are not on the canvas,
+    // so the disagreement between them has nowhere to be drawn.
+    const shown = visibleGraph(graph, view)
+    expect(shown.edges.map(e => e.id)).not.toContain('e3')
+  })
+
+  it('draws the disagreement once the claims are asked for', () => {
+    const view = openingView(ontology)
+    const withClaims = { ...view, nodeTypes: new Set([...view.nodeTypes, 'Claim']) }
     const shown = visibleGraph(graph, withClaims)
 
-    expect(shown.nodes.map(n => n.id)).toContain('unrelated')
+    expect(shown.nodes.map(n => n.id)).toContain('faster')
+    expect(shown.nodes.map(n => n.id)).toContain('slower')
+    expect(shown.edges.map(e => e.id)).toContain('e3')
+  })
+
+  it('takes the disagreement away again when the relation is turned off', () => {
+    const view = openingView(ontology)
+    const quiet = {
+      nodeTypes: new Set([...view.nodeTypes, 'Claim']),
+      edgeTypes: withType(view.edgeTypes, 'contradicts'),
+    }
+    const shown = visibleGraph(graph, quiet)
+
+    expect(shown.nodes.map(n => n.id)).toContain('faster')
+    expect(shown.edges.map(e => e.id)).not.toContain('e3')
   })
 
   it('special-cases no type, so a type an ontology adds is drawn like the rest', () => {
@@ -109,23 +125,55 @@ describe('withType', () => {
   })
 })
 
-describe('placeArrivals', () => {
-  it('places a node that has never been placed', () => {
-    const placed = placeArrivals([node('a', 'Concept'), node('b', 'Concept')], [edge('e', 'extends', 'a', 'b')], new Map())
+describe('laidOut', () => {
+  it('gives every node a place', () => {
+    const placed = laidOut(
+      [node('a', 'Concept'), node('b', 'Concept')],
+      [edge('e', 'extends', 'a', 'b')],
+    )
     expect(placed.size).toBe(2)
     expect(placed.get('a')).toBeDefined()
-  })
-
-  it('leaves a position a reader chose exactly where it was', () => {
-    const chosen = new Map([['a', { x: 42, y: 99 }]])
-    const placed = placeArrivals([node('a', 'Concept'), node('b', 'Concept')], [], chosen)
-
-    expect(placed.get('a')).toEqual({ x: 42, y: 99 })
     expect(placed.get('b')).toBeDefined()
   })
 
-  it('does no work when everything is already placed', () => {
-    const chosen = new Map([['a', { x: 1, y: 2 }]])
-    expect(placeArrivals([node('a', 'Concept')], [], chosen)).toBe(chosen)
+  it('reads the whole shape again when the canvas gains a node', () => {
+    const two = laidOut([node('a', 'Concept'), node('b', 'Concept')], [edge('e', 'contains', 'a', 'b')])
+    const three = laidOut(
+      [node('a', 'Concept'), node('b', 'Concept'), node('c', 'Concept')],
+      [edge('e', 'contains', 'a', 'b'), edge('f', 'contains', 'a', 'c')],
+    )
+    // Both children hang off the same parent, so gaining one moves the other,
+    // which is the arrangement a reader asked to see rather than the old one.
+    expect(three.get('b')).not.toEqual(two.get('b'))
+  })
+
+  it('draws a topic above what is filed under it, however the graph writes it', () => {
+    const placed = laidOut(
+      [node('theme', 'Topic'), node('idea', 'Concept')],
+      [edge('e', 'belongsTo', 'idea', 'theme')],
+    )
+    expect(placed.get('theme')!.y).toBeLessThan(placed.get('idea')!.y)
+  })
+})
+
+describe('sourcesOf', () => {
+  it('gives back only the references that got as far as a location', () => {
+    const cited: GraphNode = {
+      id: 'paper',
+      type: 'Source',
+      name: 'paper',
+      metadata: {
+        sourceReferences: [
+          { location: { uri: 'https://example.org/a' } },
+          { location: {} },
+          {},
+        ],
+      },
+    }
+    expect(sourcesOf(cited)).toEqual(['https://example.org/a'])
+  })
+
+  it('gives back nothing for a node that says nothing about where it came from', () => {
+    expect(sourcesOf(node('rag', 'Concept'))).toEqual([])
   })
 })
