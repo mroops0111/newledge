@@ -28,7 +28,8 @@ import { CanvasGrid } from '../ui/CanvasGrid.js'
 import { BoardMarkers } from '../ui/BoardMarkers.js'
 import { boardEdges } from '../ui/boardEdges.js'
 import { BoardList } from '../ui/BoardList.js'
-import { ConceptPanel, inside } from '../ui/ConceptPanel.js'
+import { inside } from '../lib/inside.js'
+import { NodePanel } from '../ui/NodePanel.js'
 import { CanvasEdge } from '../ui/CanvasEdge.js'
 import { BoardTools } from '../ui/BoardTools.js'
 import { Guides } from '../ui/Guides.js'
@@ -430,7 +431,7 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
     <AppShell
       {...nav}
       beneath={<BoardList boards={boards} openId={openId} onOpen={setOpenId} onAdd={addBoard} />}
-      panel={opened === undefined ? undefined : <ConceptPanel node={opened} held={inside(opened, graph)} />}
+      panel={opened === undefined ? undefined : <NodePanel node={opened} held={inside(opened, graph)} />}
     >
       <div className="flex h-screen flex-col">
         <header className="flex items-center gap-3 border-b border-line px-6 py-3">

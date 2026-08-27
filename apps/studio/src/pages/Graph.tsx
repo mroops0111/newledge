@@ -6,6 +6,7 @@ import { onSurface, SURVEY_STROKE } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import type { GraphEdge, GraphNode, GraphView, Ontology } from '../lib/graph.js'
 import { openingView, visibleGraph, withType } from '../lib/graph.js'
+import { inside } from '../lib/inside.js'
 import { laidOut } from '../lib/layout.js'
 import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
@@ -13,7 +14,7 @@ import { BoardMarkers } from '../ui/BoardMarkers.js'
 import { CanvasGrid } from '../ui/CanvasGrid.js'
 import { GraphFilters, switchesFor } from '../ui/GraphFilters.js'
 import { graphEdges } from '../ui/graphEdges.js'
-import { Inspector } from '../ui/Inspector.js'
+import { NodePanel } from '../ui/NodePanel.js'
 import { GLYPHS } from '../ui/Toolkit.js'
 import type { NodeCardData } from '../ui/NodeCard.js'
 import { NodeCard } from '../ui/NodeCard.js'
@@ -184,12 +185,6 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
   )
 
   const inspected = graph.nodes.find(node => node.id === selected)
-  const claimsAbout = inspected === undefined
-    ? []
-    : graph.edges
-        .filter(edge => edge.type === 'concerns' && edge.toNodeId === inspected.id)
-        .map(edge => graph.nodes.find(node => node.id === edge.fromNodeId))
-        .filter((node): node is GraphNode => node !== undefined)
 
   if (error !== undefined)
     return <AppShell {...nav}><p className="p-10 font-ui text-sm text-claim">{error}</p></AppShell>
@@ -199,7 +194,7 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
   return (
     <AppShell
       {...nav}
-      panel={inspected === undefined ? undefined : <Inspector node={inspected} claims={claimsAbout} />}
+      panel={inspected === undefined ? undefined : <NodePanel node={inspected} held={inside(inspected, graph)} />}
     >
     <div className="flex h-screen flex-col">
       <header className="flex items-center gap-3 border-b border-line px-6 py-3">
