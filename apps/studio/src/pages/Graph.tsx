@@ -2,7 +2,7 @@ import type { Node } from '@xyflow/react'
 import { Background, Controls, getViewportForBounds, ReactFlow, ReactFlowProvider, useReactFlow, useStoreApi } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
-import { nodeStyle, onSurface, SURVEY_STROKE } from '../lib/boardStyle.js'
+import { edgeStyle, nodeStyle, onSurface, SURVEY_STROKE } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import type { GraphEdge, GraphNode, GraphView, Ontology } from '../lib/graph.js'
 import { openingView, visibleGraph, withType } from '../lib/graph.js'
@@ -197,12 +197,13 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
    */
   const kindCounts = useMemo(() => kindsInOrder.map(type => ({
     id: type.id,
-    colour: colourOf(type.id),
+    legend: { as: 'colour' as const, colour: colourOf(type.id) },
     count: graph.nodes.filter(node => node.type === type.id).length,
   })), [kindsInOrder, colourOf, graph])
 
   const relationCounts = useMemo(() => (ontology?.edgeTypes ?? []).map(type => ({
     id: type.id,
+    legend: { as: 'line' as const, line: edgeStyle(type.id) },
     count: graph.edges.filter(edge => edge.type === type.id).length,
   })), [ontology, graph])
 

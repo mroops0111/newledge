@@ -60,7 +60,7 @@ export function BoardMarkers({ weight }: {
             orient="auto-start-reverse"
             markerUnits="userSpaceOnUse"
           >
-            {shapeOf(kind, colour)}
+            {markerShape(kind, colour)}
           </marker>
         )))}
       </defs>
@@ -68,7 +68,13 @@ export function BoardMarkers({ weight }: {
   )
 }
 
-function shapeOf(kind: Exclude<MarkerKind, 'none'>, colour: string): React.JSX.Element {
+/**
+ * One end, drawn in a twelve by twelve box.
+ * Shared with whatever has to show a reader what an end looks like
+ * away from the canvas that defines it,
+ * so a legend and the thing it is a legend for cannot come apart.
+ */
+export function markerShape(kind: Exclude<MarkerKind, 'none'>, colour: string): React.JSX.Element {
   switch (kind) {
     case 'triangleHollow':
       return <path d="M1 1 L11 6 L1 11 z" fill="var(--surface)" stroke={colour} strokeWidth={1.4} />

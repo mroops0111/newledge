@@ -1,10 +1,29 @@
+import type { EdgeStyle } from '../lib/boardStyle.js'
+import { TONE_COLOURS } from '../lib/boardStyle.js'
+import { markerShape } from './BoardMarkers.js'
 import { GroupLabel } from './Surface.js'
 import { GLYPHS } from './Toolkit.js'
+
+/**
+ * How one switch shows what it stands for on the canvas.
+ *
+ * A kind is told from another kind by colour, so its legend is that colour.
+ * A relation is not.
+ * Every relation is drawn in the same two greys unless it is an argument,
+ * and what tells one from another is its dash and the end it carries,
+ * so a dot beside a relation is a legend for nothing,
+ * and a column of them says the relations have no marks, which is false.
+ * The survey writes a verb only on the lines a reader has asked about,
+ * which leaves this as the one place the rest of them are explained.
+ */
+export type Legend =
+  | { readonly as: 'colour', readonly colour: string }
+  | { readonly as: 'line', readonly line: EdgeStyle }
 
 /** One thing that can be switched on, and how much of it there is. */
 export interface Filterable {
   readonly id: string
-  readonly colour?: string
+  readonly legend: Legend
   readonly count: number
 }
 
@@ -122,13 +141,65 @@ function worded(id: string): string {
 }
 
 /**
- * One switch, which is a dot, a word, how much of it there is, and a tick.
+ * How wide a relation's line is drawn in the panel, and how tall its box is.
+ * Wide enough that a dash of six on four repeats twice,
+ * since one repeat of a dash is a gap and says nothing about the pattern.
+ */
+const SWATCH_WIDTH = 26
+const SWATCH_HEIGHT = 12
+const SWATCH_STROKE = 1.5
+
+/**
+ * What a switch stands for, drawn as the canvas draws it.
  *
- * The dot keeps its colour whether the switch is on or off,
- * since it is the legend for that colour wherever it appears on the canvas,
- * and a legend that only holds while a kind is drawn is not a legend.
- * A relation has no colour of its own,
- * so its dot is drawn in the line colour and stands where the others stand.
+ * A mark keeps its own appearance whether the switch is on or off,
+ * since it is the legend for that mark wherever it appears on the canvas,
+ * and a legend that only holds while its subject is drawn is not a legend.
+ * Whether the switch is on is said by the band and the tick instead.
+ */
+function Mark({ legend }: { legend: Legend }): React.JSX.Element {
+  switch (legend.as) {
+    case 'colour':
+      return <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: legend.colour }} />
+    case 'line': {
+      const { line } = legend
+      const paint = TONE_COLOURS[line.tone]
+      // The end is drawn in its own twelve wide box at the far end of the run,
+      // which is the box the canvas defines it in,
+      // so a reader comparing the two is comparing the same drawing.
+      const marked = line.marker !== 'none'
+      return (
+        <svg
+          viewBox={`0 0 ${SWATCH_WIDTH} ${SWATCH_HEIGHT}`}
+          className="h-3 w-[26px] shrink-0"
+          aria-hidden
+        >
+          <line
+            x1={0}
+            y1={SWATCH_HEIGHT / 2}
+            x2={marked ? SWATCH_WIDTH - 10 : SWATCH_WIDTH}
+            y2={SWATCH_HEIGHT / 2}
+            stroke={paint}
+            strokeWidth={SWATCH_STROKE}
+            {...(line.dash === undefined ? {} : { strokeDasharray: line.dash })}
+          />
+          {line.marker !== 'none' && (
+            <g transform={`translate(${SWATCH_WIDTH - SWATCH_HEIGHT} 0)`}>
+              {markerShape(line.marker, paint)}
+            </g>
+          )}
+        </svg>
+      )
+    }
+    default: {
+      const exhaustive: never = legend
+      throw new Error(`Unhandled legend: ${JSON.stringify(exhaustive)}`)
+    }
+  }
+}
+
+/**
+ * One switch, which is a mark, a word, how much of it there is, and a tick.
  *
  * Whether a switch is on is said by the band behind it and by the tick,
  * which are read across a column at a glance,
@@ -152,10 +223,7 @@ function Row({ thing, on, onToggle }: {
         ? 'bg-raised'
         : 'hover:bg-raised'}`}
     >
-      <span
-        className="size-2 shrink-0 rounded-full"
-        style={{ backgroundColor: thing.colour ?? 'var(--edge)' }}
-      />
+      <Mark legend={thing.legend} />
       <span
         className={`truncate font-ui text-label font-semibold uppercase tracking-wide ${on
           ? 'text-ink'

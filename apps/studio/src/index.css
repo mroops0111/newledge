@@ -24,7 +24,7 @@
        dark surface, and a theme that re-set each kind would be four chances
        to let one drift away from the others. These two are the whole knob. */
     --kind-lightness: 0.52;
-    --kind-chroma: 0.12;
+    --kind-chroma: 0.15;
 
     --concept: #7c3aed;
     --claim: #dc2626;
