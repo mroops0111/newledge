@@ -9,6 +9,32 @@
  */
 export const GRID = 24
 
+/** How big a dot on the grid is drawn, in the units the board is laid out in. */
+export const GRID_DOT = 3
+
+/**
+ * How far apart the dots have to land on the screen to be worth drawing.
+ *
+ * The canvas scales the grid with everything else,
+ * so going out does not only shrink the dots, it crowds them,
+ * and a board read whole puts these a few pixels apart.
+ * That is a haze over the paper rather than marks a card can be lined up
+ * against, and it is worst exactly where it is least use,
+ * since a reader that far out is looking at the shape of the board
+ * and not placing anything on it.
+ *
+ * It comes up across a range rather than at a line,
+ * so a board held near it does not strobe while a reader is still moving
+ * the wheel, and so that the grid arrives as a reader zooms towards the work.
+ */
+const GRID_FADES_IN = 8
+const GRID_FULL_AT = 16
+
+export function gridStrength(zoom: number): number {
+  const apart = GRID * zoom
+  return Math.min(Math.max((apart - GRID_FADES_IN) / (GRID_FULL_AT - GRID_FADES_IN), 0), 1)
+}
+
 export function onGrid(value: number): number {
   return Math.round(value / GRID) * GRID
 }

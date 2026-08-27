@@ -1,5 +1,5 @@
 import type { Node } from '@xyflow/react'
-import { Background, Controls, getViewportForBounds, ReactFlow, ReactFlowProvider, useReactFlow, useStoreApi } from '@xyflow/react'
+import { Controls, getViewportForBounds, ReactFlow, ReactFlowProvider, useReactFlow, useStoreApi } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { edgeStyle, nodeStyle, onSurface, SURVEY_STROKE } from '../lib/boardStyle.js'
@@ -288,8 +288,14 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
             maxZoom={2}
             proOptions={{ hideAttribution: true }}
           >
+            {/*
+              No grid under this one. A board is arranged by a reader and
+              lands on a grid, so drawing that grid shows what a card can be
+              lined up against. A survey is arranged by the machine and lands
+              wherever the layout puts it, so the same dots would be lines
+              nothing on the canvas stands on.
+            */}
             <FitOnPlacement ready={placedAll} />
-            <Background color="var(--line-strong)" gap={24} size={1} />
             {/*
               Down the same edge the panel and the switch that opens it are on,
               so everything a reader operates the canvas with is on one side,
