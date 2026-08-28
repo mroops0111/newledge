@@ -38,9 +38,26 @@ const Config = z.object({
  * and what it owes back is an explanation.
  */
 export function createLearningViewPlugin(boards: BoardSource): ViewGeneratorPlugin {
+  // The builder takes skills and offers no way to name the namespace,
+  // that the registry demands the moment any are declared, so it is set here.
+  // Reported upstream, and one added field removes this.
+  return {
+    ...plugin(boards),
+    skillNamespace: VIEW_KIND,
+  }
+}
+
+function plugin(boards: BoardSource): ViewGeneratorPlugin {
   return defineViewGeneratorPlugin({
     viewKind: VIEW_KIND,
     configSchema: Config,
+    // One skeleton, two ways of writing it out.
+    // Explaining a subject and asking about it need the same material,
+    // and differ only in what is done with it.
+    skills: [
+      { directory: new URL('../skills/tutorial', import.meta.url) },
+      { directory: new URL('../skills/exam', import.meta.url) },
+    ],
     render: async (config, input) => {
       const state = await boards(config.workspaceId)
       const board = state.boards.find(one => one.id === config.boardId)

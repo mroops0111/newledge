@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createViewClient, drawingFor, titleOf, writerOf } from '../src/lib/views.js'
+import { createViewClient, drawingFor, formOf, titleOf } from '../src/lib/views.js'
 
 const listed = { items: [{ path: 'docs/retrieval.md', format: 'md', bytes: 12, writtenAt: 'now' }] }
 
@@ -58,8 +58,12 @@ describe('naming a view', () => {
     expect(titleOf('plain')).toBe('plain')
   })
 
-  it('says which generator wrote it, which is where it landed', () => {
-    expect(writerOf('learning/retrieval.html')).toBe('learning')
-    expect(writerOf('loose.md')).toBeUndefined()
+  it('says which form it is in, not which folder it landed in', () => {
+    expect(formOf('docs/kdanPortfolio.md')).toBe('Reference')
+  })
+
+  it('names an unclaimed folder as it stands, rather than guessing', () => {
+    // A generator may write somewhere nobody has declared a form for.
+    expect(formOf('sketches/one.md')).toBe('sketches')
   })
 })

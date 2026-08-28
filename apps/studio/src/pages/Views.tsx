@@ -1,7 +1,7 @@
 import { marked } from 'marked'
 import { useEffect, useMemo, useState } from 'react'
 import type { Listed, ViewClient, Written } from '../lib/views.js'
-import { drawingFor, titleOf, writerOf } from '../lib/views.js'
+import { drawingFor, formOf, titleOf } from '../lib/views.js'
 import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
 import { GroupLabel } from '../ui/Surface.js'
@@ -83,7 +83,7 @@ function Row({ one, on, onOpen }: { one: Listed, on: boolean, onOpen: () => void
         {titleOf(one.path)}
       </span>
       <span className="font-ui text-label uppercase tracking-wide text-ink-subtle">
-        {[writerOf(one.path), one.format].filter(part => part !== undefined).join(' · ')}
+        {formOf(one.path)}
       </span>
     </button>
   )

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { onSurface, SURVEY_STROKE } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
+import type { ViewClient } from '../lib/views.js'
 import type { GraphEdge, GraphNode, GraphView, Ontology } from '../lib/graph.js'
 import { openingView, visibleGraph, withType } from '../lib/graph.js'
 import { inside } from '../lib/inside.js'
@@ -15,6 +16,7 @@ import { CanvasGrid } from '../ui/CanvasGrid.js'
 import { GraphFilters, switchesFor } from '../ui/GraphFilters.js'
 import { graphEdges } from '../ui/graphEdges.js'
 import { NodePanel } from '../ui/NodePanel.js'
+import { WriteOut } from '../ui/WriteOut.js'
 import { GLYPHS } from '../ui/Toolkit.js'
 import type { NodeCardData } from '../ui/NodeCard.js'
 import { NodeCard } from '../ui/NodeCard.js'
@@ -79,7 +81,7 @@ function FitOnPlacement({ ready }: { ready: boolean }): null {
   return null
 }
 
-export function Graph(props: { client: GraphClient, nav: Nav }): React.JSX.Element {
+export function Graph(props: { client: GraphClient, views: ViewClient, nav: Nav }): React.JSX.Element {
   return (
     <ReactFlowProvider>
       <GraphSurface {...props} />
@@ -87,7 +89,7 @@ export function Graph(props: { client: GraphClient, nav: Nav }): React.JSX.Eleme
   )
 }
 
-function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React.JSX.Element {
+function GraphSurface({ client, views, nav }: { client: GraphClient, views: ViewClient, nav: Nav }): React.JSX.Element {
   const [ontology, setOntology] = useState<Ontology | undefined>(undefined)
   const [graph, setGraph] = useState<{ nodes: readonly GraphNode[], edges: readonly GraphEdge[] }>({ nodes: [], edges: [] })
   const [view, setView] = useState<GraphView | undefined>(undefined)
@@ -205,11 +207,23 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
           nothing to narrow to before that, and a control that does nothing
           is a question a reader has to answer before they can ignore it.
         */}
+        <div className="ml-auto flex items-center gap-1">
+          {/*
+            A generator is offered beside what it would be given, so a reader
+            who has picked a topic is shown what can be written out of it.
+          */}
+          <WriteOut
+            client={views}
+            about={inspected?.id}
+            kind={inspected?.type}
+            onWritten={() => nav.onSelect('views')}
+          />
+        </div>
         {selected !== undefined && (
           <button
             type="button"
             onClick={() => setFocused(now => !now)}
-            className={`ml-auto rounded-control px-2.5 py-1 font-ui text-label transition-colors ${focused
+            className={`rounded-control px-2.5 py-1 font-ui text-label transition-colors ${focused
               ? 'bg-ink text-surface'
               : 'text-ink-subtle hover:bg-raised hover:text-ink'}`}
           >

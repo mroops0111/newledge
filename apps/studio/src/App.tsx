@@ -8,10 +8,18 @@ import { Views } from './pages/Views.js'
 import { Whiteboard } from './pages/Whiteboard.js'
 import type { SurfaceLink } from './ui/AppShell.js'
 
+/**
+ * The surfaces, in the order knowledge moves through them.
+ *
+ * What arrives is read, what is kept is the graph,
+ * what a reader picks out of it is a board,
+ * and what is written out of either comes last.
+ * Ordering them any other way puts a surface before the one it draws from.
+ */
 const SURFACES: readonly SurfaceLink[] = [
   { id: 'inbox', label: 'Reading inbox' },
-  { id: 'board', label: 'Board' },
   { id: 'graph', label: 'Graph' },
+  { id: 'board', label: 'Board' },
   { id: 'views', label: 'Written out' },
 ]
 
@@ -29,7 +37,7 @@ export function App({ inbox, graph, boards, views }: {
   const [activeId, setActiveId] = useState(SURFACES[0]!.id)
   const nav = { surfaces: SURFACES, activeId, onSelect: setActiveId }
   if (activeId === 'graph')
-    return <Graph client={graph} nav={nav} />
+    return <Graph client={graph} views={views} nav={nav} />
   if (activeId === 'views')
     return <Views client={views} nav={nav} />
   if (activeId === 'board')

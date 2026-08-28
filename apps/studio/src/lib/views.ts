@@ -14,7 +14,37 @@ export interface Written extends Pick<Listed, 'path' | 'format'> {
 export interface ViewClient {
   readonly list: () => Promise<readonly Listed[]>
   readonly read: (path: string) => Promise<Written>
+  /** Set a generator going, and hand back the run to watch. */
+  readonly write: (form: Form, about: string) => Promise<string>
+  readonly finished: (runId: string) => Promise<boolean>
 }
+
+/**
+ * A way of writing the graph out, and what each one is for.
+ *
+ * They are peers rather than steps.
+ * Which one a reader wants follows from what they are about to do,
+ * not from how far along they are.
+ */
+export interface Form {
+  readonly id: string
+  readonly label: string
+  /** What a reader gets, said in the terms they would ask for it in. */
+  readonly purpose: string
+  readonly skillId: string
+  /** Which kind of node this form is written about. */
+  readonly about: string
+}
+
+export const FORMS: readonly Form[] = [
+  {
+    id: 'docs',
+    label: 'Reference',
+    purpose: 'Everything filed under one topic, written for someone looking it up',
+    skillId: 'braid:generate-doc',
+    about: 'Topic',
+  },
+]
 
 export interface ViewClientOptions {
   readonly apiUrl: string
@@ -33,8 +63,31 @@ export function createViewClient(options: ViewClientOptions): ViewClient {
     return await response.json() as T
   }
 
+  const runs = `${options.apiUrl.replace(/\/+$/, '')}/workspaces/${options.workspaceId}`
+
   return {
     list: async () => (await get<{ items?: readonly Listed[] }>('', 'your views')).items ?? [],
+
+    write: async (form, about) => {
+      const response = await fetcher(`${runs}/skills/${encodeURIComponent(form.skillId)}/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ args: about }),
+      })
+      if (!response.ok)
+        throw new Error(`Writing out failed with ${response.status}`)
+      return (await response.json() as { runId: string }).runId
+    },
+
+    // A run is over when it has an exit code,
+    // which is the only thing the record carries that says so.
+    finished: async (runId) => {
+      const response = await fetcher(`${runs}/runs`)
+      if (!response.ok)
+        return false
+      const items = (await response.json() as { items?: readonly { runId: string, exitCode?: number }[] }).items ?? []
+      return items.some(one => one.runId === runId && one.exitCode !== undefined)
+    },
     // A path arrives with separators in it, and each segment is escaped alone,
     // so a name carrying a slash cannot be read as a directory of its own.
     read: async path => get<Written>(
@@ -65,8 +118,18 @@ export function titleOf(path: string): string {
   return dot === -1 ? last : last.slice(0, dot)
 }
 
-/** Which generator wrote it, which is the folder it landed in. */
-export function writerOf(path: string): string | undefined {
-  const parts = path.split('/')
-  return parts.length > 1 ? parts[0] : undefined
+/**
+ * Which form this was written in, which is the folder a generator landed it in.
+ *
+ * A reader wants to know they are looking at a reference,
+ * rather than at a set of questions,
+ * and the folder is the only thing that says so,
+ * since braid's field for saying it is one nothing fills in.
+ * A folder nobody has claimed is named as it stands,
+ * because a generator may write somewhere nobody has declared.
+ */
+export function formOf(path: string): string {
+  const [folder] = path.split('/')
+  const known = FORMS.find(form => form.id === folder)
+  return known?.label ?? folder ?? 'View'
 }
