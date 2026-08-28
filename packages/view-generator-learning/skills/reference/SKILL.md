@@ -72,17 +72,18 @@ reorder because another order reads better to you.
 3. Under each, the description, then its claims as a list.
 4. Mark a claim carrying `disputedBy` where it sits, and name what disagrees.
 5. Put each claim's source on its own line, as a link.
-6. Write the file, overwriting whatever is there.
+6. Write the fragment, overwriting whatever is there.
 
 ## Output
 
-One HTML file, self-contained. No external stylesheet, no script, and no image
-request, because it is rendered inside a sandboxed frame where nothing fetched from
-elsewhere will arrive. Inline SVG is the only picture available.
+An HTML fragment, arranged to be crossed rather than read through. No
+introduction, no conclusion, and no summary of what the page contains, because
+the page is the summary.
 
+You write what a thing is. The surface reading it owns how it looks, so write no
+`<style>`, name no colour, and choose no font. Read `style.md` for the classes
+and elements available to you.
 
-Arranged to be crossed rather than read through. No introduction, no conclusion, and
-no summary of what the page contains, because the page is the summary.
 ## Output Files
 
 `$BRAID_WORKSPACE/artifacts/views/reference/<board-id>.html`
@@ -102,5 +103,6 @@ reference of it.
 
 ## Companion Docs
 
-None. The material handed in is the whole input, and it is already joined up, so
-there is no shared reference to consult and no ontology vocabulary to look up.
+`style.md`, in the reference directory the runner mounts for this plugin. It is
+the whole vocabulary of classes and elements a written view may use. Read it
+before you write, because a class it does not name styles nothing.

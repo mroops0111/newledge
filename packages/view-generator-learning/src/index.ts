@@ -56,12 +56,15 @@ const Config = z.object({
  * and what it owes back is an explanation.
  */
 export function createLearningViewPlugin(boards: BoardSource): ViewGeneratorPlugin {
-  // The builder takes skills and offers no way to name the namespace,
-  // that the registry demands the moment any are declared, so it is set here.
-  // Reported upstream, and one added field removes this.
+  // The builder takes skills and offers neither the namespace,
+  // that the registry demands the moment any are declared,
+  // nor the reference every one of them reads.
+  // Both are on the base plugin interface, so both are set here.
+  // Reported upstream, and two added fields remove this.
   return {
     ...plugin(boards),
     skillNamespace: VIEW_KIND,
+    referenceDir: new URL('../skills/shared', import.meta.url),
   }
 }
 

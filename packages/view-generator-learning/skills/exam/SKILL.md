@@ -75,17 +75,18 @@ reorder because another order reads better to you.
 3. Write the questions, spread across the terms rather than gathered on a few.
 4. Put each answer behind a `<details>` and `<summary>`, which needs no script.
 5. Carry the source into the answer, so a reader who disagrees can go and check.
-6. Write the file, overwriting whatever is there.
+6. Write the fragment, overwriting whatever is there.
 
 ## Output
 
-One HTML file, self-contained. No external stylesheet, no script, and no image
-request, because it is rendered inside a sandboxed frame where nothing fetched from
-elsewhere will arrive. Inline SVG is the only picture available.
+An HTML fragment. Every answer starts hidden and is revealed by the reader, using
+`details` and `summary`, which need no script. A reader who can see the answer
+while reading the question has not been asked anything.
 
+You write what a thing is. The surface reading it owns how it looks, so write no
+`<style>`, name no colour, and choose no font. Read `style.md` for the classes
+and elements available to you.
 
-Every answer starts hidden and is revealed by the reader. A reader who can see the
-answer while reading the question has not been asked anything.
 ## Output Files
 
 `$BRAID_WORKSPACE/artifacts/views/exam/<board-id>.html`
@@ -102,9 +103,12 @@ there rather than adding beside it.
 - [ ] Every answer carries where it came from
 - [ ] No score, no grade, no time limit
 - [ ] No id appears anywhere a reader can see
+- [ ] No style block, no colour, and no font of your own
+- [ ] No doctype, html, head, or body element
 - [ ] The graph was not mutated, no proposal was raised, no decision was recorded
 
 ## Companion Docs
 
-None. The material handed in is the whole input, and it is already joined up, so
-there is no shared reference to consult and no ontology vocabulary to look up.
+`style.md`, in the reference directory the runner mounts for this plugin. It is
+the whole vocabulary of classes and elements a written view may use. Read it
+before you write, because a class it does not name styles nothing.

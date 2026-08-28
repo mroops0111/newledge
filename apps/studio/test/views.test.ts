@@ -46,17 +46,25 @@ describe('createViewClient', () => {
 })
 
 describe('pageOf', () => {
-  it('hands a whole page on untouched, since it is already one', () => {
-    // A generator writes a complete document,
-    // and wrapping one in another leaves it nested inside a body,
+  const palette = '<style>:root { --ink: #111 }</style>'
+
+  it('hands a whole page on untouched, since it brought its own look', () => {
+    // Wrapping one in another leaves it nested inside a body,
     // which is how a page comes out blank.
     const whole = '<!DOCTYPE html><html><head><style>body{color:red}</style></head><body>hi</body></html>'
-    expect(pageOf({ path: 'a.html', format: 'html', text: whole })).toBe(whole)
+    expect(pageOf({ path: 'a.html', format: 'html', text: whole }, palette)).toBe(whole)
+  })
+
+  it('sets a fragment in this application\'s own colours', () => {
+    const page = pageOf({ path: 'a.html', format: 'html', text: '<p class="lede">hi</p>' }, palette)
+    expect(page).toContain('<!doctype html>')
+    expect(page).toContain('--ink: #111')
+    expect(page).toContain('<p class="lede">hi</p>')
   })
 
   it('makes a whole page of markdown, which arrives with none', () => {
     for (const format of ['md', 'markdown']) {
-      const page = pageOf({ path: 'a.md', format, text: '# Title' })
+      const page = pageOf({ path: 'a.md', format, text: '# Title' }, palette)
       expect(page).toContain('<h1>')
       expect(page).toContain('<!doctype html>')
       // Markdown carries no style either, so the frame is given one.
@@ -68,7 +76,7 @@ describe('pageOf', () => {
     // A caller shows the text instead,
     // which serves a reader better than an apology for a format,
     // that a generator was free to write.
-    expect(pageOf({ path: 'a.json', format: 'json', text: '{}' })).toBeUndefined()
+    expect(pageOf({ path: 'a.json', format: 'json', text: '{}' }, palette)).toBeUndefined()
   })
 })
 

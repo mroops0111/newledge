@@ -76,17 +76,20 @@ reorder because another order reads better to you.
 4. Work its claims into the explanation as the evidence for what you are saying.
 5. Where a claim carries `disputedBy`, present the disagreement rather than a verdict.
 6. Draw with inline SVG wherever a picture carries what a sentence cannot.
-7. Write the file, overwriting whatever is there.
+7. Write the fragment, overwriting whatever is there.
 
 ## Output
 
-One HTML file, self-contained. No external stylesheet, no script, and no image
-request, because it is rendered inside a sandboxed frame where nothing fetched from
-elsewhere will arrive. Inline SVG is the only picture available.
+An HTML fragment, written for someone who has never met the subject.
 
+You write what a thing is. The surface reading it owns how it looks, so write no
+`<style>`, name no colour, and choose no font. Read `style.md` for the classes
+and elements available to you.
 
-Written for someone who has never met the subject. Draw only where the drawing
-carries something the sentence cannot.
+Inline SVG is the one thing you compose freely, because a diagram is a reading of
+the material rather than a decoration. Draw only where the drawing carries what a
+sentence cannot.
+
 ## Output Files
 
 `$BRAID_WORKSPACE/artifacts/views/tutorial/<board-id>.html`
@@ -102,9 +105,12 @@ there rather than adding beside it.
 - [ ] No claim appears as both a heading and the sentence under it
 - [ ] Every disagreement is left open rather than settled
 - [ ] No id appears anywhere a reader can see
+- [ ] No style block, no colour, and no font of your own
+- [ ] No doctype, html, head, or body element
 - [ ] The graph was not mutated, no proposal was raised, no decision was recorded
 
 ## Companion Docs
 
-None. The material handed in is the whole input, and it is already joined up, so
-there is no shared reference to consult and no ontology vocabulary to look up.
+`style.md`, in the reference directory the runner mounts for this plugin. It is
+the whole vocabulary of classes and elements a written view may use. Read it
+before you write, because a class it does not name styles nothing.

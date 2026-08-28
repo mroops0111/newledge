@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Listed, ViewClient, Written } from '../lib/views.js'
 import { formOf, pageOf, titleOf } from '../lib/views.js'
+import { paletteOf } from '../lib/viewStyle.js'
 import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
 import { GroupLabel } from '../ui/Surface.js'
@@ -113,7 +114,9 @@ function Row({ one, on, onOpen }: { one: Listed, on: boolean, onOpen: () => void
  * which is what stops a document from reaching the session that opened it.
  */
 function Page({ written }: { written: Written }): React.JSX.Element {
-  const page = useMemo(() => pageOf(written), [written])
+  // Read off this application at the moment the view is drawn,
+  // so a written page is set in the colours the surface reading it is set in.
+  const page = useMemo(() => pageOf(written, paletteOf(document.documentElement)), [written])
 
   if (page === undefined) {
     return (

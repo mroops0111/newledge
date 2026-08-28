@@ -20,11 +20,11 @@
     "@braidhq/server": "^0.4.0",
     "@braidhq/storage-kuzu": "^0.3.0",
     "@hono/node-server": "^2.0.12",
+    "@hono/zod-openapi": "^1.5.1",
+    "@newledge/board": "workspace:*",
     "@newledge/ontology-knowledge": "workspace:*",
     "@newledge/source-loader-web": "workspace:*",
-    "@newledge/board": "workspace:*",
-    "@hono/zod-openapi": "^1.5.1",
-    "@newledge/view-learning": "workspace:*",
+    "@newledge/view-generator-learning": "workspace:*",
     "zod": "^4.0.0"
   },
   "devDependencies": {

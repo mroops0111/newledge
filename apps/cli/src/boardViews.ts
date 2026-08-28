@@ -5,7 +5,7 @@ import type { OpenAPIHono } from '@hono/zod-openapi'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { SkillId as SkillIdSchema, ViewKind, WorkspaceId as WorkspaceIdSchema } from '@braidhq/schema'
-import { VIEW_KIND } from '@newledge/view-learning'
+import { VIEW_KIND } from '@newledge/view-generator-learning'
 import { z } from 'zod'
 
 /**
