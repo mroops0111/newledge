@@ -1,6 +1,13 @@
 import type { Board } from '@newledge/board'
 
-/** What a skeleton reads of the graph, named so a caller can pass a fake. */
+/**
+ * What a skeleton reads of the graph.
+ *
+ * Written as the least a projection needs rather than as the model's own type,
+ * so a caller can hand it a fake without building a whole snapshot,
+ * and so a field the model gains cannot change what this depends on.
+ * A snapshot satisfies it, since every field named here is one a snapshot has.
+ */
 export interface Reading {
   readonly nodes: readonly {
     readonly id: string

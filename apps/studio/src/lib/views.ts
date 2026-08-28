@@ -1,3 +1,5 @@
+import { marked } from 'marked'
+
 /** One generated view, as the runtime lists it. */
 export interface Listed {
   readonly path: string
@@ -98,17 +100,30 @@ export function createViewClient(options: ViewClientOptions): ViewClient {
 }
 
 /**
- * How a reader is meant to see one of these.
+ * How each format a generator may write becomes a page.
+ *
+ * One table rather than a condition,
+ * so teaching this surface another format is an entry rather than an edit,
+ * and so that what counts as a page, and how one is made,
+ * cannot come to disagree by living in two places.
  *
  * A generator says what it wrote by what it named the file,
  * since braid's field for saying so is one nothing fills in.
- * A format nobody has taught this surface to draw is shown as what it is,
- * which is the text, rather than refused.
  */
-export type Drawing = 'page' | 'text'
+const PAGES: Readonly<Record<string, (text: string) => string>> = {
+  html: text => text,
+  md: text => marked.parse(text, { async: false }),
+  markdown: text => marked.parse(text, { async: false }),
+}
 
-export function drawingFor(format: string): Drawing {
-  return format === 'html' || format === 'md' || format === 'markdown' ? 'page' : 'text'
+/**
+ * A view as a page, or nothing when its format is one nobody has taught here.
+ * Nothing is not a refusal. A caller shows the text instead,
+ * because a generator may write something nobody has taught yet,
+ * and a reader is better served by the words than by an apology.
+ */
+export function pageOf(written: Written): string | undefined {
+  return PAGES[written.format]?.(written.text)
 }
 
 /** What to call a view in a list, which is its name without the machinery. */

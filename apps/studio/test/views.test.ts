@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createViewClient, drawingFor, formOf, titleOf } from '../src/lib/views.js'
+import { createViewClient, formOf, pageOf, titleOf } from '../src/lib/views.js'
 
 const listed = { items: [{ path: 'docs/retrieval.md', format: 'md', bytes: 12, writtenAt: 'now' }] }
 
@@ -39,16 +39,21 @@ describe('createViewClient', () => {
   })
 })
 
-describe('drawingFor', () => {
-  it('draws what it has been taught as a page', () => {
-    expect(drawingFor('html')).toBe('page')
-    expect(drawingFor('md')).toBe('page')
-    expect(drawingFor('markdown')).toBe('page')
+describe('pageOf', () => {
+  it('hands html on as it stands', () => {
+    expect(pageOf({ path: 'a.html', format: 'html', text: '<p>hi</p>' })).toBe('<p>hi</p>')
   })
 
-  it('shows anything else as what it is rather than refusing it', () => {
-    expect(drawingFor('json')).toBe('text')
-    expect(drawingFor('csv')).toBe('text')
+  it('makes a page of markdown, under either name for it', () => {
+    expect(pageOf({ path: 'a.md', format: 'md', text: '# Title' })).toContain('<h1>')
+    expect(pageOf({ path: 'a.md', format: 'markdown', text: '# Title' })).toContain('<h1>')
+  })
+
+  it('says nothing for a format it has not been taught, rather than refusing', () => {
+    // A caller shows the text instead,
+    // which serves a reader better than an apology for a format,
+    // that a generator was free to write.
+    expect(pageOf({ path: 'a.json', format: 'json', text: '{}' })).toBeUndefined()
   })
 })
 

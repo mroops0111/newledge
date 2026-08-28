@@ -1,14 +1,20 @@
 import type { ViewGeneratorPlugin } from '@braidhq/core'
 import type { Board, BoardState } from '@newledge/board'
+import { ViewArtifactFormat, ViewKind } from '@braidhq/schema'
 import { defineViewGeneratorPlugin } from '@braidhq/sdk'
 import { z } from 'zod'
-import type { Reading } from './skeleton.js'
 import { skeletonOf } from './skeleton.js'
 
 export type { Held, Reading, Skeleton } from './skeleton.js'
 export { missingFrom, skeletonOf } from './skeleton.js'
 
-export const VIEW_KIND = 'learning' as const
+export const VIEW_KIND = ViewKind.parse('learning')
+
+/**
+ * What the material is written as, which is data rather than prose.
+ * A skill reads it and writes the page, so what leaves here is structured.
+ */
+const SKELETON_FORMAT = ViewArtifactFormat.parse('json')
 
 /**
  * Where the boards are, asked for rather than reached for.
@@ -66,12 +72,12 @@ function plugin(boards: BoardSource): ViewGeneratorPlugin {
 
       return {
         kind: VIEW_KIND,
-        format: 'json',
+        format: SKELETON_FORMAT,
         files: [{
-          path: `views/learning/${board.id}.json`,
-          text: `${JSON.stringify(skeletonOf(board, input.model as unknown as Reading), null, 2)}\n`,
+          path: `views/${VIEW_KIND}/${board.id}.json`,
+          text: `${JSON.stringify(skeletonOf(board, input.model), null, 2)}\n`,
         }],
-      } as Awaited<ReturnType<ViewGeneratorPlugin['render']>>
+      }
     },
   })
 }

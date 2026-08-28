@@ -60,43 +60,46 @@ export function WriteOut({ client, about, kind, onWritten }: {
   if (about === undefined || offered.length === 0)
     return null
 
-  if (doing.at === 'writing')
-    return <Said>{`Writing the ${doing.form.label.toLowerCase()}`}</Said>
-
-  if (doing.at === 'failed')
-    return <Said>{doing.why}</Said>
-
-  if (doing.at === 'written') {
-    return (
-      <button type="button" onClick={onWritten} className={ACTION}>
-        {`Read the ${doing.form.label.toLowerCase()}`}
-      </button>
-    )
-  }
-
-  return (
-    <>
-      {offered.map(form => (
-        <button
-          key={form.id}
-          type="button"
-          title={form.purpose}
-          className={ACTION}
-          onClick={() => {
-            setDoing({ at: 'writing', form })
-            void client.write(form, about)
-              .then(runId => setDoing({ at: 'writing', runId, form }))
-              .catch((cause: unknown) => setDoing({
-                at: 'failed',
-                why: cause instanceof Error ? cause.message : String(cause),
-              }))
-          }}
-        >
-          {`Write the ${form.label.toLowerCase()}`}
+  switch (doing.at) {
+    case 'writing':
+      return <Said>{`Writing the ${doing.form.label.toLowerCase()}`}</Said>
+    case 'failed':
+      return <Said>{doing.why}</Said>
+    case 'written':
+      return (
+        <button type="button" onClick={onWritten} className={ACTION}>
+          {`Read the ${doing.form.label.toLowerCase()}`}
         </button>
-      ))}
-    </>
-  )
+      )
+    case 'idle':
+      return (
+        <>
+          {offered.map(form => (
+            <button
+              key={form.id}
+              type="button"
+              title={form.purpose}
+              className={ACTION}
+              onClick={() => {
+                setDoing({ at: 'writing', form })
+                void client.write(form, about)
+                  .then(runId => setDoing({ at: 'writing', runId, form }))
+                  .catch((cause: unknown) => setDoing({
+                    at: 'failed',
+                    why: cause instanceof Error ? cause.message : String(cause),
+                  }))
+              }}
+            >
+              {`Write the ${form.label.toLowerCase()}`}
+            </button>
+          ))}
+        </>
+      )
+    default: {
+      const exhaustive: never = doing
+      throw new Error(`Unhandled state: ${JSON.stringify(exhaustive)}`)
+    }
+  }
 }
 
 const ACTION = 'rounded-control px-2.5 py-1 font-ui text-label text-ink-subtle transition-colors hover:bg-raised hover:text-ink'

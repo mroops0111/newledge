@@ -1,7 +1,6 @@
-import { marked } from 'marked'
 import { useEffect, useMemo, useState } from 'react'
 import type { Listed, ViewClient, Written } from '../lib/views.js'
-import { drawingFor, formOf, titleOf } from '../lib/views.js'
+import { formOf, pageOf, titleOf } from '../lib/views.js'
 import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
 import { GroupLabel } from '../ui/Surface.js'
@@ -18,7 +17,12 @@ export function Views({ client, nav }: { client: ViewClient, nav: Nav }): React.
   const [listed, setListed] = useState<readonly Listed[] | undefined>(undefined)
   const [openPath, setOpenPath] = useState<string | undefined>(undefined)
   const [open, setOpen] = useState<Written | undefined>(undefined)
-  const [error, setError] = useState<string | undefined>(undefined)
+  // Failing to list is the surface failing, since nothing is left to stand on.
+  // Failing to read one is that one failing,
+  // and it is said where that one would have been drawn,
+  // so one unreadable file does not take the list of the rest with it.
+  const [lost, setLost] = useState<string | undefined>(undefined)
+  const [unreadable, setUnreadable] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     void client.list()
@@ -26,20 +30,21 @@ export function Views({ client, nav }: { client: ViewClient, nav: Nav }): React.
         setListed(items)
         setOpenPath(items[0]?.path)
       })
-      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
+      .catch((cause: unknown) => setLost(said(cause)))
   }, [client])
 
   useEffect(() => {
     if (openPath === undefined)
       return
     setOpen(undefined)
+    setUnreadable(undefined)
     void client.read(openPath)
       .then(setOpen)
-      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
+      .catch((cause: unknown) => setUnreadable(said(cause)))
   }, [client, openPath])
 
-  if (error !== undefined)
-    return <AppShell {...nav}><p className="p-10 font-ui text-sm text-claim">{error}</p></AppShell>
+  if (lost !== undefined)
+    return <AppShell {...nav}><p className="p-10 font-ui text-sm text-claim">{lost}</p></AppShell>
 
   return (
     <AppShell {...nav}>
@@ -60,13 +65,20 @@ export function Views({ client, nav }: { client: ViewClient, nav: Nav }): React.
           </ul>
         </aside>
         <div className="min-w-0 flex-1 overflow-hidden bg-canvas">
-          {open === undefined
-            ? <p className="p-10 font-ui text-sm text-ink-subtle">Reading</p>
-            : <Page written={open} />}
+          {unreadable !== undefined
+            ? <p className="p-10 font-ui text-sm text-claim">{unreadable}</p>
+            : open === undefined
+              ? <p className="p-10 font-ui text-sm text-ink-subtle">Reading</p>
+              : <Page written={open} />}
         </div>
       </div>
     </AppShell>
   )
+}
+
+/** What went wrong, in the words it came with. */
+function said(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause)
 }
 
 function Row({ one, on, onOpen }: { one: Listed, on: boolean, onOpen: () => void }): React.JSX.Element {
@@ -102,10 +114,8 @@ function Row({ one, on, onOpen }: { one: Listed, on: boolean, onOpen: () => void
  */
 function Page({ written }: { written: Written }): React.JSX.Element {
   const page = useMemo(() => {
-    if (drawingFor(written.format) === 'text')
-      return undefined
-    const body = written.format === 'html' ? written.text : marked.parse(written.text, { async: false })
-    return `<!doctype html><meta charset="utf-8">${STYLE}<body>${body}</body>`
+    const body = pageOf(written)
+    return body === undefined ? undefined : `<!doctype html><meta charset="utf-8">${STYLE}<body>${body}</body>`
   }, [written])
 
   if (page === undefined) {
