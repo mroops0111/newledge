@@ -21,8 +21,9 @@ const Asked = z.object({ form: z.enum(FORMS) })
 /**
  * Project a board into the material a view is written from.
  *
- * The half that is a function, and the half a test can reach without an agent
- * installed, which is why it is named rather than folded into the route.
+ * The half that is a function,
+ * and the half a test can reach without an agent installed,
+ * which is why it is named rather than folded into the route.
  *
  * braid declares a view generator and never calls one,
  * so this is what calls it. The plugin projects the board into material,
