@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBoardClient } from './lib/boards.js'
 import { createGraphClient, createInboxClient } from './lib/client.js'
+import { createViewClient } from './lib/views.js'
 import { App } from './App.js'
 import './index.css'
 
@@ -16,6 +17,7 @@ createRoot(document.getElementById('root')!).render(
       inbox={createInboxClient(connection)}
       graph={createGraphClient(connection)}
       boards={createBoardClient(connection)}
+      views={createViewClient(connection)}
     />
   </StrictMode>,
 )
