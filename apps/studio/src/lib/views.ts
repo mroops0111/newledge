@@ -112,9 +112,10 @@ export function createViewClient(options: ViewClientOptions): ViewClient {
  * since braid's field for saying so is one nothing fills in.
  */
 const PAGES: Readonly<Record<string, (text: string) => string>> = {
-  // Already a whole document, so it is handed on untouched. Wrapping one in
-  // another leaves a document nested inside a body, which a browser recovers
-  // from unevenly and which cost this surface a page that came out blank.
+  // Already a whole document, so it is handed on untouched.
+  // Wrapping one in another leaves a document nested inside a body,
+  // which a browser recovers from unevenly,
+  // and which cost this surface a page that came out blank.
   html: text => text,
   md: text => wrapped(marked.parse(text, { async: false })),
   markdown: text => wrapped(marked.parse(text, { async: false })),
