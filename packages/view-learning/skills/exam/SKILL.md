@@ -34,6 +34,8 @@ material rather than choosing at random.
 - **Spread across the terms** rather than mining one. A reader who can answer five
   questions about the first term has learned that it was at the top of the board.
 
+- **No id a reader can see.** The board id names the file and nothing else.
+
 ## Initialization
 
 1. `$ARGUMENTS` is a path, relative to `$BRAID_WORKSPACE`, to the material this
@@ -99,6 +101,7 @@ there rather than adding beside it.
 - [ ] Every answer is hidden until the reader reveals it
 - [ ] Every answer carries where it came from
 - [ ] No score, no grade, no time limit
+- [ ] No id appears anywhere a reader can see
 - [ ] The graph was not mutated, no proposal was raised, no decision was recorded
 
 ## Companion Docs

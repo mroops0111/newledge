@@ -33,6 +33,9 @@ from being able to find a figure again.
 - **No jargon the material did not introduce**, and none it did introduce without
   saying what it means first.
 
+- **No id a reader can see.** The board id names the file and nothing else.
+  A reader is learning a subject, not reading a database.
+
 ## Initialization
 
 1. `$ARGUMENTS` is a path, relative to `$BRAID_WORKSPACE`, to the material this
@@ -98,6 +101,7 @@ there rather than adding beside it.
 - [ ] No term is used before it has been introduced
 - [ ] No claim appears as both a heading and the sentence under it
 - [ ] Every disagreement is left open rather than settled
+- [ ] No id appears anywhere a reader can see
 - [ ] The graph was not mutated, no proposal was raised, no decision was recorded
 
 ## Companion Docs

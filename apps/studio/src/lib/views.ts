@@ -112,9 +112,23 @@ export function createViewClient(options: ViewClientOptions): ViewClient {
  * since braid's field for saying so is one nothing fills in.
  */
 const PAGES: Readonly<Record<string, (text: string) => string>> = {
+  // Already a whole document, so it is handed on untouched. Wrapping one in
+  // another leaves a document nested inside a body, which a browser recovers
+  // from unevenly and which cost this surface a page that came out blank.
   html: text => text,
-  md: text => marked.parse(text, { async: false }),
-  markdown: text => marked.parse(text, { async: false }),
+  md: text => wrapped(marked.parse(text, { async: false })),
+  markdown: text => wrapped(marked.parse(text, { async: false })),
+}
+
+/**
+ * A page around a body that has none.
+ *
+ * Markdown carries no document and no style, so both are given here.
+ * Anything arriving as a whole page is left alone,
+ * since its own style is the one its author meant.
+ */
+function wrapped(body: string): string {
+  return `<!doctype html><meta charset="utf-8">${MARKDOWN_STYLE}<body>${body}</body>`
 }
 
 /**
@@ -149,3 +163,26 @@ export function formOf(path: string): string {
   const known = FORMS.find(form => form.id === folder)
   return known?.label ?? folder ?? 'View'
 }
+
+/**
+ * How markdown is set once it has been made into a page.
+ * A sandboxed frame is its own document and shares no stylesheet with this one,
+ * so a body arriving with no style of its own is set here or set by nobody.
+ */
+const MARKDOWN_STYLE = `<style>
+  :root { color-scheme: light }
+  body {
+    margin: 0 auto; padding: 3rem 2.5rem; max-width: 46rem;
+    font: 15px/1.65 ui-serif, Georgia, serif; color: #1c1917; background: #fff;
+  }
+  h1, h2, h3, h4 { font-family: ui-sans-serif, system-ui, sans-serif; line-height: 1.25; }
+  h1 { font-size: 1.6rem; margin: 0 0 1.5rem }
+  h2 { font-size: 1.2rem; margin: 2.2rem 0 .6rem }
+  h3, h4 { font-size: 1rem; margin: 1.6rem 0 .4rem }
+  blockquote { margin: 1rem 0; padding-left: 1rem; border-left: 2px solid #e7e3dd; color: #57534e }
+  table { border-collapse: collapse; width: 100%; font-size: .9em; margin: 1rem 0 }
+  th, td { border: 1px solid #e7e3dd; padding: .4rem .6rem; text-align: left }
+  code { font: .9em ui-monospace, monospace; background: #f5f3f0; padding: .1em .3em; border-radius: 3px }
+  hr { border: 0; border-top: 1px solid #e7e3dd; margin: 2rem 0 }
+  a { color: #1c1917 }
+</style>`

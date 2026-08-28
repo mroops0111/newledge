@@ -46,13 +46,22 @@ describe('createViewClient', () => {
 })
 
 describe('pageOf', () => {
-  it('hands html on as it stands', () => {
-    expect(pageOf({ path: 'a.html', format: 'html', text: '<p>hi</p>' })).toBe('<p>hi</p>')
+  it('hands a whole page on untouched, since it is already one', () => {
+    // A generator writes a complete document,
+    // and wrapping one in another leaves it nested inside a body,
+    // which is how a page comes out blank.
+    const whole = '<!DOCTYPE html><html><head><style>body{color:red}</style></head><body>hi</body></html>'
+    expect(pageOf({ path: 'a.html', format: 'html', text: whole })).toBe(whole)
   })
 
-  it('makes a page of markdown, under either name for it', () => {
-    expect(pageOf({ path: 'a.md', format: 'md', text: '# Title' })).toContain('<h1>')
-    expect(pageOf({ path: 'a.md', format: 'markdown', text: '# Title' })).toContain('<h1>')
+  it('makes a whole page of markdown, which arrives with none', () => {
+    for (const format of ['md', 'markdown']) {
+      const page = pageOf({ path: 'a.md', format, text: '# Title' })
+      expect(page).toContain('<h1>')
+      expect(page).toContain('<!doctype html>')
+      // Markdown carries no style either, so the frame is given one.
+      expect(page).toContain('<style>')
+    }
   })
 
   it('says nothing for a format it has not been taught, rather than refusing', () => {

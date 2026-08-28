@@ -113,10 +113,7 @@ function Row({ one, on, onOpen }: { one: Listed, on: boolean, onOpen: () => void
  * which is what stops a document from reaching the session that opened it.
  */
 function Page({ written }: { written: Written }): React.JSX.Element {
-  const page = useMemo(() => {
-    const body = pageOf(written)
-    return body === undefined ? undefined : `<!doctype html><meta charset="utf-8">${STYLE}<body>${body}</body>`
-  }, [written])
+  const page = useMemo(() => pageOf(written), [written])
 
   if (page === undefined) {
     return (
@@ -136,26 +133,3 @@ function Page({ written }: { written: Written }): React.JSX.Element {
     />
   )
 }
-
-/**
- * How a written page is set, given to the frame rather than inherited.
- * A sandboxed frame is its own document and shares no stylesheet with this one,
- * so a page arriving with no style of its own is set here or set by nobody.
- */
-const STYLE = `<style>
-  :root { color-scheme: light }
-  body {
-    margin: 0 auto; padding: 3rem 2.5rem; max-width: 46rem;
-    font: 15px/1.65 ui-serif, Georgia, serif; color: #1c1917; background: #fff;
-  }
-  h1, h2, h3, h4 { font-family: ui-sans-serif, system-ui, sans-serif; line-height: 1.25; }
-  h1 { font-size: 1.6rem; margin: 0 0 1.5rem }
-  h2 { font-size: 1.2rem; margin: 2.2rem 0 .6rem }
-  h3, h4 { font-size: 1rem; margin: 1.6rem 0 .4rem }
-  blockquote { margin: 1rem 0; padding-left: 1rem; border-left: 2px solid #e7e3dd; color: #57534e }
-  table { border-collapse: collapse; width: 100%; font-size: .9em; margin: 1rem 0 }
-  th, td { border: 1px solid #e7e3dd; padding: .4rem .6rem; text-align: left }
-  code { font: .9em ui-monospace, monospace; background: #f5f3f0; padding: .1em .3em; border-radius: 3px }
-  hr { border: 0; border-top: 1px solid #e7e3dd; margin: 2rem 0 }
-  a { color: #1c1917 }
-</style>`
