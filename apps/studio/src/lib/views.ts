@@ -158,6 +158,61 @@ export function titleOf(path: string): string {
 export function formOf(path: string): string {
   const [folder] = path.split('/')
   const known = FORMS.find(form => form.id === folder)
-  return known?.label ?? folder ?? 'View'
+  if (known !== undefined)
+    return known.label
+  // Set as a name even so, since a reader reads it as one either way.
+  return folder === undefined ? 'View' : folder[0]!.toUpperCase() + folder.slice(1)
+}
+
+/** What a handout was written out of, which is the name of the file. */
+export function subjectOf(path: string): string {
+  return titleOf(path)
+}
+
+/** One thing a reader made handouts of, and which forms they have of it. */
+export interface Made {
+  /** What it was written out of, named as a reader would recognise it. */
+  readonly name: string
+  readonly of: readonly { readonly form: string, readonly view: Listed }[]
+}
+
+/**
+ * The handouts a reader has, gathered under whatever each was written out of.
+ *
+ * A flat list of files makes a reader read a path to work out what they are
+ * looking at, and says nothing about the board a handout came from,
+ * which is the thing they would think of it by.
+ * So they are gathered by subject,
+ * and a subject that is a board is named as the reader named it.
+ *
+ * The subject written to most recently leads,
+ * since a reader coming back is usually coming back to what they just made.
+ */
+export function madeFrom(
+  listed: readonly Listed[],
+  nameOf: (subject: string) => string | undefined,
+): readonly Made[] {
+  const gathered = new Map<string, { readonly view: Listed, readonly form: string }[]>()
+  for (const view of listed) {
+    const subject = subjectOf(view.path)
+    gathered.set(subject, [...(gathered.get(subject) ?? []), { view, form: formOf(view.path) }])
+  }
+
+  return [...gathered.entries()]
+    .map(([subject, of]) => ({
+      name: nameOf(subject) ?? subject,
+      of: [...of].sort((one, other) => order(one.form) - order(other.form)),
+    }))
+    .sort((one, other) => latest(other) - latest(one))
+}
+
+/** Forms read in the order they were offered, not the order they were made. */
+function order(form: string): number {
+  const at = FORMS.findIndex(one => one.label === form)
+  return at === -1 ? FORMS.length : at
+}
+
+function latest(made: Made): number {
+  return Math.max(...made.of.map(one => Date.parse(one.view.writtenAt) || 0))
 }
 

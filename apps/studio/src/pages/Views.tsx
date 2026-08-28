@@ -1,21 +1,33 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Listed, ViewClient, Written } from '../lib/views.js'
-import { formOf, pageOf, titleOf } from '../lib/views.js'
+import type { BoardClient } from '../lib/boards.js'
+import type { Listed, Made, ViewClient, Written } from '../lib/views.js'
+import { madeFrom, pageOf, titleOf } from '../lib/views.js'
 import { paletteOf } from '../lib/viewStyle.js'
 import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
 import { GroupLabel } from '../ui/Surface.js'
 
 /**
- * Everything a generator has written out of this graph.
+ * The handouts a reader has written out of what they understand.
  *
- * A view is derived rather than authored,
+ * A handout is derived rather than authored,
  * so there is nothing to edit here and no arrangement to keep.
  * What a reader does is pick one and read it,
  * which is why the whole surface is a list beside a page.
+ *
+ * They are gathered under whatever each was written out of,
+ * because that is what a reader thinks of one by.
+ * A flat list of files makes them read a path,
+ * to work out what they are looking at.
  */
-export function Views({ client, nav }: { client: ViewClient, nav: Nav }): React.JSX.Element {
+export function Views({ client, boards, nav }: {
+  client: ViewClient
+  /** So a handout of a board is named as the reader named the board. */
+  boards: BoardClient
+  nav: Nav
+}): React.JSX.Element {
   const [listed, setListed] = useState<readonly Listed[] | undefined>(undefined)
+  const [named, setNamed] = useState<ReadonlyMap<string, string>>(new Map())
   const [openPath, setOpenPath] = useState<string | undefined>(undefined)
   const [open, setOpen] = useState<Written | undefined>(undefined)
   // Failing to list is the surface failing, since nothing is left to stand on.
@@ -32,7 +44,12 @@ export function Views({ client, nav }: { client: ViewClient, nav: Nav }): React.
         setOpenPath(items[0]?.path)
       })
       .catch((cause: unknown) => setLost(said(cause)))
-  }, [client])
+    // A board since renamed or dropped falls back to the name the file carries,
+    // so this failing is not the surface failing.
+    void boards.read()
+      .then(state => setNamed(new Map(state.boards.map(one => [one.id, one.name]))))
+      .catch(() => undefined)
+  }, [client, boards])
 
   useEffect(() => {
     if (openPath === undefined)
@@ -44,6 +61,11 @@ export function Views({ client, nav }: { client: ViewClient, nav: Nav }): React.
       .catch((cause: unknown) => setUnreadable(said(cause)))
   }, [client, openPath])
 
+  const made = useMemo(
+    () => madeFrom(listed ?? [], subject => named.get(subject)),
+    [listed, named],
+  )
+
   if (lost !== undefined)
     return <AppShell {...nav}><p className="p-10 font-ui text-sm text-claim">{lost}</p></AppShell>
 
@@ -51,16 +73,16 @@ export function Views({ client, nav }: { client: ViewClient, nav: Nav }): React.
     <AppShell {...nav}>
       <div className="flex h-screen">
         <aside className="w-72 shrink-0 overflow-y-auto border-r border-line bg-surface py-5">
-          <div className="px-4"><GroupLabel>Written out</GroupLabel></div>
+          <div className="px-4"><GroupLabel>Handouts</GroupLabel></div>
           {listed?.length === 0 && (
             <p className="mt-3 px-4 font-reading text-prose-sm text-ink-subtle">
-              Nothing has been written out of this graph yet.
+              Nothing written out yet. Open a board and write one.
             </p>
           )}
-          <ul className="mt-2">
-            {(listed ?? []).map(one => (
-              <li key={one.path}>
-                <Row one={one} on={one.path === openPath} onOpen={() => setOpenPath(one.path)} />
+          <ul className="mt-3 space-y-5">
+            {made.map(one => (
+              <li key={one.name}>
+                <Subject made={one} openPath={openPath} onOpen={setOpenPath} />
               </li>
             ))}
           </ul>
@@ -82,23 +104,37 @@ function said(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause)
 }
 
-function Row({ one, on, onOpen }: { one: Listed, on: boolean, onOpen: () => void }): React.JSX.Element {
+/**
+ * One thing a reader made handouts of, and the forms they have of it.
+ * The subject leads because it is what a reader is looking for,
+ * and the forms sit under it,
+ * because which one they want is the second question.
+ */
+function Subject({ made, openPath, onOpen }: {
+  made: Made
+  openPath: string | undefined
+  onOpen: (path: string) => void
+}): React.JSX.Element {
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-pressed={on}
-      className={`flex w-full flex-col items-start gap-0.5 px-4 py-2 text-left transition-colors ${on
-        ? 'bg-raised'
-        : 'hover:bg-raised'}`}
-    >
-      <span className={`truncate font-ui text-prose-sm ${on ? 'text-ink' : 'text-ink-muted'}`}>
-        {titleOf(one.path)}
-      </span>
-      <span className="font-ui text-label uppercase tracking-wide text-ink-subtle">
-        {formOf(one.path)}
-      </span>
-    </button>
+    <div>
+      <p className="truncate px-4 font-ui text-prose-sm font-semibold text-ink">{made.name}</p>
+      <ul className="mt-1">
+        {made.of.map(one => (
+          <li key={one.view.path}>
+            <button
+              type="button"
+              onClick={() => onOpen(one.view.path)}
+              aria-pressed={one.view.path === openPath}
+              className={`w-full px-4 py-1 text-left font-ui text-prose-sm transition-colors ${one.view.path === openPath
+                ? 'bg-raised text-ink'
+                : 'text-ink-muted hover:bg-raised'}`}
+            >
+              {one.form}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 

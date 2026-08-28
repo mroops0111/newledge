@@ -13,14 +13,14 @@ import type { SurfaceLink } from './ui/AppShell.js'
  *
  * What arrives is read, what is kept is the graph,
  * what a reader picks out of it is a board,
- * and what is written out of either comes last.
+ * and the handouts written out of one come last.
  * Ordering them any other way puts a surface before the one it draws from.
  */
 const SURFACES: readonly SurfaceLink[] = [
   { id: 'inbox', label: 'Reading inbox' },
   { id: 'graph', label: 'Graph' },
   { id: 'board', label: 'Board' },
-  { id: 'views', label: 'Written out' },
+  { id: 'views', label: 'Handouts' },
 ]
 
 /**
@@ -39,7 +39,7 @@ export function App({ inbox, graph, boards, views }: {
   if (activeId === 'graph')
     return <Graph client={graph} nav={nav} />
   if (activeId === 'views')
-    return <Views client={views} nav={nav} />
+    return <Views client={views} boards={boards} nav={nav} />
   if (activeId === 'board')
     return <Whiteboard graphClient={graph} boardClient={boards} views={views} nav={nav} />
   return <Inbox client={inbox} nav={nav} />

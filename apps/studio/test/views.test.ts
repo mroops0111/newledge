@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createViewClient, FORMS, formOf, pageOf, titleOf } from '../src/lib/views.js'
+import type { Listed } from '../src/lib/views.js'
+import { createViewClient, FORMS, formOf, madeFrom, pageOf, titleOf } from '../src/lib/views.js'
 
 const listed = { items: [{ path: 'docs/retrieval.md', format: 'md', bytes: 12, writtenAt: 'now' }] }
 
@@ -101,8 +102,50 @@ describe('naming a view', () => {
     expect(formOf('exam/retrieval.html')).toBe('Exam')
   })
 
-  it('names an unclaimed folder as it stands, rather than guessing', () => {
-    // A generator may write somewhere nobody has declared a form for.
-    expect(formOf('sketches/one.md')).toBe('sketches')
+  it('names an unclaimed folder as it stands, rather than guessing at it', () => {
+    // A generator may write somewhere nobody has declared a form for,
+    // and a reader still reads what is there as the name of a kind.
+    expect(formOf('sketches/one.md')).toBe('Sketches')
+  })
+})
+
+describe('madeFrom', () => {
+  const at = (path: string, when: string): Listed =>
+    ({ path, format: path.split('.').pop()!, bytes: 1, writtenAt: when })
+
+  const listed = [
+    at('exam/board-terms.html', '2026-08-28T10:00:00Z'),
+    at('reference/board-terms.html', '2026-08-28T09:00:00Z'),
+    at('tutorial/board-two.html', '2026-08-28T12:00:00Z'),
+  ]
+  const named = (subject: string): string | undefined =>
+    ({ 'board-terms': 'Terms', 'board-two': 'Retrieval' })[subject]
+
+  it('gathers handouts under what each was written out of', () => {
+    // A flat list of files makes a reader read a path,
+    // to work out what they are looking at,
+    // and says nothing about the board one came from.
+    const made = madeFrom(listed, named)
+    expect(made.map(one => one.name)).toEqual(['Retrieval', 'Terms'])
+    expect(made.find(one => one.name === 'Terms')?.of).toHaveLength(2)
+  })
+
+  it('names a subject as the reader named it, not as the file spells it', () => {
+    expect(madeFrom(listed, named)[0]?.name).toBe('Retrieval')
+  })
+
+  it('falls back to what the file carries when nothing knows the name', () => {
+    // A board since renamed or dropped still has handouts worth reaching.
+    expect(madeFrom(listed, () => undefined).map(one => one.name)).toContain('board-terms')
+  })
+
+  it('reads the forms in the order they were offered, not when they were made', () => {
+    const forms = madeFrom(listed, named).find(one => one.name === 'Terms')?.of ?? []
+    expect(forms.map(one => one.form)).toEqual(['Reference', 'Exam'])
+  })
+
+  it('leads with the subject written to most recently', () => {
+    // A reader coming back is usually coming back to what they just made.
+    expect(madeFrom(listed, named)[0]?.name).toBe('Retrieval')
   })
 })
