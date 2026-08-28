@@ -1,8 +1,9 @@
 /**
  * How every written view is set, whatever wrote it.
  *
- * A generator writing its own styling made two views of one board look like
- * they came from two products, one light and serif and one dark and carded.
+ * A generator writing its own styling made two views of one board look,
+ * like they came from two products,
+ * one light and serif and one dark and carded.
  * The look belongs to the surface reading them,
  * rather than to whichever run happened to produce one,
  * so it is given here and a generator writes only what a thing is.
