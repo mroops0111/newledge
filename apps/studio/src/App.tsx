@@ -37,10 +37,10 @@ export function App({ inbox, graph, boards, views }: {
   const [activeId, setActiveId] = useState(SURFACES[0]!.id)
   const nav = { surfaces: SURFACES, activeId, onSelect: setActiveId }
   if (activeId === 'graph')
-    return <Graph client={graph} views={views} nav={nav} />
+    return <Graph client={graph} nav={nav} />
   if (activeId === 'views')
     return <Views client={views} nav={nav} />
   if (activeId === 'board')
-    return <Whiteboard graphClient={graph} boardClient={boards} nav={nav} />
+    return <Whiteboard graphClient={graph} boardClient={boards} views={views} nav={nav} />
   return <Inbox client={inbox} nav={nav} />
 }

@@ -20,6 +20,7 @@ import { CARD_HEIGHT, cardExtent } from '../lib/measure.js'
 import { kinship } from '../lib/family.js'
 import { familyColours, familyOfRoot, kinColour, lineages, NO_FAMILY, saidOnCard } from '../lib/kinship.js'
 import type { GraphEdge, GraphNode } from '../lib/graph.js'
+import type { ViewClient } from '../lib/views.js'
 import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
 import type { BoardCardData } from '../ui/BoardCard.js'
@@ -30,6 +31,7 @@ import { boardEdges } from '../ui/boardEdges.js'
 import { BoardList } from '../ui/BoardList.js'
 import { inside } from '../lib/inside.js'
 import { NodePanel } from '../ui/NodePanel.js'
+import { WriteOut } from '../ui/WriteOut.js'
 import { CanvasEdge } from '../ui/CanvasEdge.js'
 import { BoardTools } from '../ui/BoardTools.js'
 import { Guides } from '../ui/Guides.js'
@@ -45,9 +47,10 @@ const PLACEMENT = elkPlacement()
 const ROUTING = orthogonalRouting()
 const MIN_NAME_WIDTH = 10
 
-export function Whiteboard({ graphClient, boardClient, nav }: {
+export function Whiteboard({ graphClient, boardClient, views, nav }: {
   graphClient: GraphClient
   boardClient: BoardClient
+  views: ViewClient
   nav: Nav
 }): React.JSX.Element {
   const [graph, setGraph] = useState<{ nodes: readonly GraphNode[], edges: readonly GraphEdge[] }>({ nodes: [], edges: [] })
@@ -461,6 +464,13 @@ export function Whiteboard({ graphClient, boardClient, nav }: {
             style={{ width: `${Math.max(board.name.length, MIN_NAME_WIDTH)}ch` }}
             className="rounded-control bg-transparent px-2 py-1 font-ui text-sm font-semibold text-ink outline-none focus:bg-raised"
           />
+          {/*
+            Beside the name of the board it writes out, since the board is what
+            every form takes and this is where a reader has finished arranging.
+          */}
+          <div className="ml-auto flex items-center gap-1">
+            <WriteOut client={views} boardId={board.id} onWritten={() => nav.onSelect('views')} />
+          </div>
         </header>
 
         {/*

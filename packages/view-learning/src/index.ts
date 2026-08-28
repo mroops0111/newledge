@@ -1,4 +1,5 @@
 import type { ViewGeneratorPlugin } from '@braidhq/core'
+import { NotFoundError } from '@braidhq/core'
 import type { Board, BoardState } from '@newledge/board'
 import { ViewArtifactFormat, ViewKind } from '@braidhq/schema'
 import { defineViewGeneratorPlugin } from '@braidhq/sdk'
@@ -15,6 +16,17 @@ export const VIEW_KIND = ViewKind.parse('learning')
  * A skill reads it and writes the page, so what leaves here is structured.
  */
 const SKELETON_FORMAT = ViewArtifactFormat.parse('json')
+
+/**
+ * Where the material lands, which is beside the views rather than among them.
+ *
+ * This is what a skill reads to write a page,
+ * so a reader offered it among the views would be offered the machinery.
+ * braid's artifact type calls this a view,
+ * because it is the only shape it has for a plugin's output,
+ * and the plugin's output here is only half of one.
+ */
+const MATERIAL_DIR = 'material'
 
 /**
  * Where the boards are, asked for rather than reached for.
@@ -61,20 +73,24 @@ function plugin(boards: BoardSource): ViewGeneratorPlugin {
     // Explaining a subject and asking about it need the same material,
     // and differ only in what is done with it.
     skills: [
+      { directory: new URL('../skills/reference', import.meta.url) },
       { directory: new URL('../skills/tutorial', import.meta.url) },
       { directory: new URL('../skills/exam', import.meta.url) },
     ],
     render: async (config, input) => {
       const state = await boards(config.workspaceId)
       const board = state.boards.find(one => one.id === config.boardId)
+      // A braid error rather than a plain one,
+      // so a route serving this answers a reader with what went wrong,
+      // rather than with a failure.
       if (board === undefined)
-        throw new Error(`Board "${config.boardId}" is not one this workspace holds`)
+        throw new NotFoundError(`Board "${config.boardId}" is not one this workspace holds`)
 
       return {
         kind: VIEW_KIND,
         format: SKELETON_FORMAT,
         files: [{
-          path: `views/${VIEW_KIND}/${board.id}.json`,
+          path: `${MATERIAL_DIR}/${VIEW_KIND}/${board.id}.json`,
           text: `${JSON.stringify(skeletonOf(board, input.model), null, 2)}\n`,
         }],
       }

@@ -56,6 +56,12 @@ importers:
       '@newledge/source-loader-web':
         specifier: workspace:*
         version: link:../../packages/source-loader-web
+      '@newledge/view-learning':
+        specifier: workspace:*
+        version: link:../../packages/view-learning
+      zod:
+        specifier: ^4.0.0
+        version: 4.4.3
     devDependencies:
       '@types/node':
         specifier: ^26.2.0

@@ -16,8 +16,8 @@ export interface Written extends Pick<Listed, 'path' | 'format'> {
 export interface ViewClient {
   readonly list: () => Promise<readonly Listed[]>
   readonly read: (path: string) => Promise<Written>
-  /** Set a generator going, and hand back the run to watch. */
-  readonly write: (form: Form, about: string) => Promise<string>
+  /** Set a generator going over one board, and hand back the run to watch. */
+  readonly write: (form: Form, boardId: string) => Promise<string>
   readonly finished: (runId: string) => Promise<boolean>
 }
 
@@ -33,19 +33,20 @@ export interface Form {
   readonly label: string
   /** What a reader gets, said in the terms they would ask for it in. */
   readonly purpose: string
-  readonly skillId: string
-  /** Which kind of node this form is written about. */
-  readonly about: string
 }
 
+/**
+ * Every form is written out of a board, which is the whole of the split.
+ *
+ * A board is the only thing carrying both what a view is about,
+ * and the order it is read in, which the graph cannot supply.
+ * So a reader arranges and then writes it out,
+ * and there is one place to do either.
+ */
 export const FORMS: readonly Form[] = [
-  {
-    id: 'docs',
-    label: 'Reference',
-    purpose: 'Everything filed under one topic, written for someone looking it up',
-    skillId: 'braid:generate-doc',
-    about: 'Topic',
-  },
+  { id: 'reference', label: 'Reference', purpose: 'Arranged to be scanned, for coming back and finding one thing' },
+  { id: 'tutorial', label: 'Tutorial', purpose: 'Written for someone meeting the subject for the first time' },
+  { id: 'exam', label: 'Exam', purpose: 'Questions with the answers behind them, for finding out what stuck' },
 ]
 
 export interface ViewClientOptions {
@@ -70,11 +71,11 @@ export function createViewClient(options: ViewClientOptions): ViewClient {
   return {
     list: async () => (await get<{ items?: readonly Listed[] }>('', 'your views')).items ?? [],
 
-    write: async (form, about) => {
-      const response = await fetcher(`${runs}/skills/${encodeURIComponent(form.skillId)}/run`, {
+    write: async (form, boardId) => {
+      const response = await fetcher(`${runs}/boards/${encodeURIComponent(boardId)}/views`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ args: about }),
+        body: JSON.stringify({ form: form.id }),
       })
       if (!response.ok)
         throw new Error(`Writing out failed with ${response.status}`)

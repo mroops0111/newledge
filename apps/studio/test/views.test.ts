@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createViewClient, formOf, pageOf, titleOf } from '../src/lib/views.js'
+import { createViewClient, FORMS, formOf, pageOf, titleOf } from '../src/lib/views.js'
 
 const listed = { items: [{ path: 'docs/retrieval.md', format: 'md', bytes: 12, writtenAt: 'now' }] }
 
@@ -21,6 +21,12 @@ describe('createViewClient', () => {
 
   it('gives back nothing rather than failing on a workspace with no views', async () => {
     expect(await client({}).list()).toEqual([])
+  })
+
+  it('asks the board for a view of itself, rather than naming a skill', async () => {
+    const seen: string[] = []
+    await client({ runId: 'r1' }, seen).write(FORMS[0]!, 'b1')
+    expect(seen[0]).toBe('http://x/api/workspaces/w/boards/b1/views')
   })
 
   it('escapes each segment alone, so a name cannot pose as a directory', async () => {
@@ -57,6 +63,15 @@ describe('pageOf', () => {
   })
 })
 
+describe('FORMS', () => {
+  it('offers every form over the same thing, which is a board', () => {
+    // A split where one form took a topic and the rest took a board,
+    // is what would make a reader learn two places to ask from.
+    expect(FORMS.map(form => form.id)).toEqual(['reference', 'tutorial', 'exam'])
+    expect(FORMS.every(form => form.purpose.length > 0)).toBe(true)
+  })
+})
+
 describe('naming a view', () => {
   it('drops the machinery from the name a reader reads', () => {
     expect(titleOf('docs/kdanPortfolio.md')).toBe('kdanPortfolio')
@@ -64,7 +79,9 @@ describe('naming a view', () => {
   })
 
   it('says which form it is in, not which folder it landed in', () => {
-    expect(formOf('docs/kdanPortfolio.md')).toBe('Reference')
+    expect(formOf('reference/retrieval.html')).toBe('Reference')
+    expect(formOf('tutorial/retrieval.html')).toBe('Tutorial')
+    expect(formOf('exam/retrieval.html')).toBe('Exam')
   })
 
   it('names an unclaimed folder as it stands, rather than guessing', () => {

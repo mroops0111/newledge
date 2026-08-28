@@ -23,7 +23,9 @@
     "@newledge/ontology-knowledge": "workspace:*",
     "@newledge/source-loader-web": "workspace:*",
     "@newledge/board": "workspace:*",
-    "@hono/zod-openapi": "^1.5.1"
+    "@hono/zod-openapi": "^1.5.1",
+    "@newledge/view-learning": "workspace:*",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^26.2.0"

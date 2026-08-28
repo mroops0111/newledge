@@ -20,29 +20,25 @@ type Doing =
 /**
  * Set a generator going over whatever is selected, and say when it is done.
  *
- * The forms a reader is offered are the ones taking the kind they have picked,
- * so a control appears where its input is, rather than everywhere and refusing.
- * A form whose input is a board does not belong on a survey.
+ * Every form is written out of a board, so this stands on one,
+ * and a reader is offered all of them rather than a subset that fits.
  *
  * Writing takes a minute or so,
  * which is long enough that a reader will look away,
  * so finishing has to be said rather than merely happening.
  */
-export function WriteOut({ client, about, kind, onWritten }: {
+export function WriteOut({ client, boardId, onWritten }: {
   client: ViewClient
-  /** What is selected, which is what a generator would be given. */
-  about: string | undefined
-  /** What kind that is, which decides what can be written from it. */
-  kind: string | undefined
+  /** The board a form is written out of. */
+  boardId: string
   /** Take the reader to what was written, once there is something to read. */
   onWritten: () => void
-}): React.JSX.Element | null {
+}): React.JSX.Element {
   const [doing, setDoing] = useState<Doing>({ at: 'idle' })
-  const offered = FORMS.filter(form => form.about === kind)
 
   useEffect(() => {
     setDoing({ at: 'idle' })
-  }, [about])
+  }, [boardId])
 
   useEffect(() => {
     if (doing.at !== 'writing' || doing.runId === undefined)
@@ -56,9 +52,6 @@ export function WriteOut({ client, about, kind, onWritten }: {
     }, ASK_EVERY)
     return () => clearInterval(timer)
   }, [client, doing])
-
-  if (about === undefined || offered.length === 0)
-    return null
 
   switch (doing.at) {
     case 'writing':
@@ -74,7 +67,7 @@ export function WriteOut({ client, about, kind, onWritten }: {
     case 'idle':
       return (
         <>
-          {offered.map(form => (
+          {FORMS.map(form => (
             <button
               key={form.id}
               type="button"
@@ -82,7 +75,7 @@ export function WriteOut({ client, about, kind, onWritten }: {
               className={ACTION}
               onClick={() => {
                 setDoing({ at: 'writing', form })
-                void client.write(form, about)
+                void client.write(form, boardId)
                   .then(runId => setDoing({ at: 'writing', runId, form }))
                   .catch((cause: unknown) => setDoing({
                     at: 'failed',
