@@ -156,6 +156,28 @@ importers:
         specifier: ^26.2.0
         version: 26.2.0
 
+  packages/view-learning:
+    dependencies:
+      '@braidhq/core':
+        specifier: ^0.4.0
+        version: 0.4.0
+      '@braidhq/schema':
+        specifier: ^0.4.0
+        version: 0.4.0
+      '@braidhq/sdk':
+        specifier: ^0.4.0
+        version: 0.4.0
+      '@newledge/board':
+        specifier: workspace:*
+        version: link:../board
+      zod:
+        specifier: ^4.0.0
+        version: 4.4.3
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+
 packages:
 
   '@alloc/quick-lru@5.2.0':

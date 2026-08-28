@@ -1,0 +1,30 @@
+{
+  "name": "@newledge/view-learning",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run --coverage",
+    "clean": "rm -rf dist .turbo *.tsbuildinfo coverage"
+  },
+  "dependencies": {
+    "@braidhq/sdk": "^0.4.0",
+    "@braidhq/core": "^0.4.0",
+    "@braidhq/schema": "^0.4.0",
+    "@newledge/board": "workspace:*",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0"
+  }
+}
