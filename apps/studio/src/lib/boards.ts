@@ -157,3 +157,18 @@ export function renameSection(board: Board, sectionId: string, name: string): Bo
     sections: board.sections.map(section => (section.id === sectionId ? { ...section, name } : section)),
   }
 }
+
+/**
+ * A board with one card taken off it.
+ *
+ * The node is untouched. A board is a chosen part of the graph,
+ * so taking a card off says this reading is not about that node,
+ * and every other board, and the graph itself, is none the wiser.
+ *
+ * Nothing puts it back on its own.
+ * A board is arranged once and is the reader's from then on,
+ * so a card only returns if they ask for the board to be laid out again.
+ */
+export function withoutCard(board: Board, nodeId: string): Board {
+  return { ...board, cards: board.cards.filter(card => card.nodeId !== nodeId) }
+}

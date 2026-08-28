@@ -6,6 +6,7 @@ import {
   openingBoards,
   renameSection,
   withBoard,
+  withoutCard,
   withSection,
 } from '../src/lib/boards.js'
 
@@ -162,5 +163,26 @@ describe('the boards a workspace opens on', () => {
     const plain = openingBoards([{ id: 'a', type: 'Concept', name: 'A' }])
     expect(plain).toHaveLength(1)
     expect(plain[0]!.holds).toEqual(['Concept'])
+  })
+})
+
+describe('withoutCard', () => {
+  const held = board({ cards: [{ nodeId: 'one', x: 0, y: 0 }, { nodeId: 'two', x: 24, y: 24 }] })
+
+  it('takes one card off and leaves the rest where they are', () => {
+    const narrowed = withoutCard(held, 'one')
+    expect(narrowed.cards.map(card => card.nodeId)).toEqual(['two'])
+    expect(narrowed.cards[0]).toEqual({ nodeId: 'two', x: 24, y: 24 })
+  })
+
+  it('leaves the board alone when it never held that node', () => {
+    expect(withoutCard(held, 'gone').cards).toHaveLength(2)
+  })
+
+  it('says nothing about the graph, which keeps the node either way', () => {
+    // A board is a reading, so narrowing one is not losing anything.
+    const narrowed = withoutCard(held, 'one')
+    expect(narrowed.id).toBe(held.id)
+    expect(narrowed.sections).toEqual(held.sections)
   })
 })
