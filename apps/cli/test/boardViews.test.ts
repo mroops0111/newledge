@@ -44,7 +44,7 @@ describe('asking for a view of a board', () => {
     // because the route goes on to start an agent,
     // and whether one is installed is not what is under test.
     const at = await projectBoard(runtime.deps, WORKSPACE_NAME as never, 'b1')
-    expect(at).toBe(join('artifacts', 'material', 'learning', 'b1.json'))
+    expect(at).toBe(join('artifacts', 'material', 'handout', 'b1.json'))
 
     const material = JSON.parse(await readFile(join(root, at), 'utf-8')) as {
       title: string
@@ -61,7 +61,7 @@ describe('asking for a view of a board', () => {
     const listed = await (await runtime.app.request(`/workspaces/${WORKSPACE_NAME}/views`)).json() as {
       items: { path: string }[]
     }
-    expect(listed.items.map(one => one.path)).not.toContain('material/learning/b1.json')
+    expect(listed.items.map(one => one.path)).not.toContain('material/handout/b1.json')
   })
 
   it('refuses a form nobody ships a skill for, before anyone is asked', async () => {

@@ -22,9 +22,9 @@ describe('reading a generated view', () => {
     const workspace = await runtime.deps.workspaceService.findById(WORKSPACE_NAME as never)
     views = join(workspace.rootPath, 'artifacts', 'views')
     await mkdir(join(views, 'docs'), { recursive: true })
-    await mkdir(join(views, 'learning'), { recursive: true })
+    await mkdir(join(views, 'tutorial'), { recursive: true })
     await writeFile(join(views, 'docs', 'retrieval.md'), '# Retrieval\n', 'utf-8')
-    await writeFile(join(views, 'learning', 'retrieval.html'), '<h1>Retrieval</h1>\n', 'utf-8')
+    await writeFile(join(views, 'tutorial', 'retrieval.html'), '<h1>Retrieval</h1>\n', 'utf-8')
     // What the operating system leaves lying about is not a view.
     await writeFile(join(views, '.DS_Store'), 'junk', 'utf-8')
   })
@@ -39,7 +39,7 @@ describe('reading a generated view', () => {
 
   it('finds a view however deeply the generator nested it', async () => {
     const body = await (await list()).json() as { items: { path: string }[] }
-    expect(body.items.map(one => one.path)).toEqual(['docs/retrieval.md', 'learning/retrieval.html'])
+    expect(body.items.map(one => one.path)).toEqual(['docs/retrieval.md', 'tutorial/retrieval.html'])
   })
 
   it('says what each one is, taken off the name rather than a promise', async () => {
@@ -48,7 +48,7 @@ describe('reading a generated view', () => {
   })
 
   it('hands back what a generator wrote, unchanged', async () => {
-    const body = await (await read('learning/retrieval.html')).json() as { text: string, format: string }
+    const body = await (await read('tutorial/retrieval.html')).json() as { text: string, format: string }
     expect(body.text).toBe('<h1>Retrieval</h1>\n')
     expect(body.format).toBe('html')
   })

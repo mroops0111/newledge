@@ -9,7 +9,7 @@ import { skeletonOf } from './skeleton.js'
 export type { Held, Reading, Skeleton } from './skeleton.js'
 export { missingFrom, skeletonOf } from './skeleton.js'
 
-export const VIEW_KIND = ViewKind.parse('learning')
+export const VIEW_KIND = ViewKind.parse('handout')
 
 /**
  * What the material is written as, which is data rather than prose.
@@ -42,7 +42,7 @@ const Config = z.object({
 })
 
 /**
- * The material a learning view is written from, and nothing about the writing.
+ * The material a handout is written from, and nothing about the writing.
  *
  * The two halves of a view split along what each is good at.
  * This half is a function, so what a claim is, which term it sits under,
@@ -55,7 +55,7 @@ const Config = z.object({
  * What the skill is handed is the material, in the reader's own order,
  * and what it owes back is an explanation.
  */
-export function createLearningViewPlugin(boards: BoardSource): ViewGeneratorPlugin {
+export function createHandoutViewPlugin(boards: BoardSource): ViewGeneratorPlugin {
   // The builder takes skills and offers neither the namespace,
   // that the registry demands the moment any are declared,
   // nor the reference every one of them reads.

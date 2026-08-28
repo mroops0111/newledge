@@ -56,9 +56,9 @@ importers:
       '@newledge/source-loader-web':
         specifier: workspace:*
         version: link:../../packages/source-loader-web
-      '@newledge/view-generator-learning':
+      '@newledge/view-generator-handout':
         specifier: workspace:*
-        version: link:../../packages/view-generator-learning
+        version: link:../../packages/view-generator-handout
       zod:
         specifier: ^4.0.0
         version: 4.4.3
@@ -168,7 +168,7 @@ importers:
         specifier: ^26.2.0
         version: 26.2.0
 
-  packages/view-generator-learning:
+  packages/view-generator-handout:
     dependencies:
       '@braidhq/core':
         specifier: ^0.4.0

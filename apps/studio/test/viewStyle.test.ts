@@ -13,7 +13,7 @@ const here = join(import.meta.dirname, '..')
  * and nothing else would notice them drifting.
  */
 const vocabulary = readFileSync(
-  join(here, '../../packages/view-generator-learning/skills/shared/style.md'),
+  join(here, '../../packages/view-generator-handout/skills/shared/style.md'),
   'utf-8',
 )
 

@@ -2,7 +2,7 @@ import { NotFoundError } from '@braidhq/core'
 import type { BoardState } from '@newledge/board'
 import { describe, expect, it } from 'vitest'
 import type { BoardSource } from '../src/index.js'
-import { createLearningViewPlugin, VIEW_KIND } from '../src/index.js'
+import { createHandoutViewPlugin, VIEW_KIND } from '../src/index.js'
 
 const state: BoardState = {
   boards: [{
@@ -20,13 +20,13 @@ const model = {
   edges: [],
 }
 
-function render(config: unknown): ReturnType<ReturnType<typeof createLearningViewPlugin>['render']> {
-  return createLearningViewPlugin(boards).render({ model, config } as never)
+function render(config: unknown): ReturnType<ReturnType<typeof createHandoutViewPlugin>['render']> {
+  return createHandoutViewPlugin(boards).render({ model, config } as never)
 }
 
-describe('createLearningViewPlugin', () => {
+describe('createHandoutViewPlugin', () => {
   it('registers on the view axis rather than as part of the ontology', () => {
-    const plugin = createLearningViewPlugin(boards)
+    const plugin = createHandoutViewPlugin(boards)
     expect(plugin.type).toBe('view-generator')
     expect(plugin.viewKind).toBe(VIEW_KIND)
   })
@@ -35,7 +35,7 @@ describe('createLearningViewPlugin', () => {
     // A reader offered this among the views would be offered the machinery,
     // rather than a page.
     const artifact = await render({ workspaceId: 'w', boardId: 'b' })
-    expect(artifact.files.map(one => one.path)).toEqual(['material/learning/b.json'])
+    expect(artifact.files.map(one => one.path)).toEqual(['material/handout/b.json'])
   })
 
   it('hands on the material rather than a document', async () => {

@@ -24,7 +24,7 @@
     "@newledge/board": "workspace:*",
     "@newledge/ontology-knowledge": "workspace:*",
     "@newledge/source-loader-web": "workspace:*",
-    "@newledge/view-generator-learning": "workspace:*",
+    "@newledge/view-generator-handout": "workspace:*",
     "zod": "^4.0.0"
   },
   "devDependencies": {
