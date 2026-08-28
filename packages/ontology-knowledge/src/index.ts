@@ -10,8 +10,22 @@ type Cardinality = NonNullable<EdgeTypeDescriptor['cardinality']>
 // Builders keep the type sets declarative, one entry per node, edge, or role,
 // so adding one extends data rather than editing a closed union.
 // The branded ids are cast here, the single place a raw string becomes an id.
-function node(id: string, label: string, description: string, color: string): NodeTypeDescriptor {
-  return { id: id as NodeTypeId, label, description, color }
+function node(
+  id: string,
+  label: string,
+  description: string,
+  color: string,
+  renderHint?: NodeTypeDescriptor['renderHint'],
+): NodeTypeDescriptor {
+  return { id: id as NodeTypeId, label, description, color, ...(renderHint === undefined ? {} : { renderHint }) }
+}
+
+/** A kind that a document is written one of, and that the rest nests inside. */
+const CONTAINER = { container: true } as const
+
+/** A kind read inside whatever it is filed under, rather than on its own. */
+function under(kind: string): NonNullable<NodeTypeDescriptor['renderHint']> {
+  return { expandedUnder: kind as NodeTypeId }
 }
 
 function edge(
@@ -37,7 +51,25 @@ function role(id: string, label: string, extra: Omit<SourceRoleInput, 'id' | 'la
 }
 
 /**
- * What each kind is drawn in, which is a hue and nothing else.
+ * How each kind is drawn, and how a document written from the graph nests it.
+ *
+ * A hint says nothing a reader has not already been shown.
+ * A topic is the ground a board draws as a section,
+ * so it is what a document is written one of,
+ * and a concept filed under one is read inside it,
+ * the same way it is drawn inside it.
+ * A claim is read where the concept it is about is read,
+ * since an assertion nobody has read the term for says nothing.
+ * A source carries no hint.
+ * Provenance is what a reader checks a document against,
+ * rather than a part of what the document says,
+ * so it belongs in the footer every renderer already writes.
+ *
+ * Declared here rather than in a renderer, so the board, the survey,
+ * and anything written out of the graph,
+ * cannot come to disagree about which kind holds which.
+ *
+ * The colours are a hue and nothing else.
  *
  * Every kind shares one lightness and one chroma,
  * so no kind shouts over another and hue alone tells them apart.
@@ -61,10 +93,10 @@ function role(id: string, label: string, extra: Omit<SourceRoleInput, 'id' | 'la
  * so draining the colour bought nothing there and cost a legend everywhere.
  */
 const nodeTypes: readonly NodeTypeDescriptor[] = [
-  node('Concept', 'Concept', 'A durable unit of knowledge, an idea, a technique, or a definition. The dominant node type.', 'oklch(0.52 0.12 270)'),
-  node('Claim', 'Claim', 'A specific assertion with a truth value the user can accept, reject, or contest. Carries provenance to the exact source moment.', 'oklch(0.52 0.12 63)'),
+  node('Concept', 'Concept', 'A durable unit of knowledge, an idea, a technique, or a definition. The dominant node type.', 'oklch(0.52 0.12 270)', under('Topic')),
+  node('Claim', 'Claim', 'A specific assertion with a truth value the user can accept, reject, or contest. Carries provenance to the exact source moment.', 'oklch(0.52 0.12 63)', under('Concept')),
   node('Source', 'Source', 'An ingested artifact (a web page, article, video, or podcast) with its metadata. The anchor every claim traces back to.', 'oklch(0.52 0.12 195)'),
-  node('Topic', 'Topic', 'A named grouping or theme, a concept-map section made first-class, reusable, nestable, and many-to-many, so a node can sit under several topics.', 'oklch(0.52 0.12 340)'),
+  node('Topic', 'Topic', 'A named grouping or theme, a concept-map section made first-class, reusable, nestable, and many-to-many, so a node can sit under several topics.', 'oklch(0.52 0.12 340)', CONTAINER),
 ]
 
 const edgeTypes: readonly EdgeTypeDescriptor[] = [
