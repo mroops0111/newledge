@@ -179,8 +179,9 @@ export interface Made {
 /**
  * The handouts a reader has, gathered under whatever each was written out of.
  *
- * A flat list of files makes a reader read a path to work out what they are
- * looking at, and says nothing about the board a handout came from,
+ * A flat list of files makes a reader read a path,
+ * to work out what they are looking at,
+ * and says nothing about the board a handout came from,
  * which is the thing they would think of it by.
  * So they are gathered by subject,
  * and a subject that is a board is named as the reader named it.
