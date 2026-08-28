@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { projectBoard } from '../src/boardViews.js'
 import { composeKnowledgeRuntime } from '../src/compose.js'
 import { ensureWorkspace, WORKSPACE_NAME } from '../src/run.js'
 
@@ -38,15 +39,17 @@ describe('asking for a view of a board', () => {
       body: JSON.stringify(body),
     })
 
-  it('projects the board before it asks anyone to write about it', async () => {
-    // Starting the agent needs a live server this test does not stand up,
-    // so the request does not finish. The material is written first either way,
-    // which is the ordering worth pinning.
-    // A skill is never asked to write about a board not yet projected.
-    await ask('b1', { form: 'reference' }).catch(() => undefined)
+  it('projects the board into material a skill can be handed', async () => {
+    // Reached directly rather than through the route,
+    // because the route goes on to start an agent,
+    // and whether one is installed is not what is under test.
+    const at = await projectBoard(runtime.deps, WORKSPACE_NAME as never, 'b1')
+    expect(at).toBe(join('artifacts', 'material', 'learning', 'b1.json'))
 
-    const at = join(root, 'artifacts', 'material', 'learning', 'b1.json')
-    const material = JSON.parse(await readFile(at, 'utf-8')) as { title: string, held: unknown[] }
+    const material = JSON.parse(await readFile(join(root, at), 'utf-8')) as {
+      title: string
+      held: unknown[]
+    }
     expect(material.title).toBe('Retrieval')
     expect(material.held).toEqual([])
   })
@@ -54,7 +57,7 @@ describe('asking for a view of a board', () => {
   it('keeps the material out of the views a reader is offered', async () => {
     // What a skill reads to write a page is machinery,
     // and a reader offered it among the views would be offered that.
-    await ask('b1', { form: 'reference' }).catch(() => undefined)
+    await projectBoard(runtime.deps, WORKSPACE_NAME as never, 'b1')
     const listed = await (await runtime.app.request(`/workspaces/${WORKSPACE_NAME}/views`)).json() as {
       items: { path: string }[]
     }
@@ -70,5 +73,12 @@ describe('asking for a view of a board', () => {
     const response = await ask('gone', { form: 'reference' })
     expect(response.status).toBe(404)
     expect(await response.text()).toContain('not one this workspace holds')
+  })
+
+  it('refuses before it reaches the agent, so a bad ask costs nothing', async () => {
+    // Both refusals land before anything is spawned,
+    // which is why they can be tested on a machine with no agent on it.
+    expect((await ask('b1', { form: 'poem' })).status).toBe(400)
+    expect((await ask('gone', { form: 'reference' })).status).toBe(404)
   })
 })

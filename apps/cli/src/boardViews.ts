@@ -19,7 +19,10 @@ const FORMS = ['reference', 'tutorial', 'exam'] as const
 const Asked = z.object({ form: z.enum(FORMS) })
 
 /**
- * Turn a board into a view, in the two steps a view is made of.
+ * Project a board into the material a view is written from.
+ *
+ * The half that is a function, and the half a test can reach without an agent
+ * installed, which is why it is named rather than folded into the route.
  *
  * braid declares a view generator and never calls one,
  * so this is what calls it. The plugin projects the board into material,
@@ -30,7 +33,7 @@ const Asked = z.object({ form: z.enum(FORMS) })
  * because a skill is a subprocess and cannot call a plugin.
  * Something has to stand between them, and this is it.
  */
-async function writeMaterial(
+export async function projectBoard(
   deps: AppDependencies,
   workspaceId: WorkspaceId,
   boardId: string,
@@ -80,7 +83,7 @@ export function mountBoardViews(app: OpenAPIHono, deps: AppDependencies): void {
     if (runner === undefined)
       return context.json({ title: 'ConflictError', detail: 'No agent is configured to write a view' }, 409)
 
-    const material = await writeMaterial(deps, workspaceId, boardId)
+    const material = await projectBoard(deps, workspaceId, boardId)
     const workspace = await deps.workspaceService.findById(workspaceId)
     const runId = await runner.start(workspace, skillFor(form), material)
 
