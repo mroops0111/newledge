@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Listed } from '../src/lib/views.js'
-import { createViewClient, FORMS, formOf, madeFrom, pageOf, titleOf } from '../src/lib/views.js'
+import { createViewClient, FORMS, formOf, madeFrom, pageOf, subjectOf, titleOf } from '../src/lib/views.js'
 
 const listed = { items: [{ path: 'docs/retrieval.md', format: 'md', bytes: 12, writtenAt: 'now' }] }
 
@@ -26,8 +26,22 @@ describe('createViewClient', () => {
 
   it('asks the board for a view of itself, rather than naming a skill', async () => {
     const seen: string[] = []
-    await client({ runId: 'r1' }, seen).write(FORMS[0]!, 'b1')
+    await client({ runId: 'r1' }, seen).write(FORMS[0]!, 'b1', {})
     expect(seen[0]).toBe('http://x/api/workspaces/w/boards/b1/views')
+  })
+
+  it('sends what the reader asked for, since a form is not one document', async () => {
+    let sent: string | undefined
+    const asking = createViewClient({
+      apiUrl: 'http://x/api',
+      workspaceId: 'w',
+      fetcher: (async (_url: string, init: RequestInit) => {
+        sent = init.body as string
+        return { ok: true, json: async () => ({ runId: 'r1' }) } as Response
+      }) as unknown as typeof fetch,
+    })
+    await asking.write(FORMS[0]!, 'b1', { level: 'judge' })
+    expect(JSON.parse(sent!)).toEqual({ form: 'reference', asked: { level: 'judge' } })
   })
 
   it('escapes each segment alone, so a name cannot pose as a directory', async () => {
@@ -85,14 +99,26 @@ describe('FORMS', () => {
   it('offers every form over the same thing, which is a board', () => {
     // A split where one form took a topic and the rest took a board,
     // is what would make a reader learn two places to ask from.
-    expect(FORMS.map(form => form.id)).toEqual(['reference', 'tutorial', 'exam'])
+    expect(FORMS.map(form => form.id)).toEqual(['reference', 'tutorial', 'exam', 'presentation'])
     expect(FORMS.every(form => form.purpose.length > 0)).toBe(true)
+  })
+})
+
+describe('what a subject was written out of', () => {
+  it('reads a form that writes one file per board', () => {
+    expect(subjectOf('exam/retrieval.html')).toBe('retrieval')
+  })
+
+  it('reads a form that writes a folder per board', () => {
+    // A deck is a directory rather than a page,
+    // so the name of the file inside it is not what a reader knows it by.
+    expect(subjectOf('presentation/retrieval/index.tsx')).toBe('retrieval')
   })
 })
 
 describe('naming a view', () => {
   it('drops the machinery from the name a reader reads', () => {
-    expect(titleOf('docs/kdanPortfolio.md')).toBe('kdanPortfolio')
+    expect(titleOf('docs/retrievalNotes.md')).toBe('retrievalNotes')
     expect(titleOf('plain')).toBe('plain')
   })
 

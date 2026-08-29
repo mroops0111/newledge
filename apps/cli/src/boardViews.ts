@@ -6,17 +6,20 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { SkillId as SkillIdSchema, ViewKind, WorkspaceId as WorkspaceIdSchema } from '@braidhq/schema'
 import { VIEW_KIND } from '@newledge/view-generator-handout'
+import { argumentsFor, askedOf, FORMS, formOfId } from '@newledge/view-generator-handout/forms'
 import { z } from 'zod'
 
 /**
- * The forms a board can be written in, which are the skills the plugin ships.
- * Named here as well because a route has to refuse a form,
- * before it reaches the runner,
- * whose own refusal would arrive as a failure rather than as an answer.
+ * What a reader asked for, which is a form and whatever that form asks.
+ *
+ * The options are read loosely here and settled against the form afterwards,
+ * because which options exist depends on which form was named,
+ * and a schema cannot know that until it has one.
  */
-const FORMS = ['reference', 'tutorial', 'exam'] as const
-
-const Asked = z.object({ form: z.enum(FORMS) })
+const Asked = z.object({
+  form: z.string().min(1),
+  asked: z.record(z.string(), z.string()).optional(),
+})
 
 /**
  * Project a board into the material a view is written from.
@@ -64,6 +67,11 @@ function skillFor(form: string): SkillId {
   return SkillIdSchema.parse(`${VIEW_KIND}:${form}`)
 }
 
+/** The forms a reader may name, said the way a refusal has to say them. */
+function named(): string {
+  return FORMS.map(one => one.id).join(', ')
+}
+
 /**
  * Mount the route a reader asks for a view through.
  *
@@ -75,10 +83,18 @@ export function mountBoardViews(app: OpenAPIHono, deps: AppDependencies): void {
   app.post('/workspaces/:workspaceId/boards/:boardId/views', async (context) => {
     const workspaceId = WorkspaceIdSchema.parse(context.req.param('workspaceId'))
     const boardId = context.req.param('boardId') ?? ''
-    const asked = Asked.safeParse(await context.req.json())
-    if (!asked.success)
-      throw new ValidationError(`A view is written in one of ${FORMS.join(', ')}`)
-    const { form } = asked.data
+    const body = Asked.safeParse(await context.req.json())
+    if (!body.success)
+      throw new ValidationError(`A view is written in one of ${named()}`)
+
+    const form = formOfId(body.data.form)
+    if (form === undefined)
+      throw new ValidationError(`A view is written in one of ${named()}`)
+
+    // Settled against the form rather than trusted,
+    // so a skill is never handed a choice that is not in its vocabulary,
+    // which it has no way to tell from one it has not implemented.
+    const asked = askedOf(form, body.data.asked ?? {})
 
     const runner = deps.skillRunner
     if (runner === undefined)
@@ -86,8 +102,8 @@ export function mountBoardViews(app: OpenAPIHono, deps: AppDependencies): void {
 
     const material = await projectBoard(deps, workspaceId, boardId)
     const workspace = await deps.workspaceService.findById(workspaceId)
-    const runId = await runner.start(workspace, skillFor(form), material)
+    const runId = await runner.start(workspace, skillFor(form.id), argumentsFor(material, asked))
 
-    return context.json({ runId, form, material }, 202)
+    return context.json({ runId, form: form.id, asked, material }, 202)
   })
 }

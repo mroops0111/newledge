@@ -78,6 +78,9 @@ importers:
       '@newledge/board-layout':
         specifier: workspace:*
         version: link:../../packages/board-layout
+      '@newledge/view-generator-handout':
+        specifier: workspace:*
+        version: link:../../packages/view-generator-handout
       '@xyflow/react':
         specifier: ^12.11.3
         version: 12.11.5(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

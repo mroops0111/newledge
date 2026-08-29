@@ -4,8 +4,11 @@ import type { Board, BoardState } from '@newledge/board'
 import { ViewArtifactFormat, ViewKind } from '@braidhq/schema'
 import { defineViewGeneratorPlugin } from '@braidhq/sdk'
 import { z } from 'zod'
+import { FORMS } from './forms.js'
 import { skeletonOf } from './skeleton.js'
 
+export type { Ask, Choice, Form } from './forms.js'
+export { argumentsFor, askedOf, FORMS, formOfId } from './forms.js'
 export type { Held, Reading, Skeleton } from './skeleton.js'
 export { missingFrom, skeletonOf } from './skeleton.js'
 
@@ -72,14 +75,13 @@ function plugin(boards: BoardSource): ViewGeneratorPlugin {
   return defineViewGeneratorPlugin({
     viewKind: VIEW_KIND,
     configSchema: Config,
-    // One skeleton, two ways of writing it out.
-    // Explaining a subject and asking about it need the same material,
+    // One skeleton, four ways of writing it out.
+    // Looking a subject up, learning it, being asked about it,
+    // and teaching it to a room need the same material,
     // and differ only in what is done with it.
-    skills: [
-      { directory: new URL('../skills/reference', import.meta.url) },
-      { directory: new URL('../skills/tutorial', import.meta.url) },
-      { directory: new URL('../skills/exam', import.meta.url) },
-    ],
+    skills: FORMS.map(form => ({
+      directory: new URL(`../skills/${form.id}`, import.meta.url),
+    })),
     render: async (config, input) => {
       const state = await boards(config.workspaceId)
       const board = state.boards.find(one => one.id === config.boardId)

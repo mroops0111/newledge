@@ -1,6 +1,8 @@
+import { LEVELS } from '@newledge/view-generator-handout/forms'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { VIEW_BEHAVIOUR } from '../src/lib/viewBehaviour.js'
 import { BORROWED_TOKENS, isWholePage, VIEW_STYLE } from '../src/lib/viewStyle.js'
 
 const here = join(import.meta.dirname, '..')
@@ -37,11 +39,56 @@ describe('what a generator is told it may use', () => {
 
   it('tells a generator to write no style, colour, or font of its own', () => {
     // The whole reason the look is here rather than in whatever wrote the page.
-    expect(vocabulary).toContain('Do not write a `<style>` block')
+    // Read across the wrap, since prose is filled rather than laid out.
+    expect(vocabulary.replace(/\s+/g, ' ')).toContain('do not write a `<script>`')
+    expect(vocabulary.replace(/\s+/g, ' ')).toContain('Do not write a `<style>` block')
   })
 
   it('tells a generator to write a fragment rather than a page', () => {
     expect(vocabulary).toContain('No `<!DOCTYPE>`')
+  })
+
+  it('tells a generator to write no control, since the surface draws them', () => {
+    expect(vocabulary).toContain('Do not build your own controls')
+  })
+})
+
+/**
+ * The markup a generator writes is read twice,
+ * once by a stylesheet and once by a script, both of them here.
+ * A class renamed in one and not the other is a page that looks right,
+ * and does nothing.
+ */
+describe('what the surface does with what it is handed', () => {
+  const worked = ['question', 'choice', 'answer', 'chapter']
+
+  it('acts on every class the reference says the surface acts on', () => {
+    for (const one of worked)
+      expect(VIEW_BEHAVIOUR, `class "${one}" is worked and never read`).toContain(one)
+  })
+
+  it('reads the attribute a question says what it tests with', () => {
+    expect(vocabulary).toContain('data-level')
+    expect(VIEW_BEHAVIOUR).toContain('data-level')
+  })
+
+  it('reads the attribute that marks the right option', () => {
+    expect(vocabulary).toContain('data-correct')
+    expect(VIEW_BEHAVIOUR).toContain('data-correct')
+  })
+
+  it('names every level a question may carry, in the words a reader sees', () => {
+    // Taken from the plugin rather than written again,
+    // so a fourth level arrives named rather than unlabelled.
+    for (const level of LEVELS)
+      expect(VIEW_BEHAVIOUR).toContain(`"${level.id}":"${level.label}"`)
+  })
+
+  it('styles what it draws, so nothing it inserts arrives unstyled', () => {
+    const drawn = [...VIEW_BEHAVIOUR.matchAll(/make\('\w+', '(v-[\w-]+)'/g)].map(found => found[1]!)
+    expect(drawn.length).toBeGreaterThan(4)
+    for (const one of new Set(drawn))
+      expect(VIEW_STYLE, `"${one}" is drawn and never styled`).toContain(`.${one}`)
   })
 })
 

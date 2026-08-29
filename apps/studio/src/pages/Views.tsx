@@ -141,34 +141,56 @@ function Subject({ made, openPath, onOpen }: {
 /**
  * What a generator wrote, drawn inside a frame of its own.
  *
- * Everything is drawn as a page, and markdown becomes one on the way in,
+ * Everything a reader reads here is drawn as a page,
+ * and markdown becomes one on the way in,
  * so there is one way this surface renders and one place it is made safe.
  *
  * A view is written by an agent, so it is not this application's own markup,
  * and is never treated as such.
- * It goes into a sandboxed frame with nothing granted,
- * which is what stops a document from reaching the session that opened it.
+ * The frame is granted scripts and nothing else,
+ * so the marking and the paging run while the document keeps no origin,
+ * no storage, and no way to reach the session that opened it.
+ * Everything running in there was written here rather than by a generator,
+ * which is a rule the reference states and this surface does not enforce.
  */
 function Page({ written }: { written: Written }): React.JSX.Element {
   // Read off this application at the moment the view is drawn,
   // so a written page is set in the colours the surface reading it is set in.
   const page = useMemo(() => pageOf(written, paletteOf(document.documentElement)), [written])
 
-  if (page === undefined) {
-    return (
-      <pre className="h-full overflow-auto p-8 font-mono text-prose-sm text-ink-muted">
-        {written.text}
-      </pre>
-    )
-  }
+  if (page === undefined)
+    return <Source written={written} />
 
   return (
     <iframe
       key={written.path}
       title={titleOf(written.path)}
       srcDoc={page}
-      sandbox=""
+      sandbox="allow-scripts"
       className="h-full w-full border-0 bg-surface"
     />
+  )
+}
+
+/**
+ * A view this surface cannot draw, shown as what it is.
+ *
+ * A deck is played full screen by its own runtime rather than read in a panel,
+ * so there is nothing to render here and the file itself is the honest answer.
+ * Where it is said, because a path a reader cannot find is a file they lost.
+ */
+function Source({ written }: { written: Written }): React.JSX.Element {
+  return (
+    <div className="flex h-full flex-col">
+      <p className="border-b border-line px-8 py-4 font-reading text-prose-sm text-ink-muted">
+        Written to
+        {' '}
+        <code className="font-mono text-ink">{written.path}</code>
+        , under this workspace. Point an open-slide workspace at that directory to play it.
+      </p>
+      <pre className="min-h-0 flex-1 overflow-auto p-8 font-mono text-prose-sm text-ink-muted">
+        {written.text}
+      </pre>
+    </div>
   )
 }

@@ -1,6 +1,18 @@
+import type { Form } from '@newledge/view-generator-handout/forms'
+import { FORMS } from '@newledge/view-generator-handout/forms'
 import { marked } from 'marked'
 
 import { isWholePage, pageAround } from './viewStyle.js'
+
+/**
+ * The forms and what each one asks come from the plugin that ships the skills.
+ *
+ * A form is a skill, and the plugin is what has one.
+ * Declaring the list again here is how a fourth form arrives in the runtime,
+ * and never reaches the reader who would have asked for it.
+ */
+export type { Ask, Choice, Form } from '@newledge/view-generator-handout/forms'
+export { FORMS } from '@newledge/view-generator-handout/forms'
 
 /** One generated view, as the runtime lists it. */
 export interface Listed {
@@ -18,38 +30,14 @@ export interface Written extends Pick<Listed, 'path' | 'format'> {
 export interface ViewClient {
   readonly list: () => Promise<readonly Listed[]>
   readonly read: (path: string) => Promise<Written>
-  /** Set a generator going over one board, and hand back the run to watch. */
-  readonly write: (form: Form, boardId: string) => Promise<string>
+  /**
+   * Set a generator going over one board, and hand back the run to watch.
+   * What the reader answered goes with it,
+   * because a view is not obliged to be the same document every time.
+   */
+  readonly write: (form: Form, boardId: string, asked: Readonly<Record<string, string>>) => Promise<string>
   readonly finished: (runId: string) => Promise<boolean>
 }
-
-/**
- * A way of writing the graph out, and what each one is for.
- *
- * They are peers rather than steps.
- * Which one a reader wants follows from what they are about to do,
- * not from how far along they are.
- */
-export interface Form {
-  readonly id: string
-  readonly label: string
-  /** What a reader gets, said in the terms they would ask for it in. */
-  readonly purpose: string
-}
-
-/**
- * Every form is written out of a board, which is the whole of the split.
- *
- * A board is the only thing carrying both what a view is about,
- * and the order it is read in, which the graph cannot supply.
- * So a reader arranges and then writes it out,
- * and there is one place to do either.
- */
-export const FORMS: readonly Form[] = [
-  { id: 'reference', label: 'Reference', purpose: 'Arranged to be scanned, for coming back and finding one thing' },
-  { id: 'tutorial', label: 'Tutorial', purpose: 'Written for someone meeting the subject for the first time' },
-  { id: 'exam', label: 'Exam', purpose: 'Questions with the answers behind them, for finding out what stuck' },
-]
 
 export interface ViewClientOptions {
   readonly apiUrl: string
@@ -73,11 +61,11 @@ export function createViewClient(options: ViewClientOptions): ViewClient {
   return {
     list: async () => (await get<{ items?: readonly Listed[] }>('', 'your views')).items ?? [],
 
-    write: async (form, boardId) => {
+    write: async (form, boardId, asked) => {
       const response = await fetcher(`${runs}/boards/${encodeURIComponent(boardId)}/views`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ form: form.id }),
+        body: JSON.stringify({ form: form.id, asked }),
       })
       if (!response.ok)
         throw new Error(`Writing out failed with ${response.status}`)
@@ -164,9 +152,17 @@ export function formOf(path: string): string {
   return folder === undefined ? 'View' : folder[0]!.toUpperCase() + folder.slice(1)
 }
 
-/** What a handout was written out of, which is the name of the file. */
+/**
+ * What a handout was written out of, which is what sits under the form.
+ *
+ * A form that writes one file names it after the board,
+ * and one that writes a folder names the folder after it,
+ * so the segment after the form is the subject either way,
+ * and neither has to be special-cased for the other to group.
+ */
 export function subjectOf(path: string): string {
-  return titleOf(path)
+  const [, under] = path.split('/')
+  return under === undefined ? titleOf(path) : titleOf(under)
 }
 
 /** One thing a reader made handouts of, and which forms they have of it. */

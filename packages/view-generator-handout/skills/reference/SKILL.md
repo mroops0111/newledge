@@ -19,6 +19,10 @@ That is the whole difference from an explanation. A reader of a reference alread
 knows roughly what they are looking for. They are scanning, not learning, so the page
 is arranged to be scanned.
 
+Nothing in this file is addressed to the reader. These are your constraints, not the
+page's opening. A reader never learns that there were rules, what you were told to
+avoid, how you chose the arrangement, or that the material came from a board.
+
 ## Design Principles
 
 - **Scannable over readable.** One term per section, findable by its own name.
@@ -37,7 +41,10 @@ is arranged to be scanned.
 
 1. `$ARGUMENTS` is a path, relative to `$BRAID_WORKSPACE`, to the material this
    board was projected into. Read it.
-2. Take the board id from the file's own name. It names what you write.
+2. The material file is named `<board-id>.json`. Take that basename exactly, as
+   it is spelled, and use it to name what you write. Do not name the output after
+   the title inside the file, because two boards may carry one title and the
+   surface reading these groups them by this name.
 3. That file is the whole of what you know. Do not go looking for more, and do not
    decide what this is about, because a reader already did.
 
@@ -67,7 +74,7 @@ reorder because another order reads better to you.
 
 ## Procedure
 
-1. Read the material and take the board id from the file name.
+1. Read the material and take the board id from the file name, as spelled.
 2. Write the title, then one section per entry in `held`, in the order given.
 3. Under each, the description, then its claims as a list.
 4. Mark a claim carrying `disputedBy` where it sits, and name what disagrees.
@@ -80,9 +87,14 @@ An HTML fragment, arranged to be crossed rather than read through. No
 introduction, no conclusion, and no summary of what the page contains, because
 the page is the summary.
 
-You write what a thing is. The surface reading it owns how it looks, so write no
-`<style>`, name no colour, and choose no font. Read `style.md` for the classes
-and elements available to you.
+A reference is one scroll rather than a sequence, because a reader crossing it is
+looking for one thing and would have to page through chapters to find it. So write
+no `chapter`, and write no question. Those belong to a page a reader works through,
+and this is a page they cross.
+
+You write what a thing is. The surface reading it owns how it looks and how it
+behaves, so write no `<style>`, name no colour, choose no font, and write no
+`<script>`. Read `style.md` for the classes and elements available to you.
 
 ## Output Files
 
@@ -94,15 +106,19 @@ reference of it.
 
 ## Completion Checklist
 
+- [ ] Nothing from this file is repeated to the reader
 - [ ] Every entry in `held` has a section, in the order the material gave them
 - [ ] No node id appears anywhere a reader can see
 - [ ] Every figure has its source beside it
 - [ ] Every disputed claim is marked as disputed
 - [ ] No heading repeats the sentence under it
+- [ ] No chapter and no question, since a reference is crossed rather than worked
+- [ ] No style block, no script, no colour, and no font of your own
 - [ ] The graph was not mutated, no proposal was raised, no decision was recorded
 
 ## Companion Docs
 
 `style.md`, in the reference directory the runner mounts for this plugin. It is
-the whole vocabulary of classes and elements a written view may use. Read it
-before you write, because a class it does not name styles nothing.
+the whole vocabulary of classes and elements a written view may use, and the
+markup the surface reads to make a page work. Read it before you write, because a
+class it does not name styles nothing and does nothing.

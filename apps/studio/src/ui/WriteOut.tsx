@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Form, ViewClient } from '../lib/views.js'
 import { FORMS } from '../lib/views.js'
 
@@ -23,6 +23,10 @@ type Doing =
  * Every form is written out of a board, so this stands on one,
  * and a reader is offered all of them rather than a subset that fits.
  *
+ * A form is picked before it is asked about,
+ * because what an exam asks and what a presentation asks have nothing in common,
+ * and offering both at once asks a reader to ignore half of it.
+ *
  * Writing takes a minute or so,
  * which is long enough that a reader will look away,
  * so finishing has to be said rather than merely happening.
@@ -35,9 +39,12 @@ export function WriteOut({ client, boardId, onWritten }: {
   onWritten: () => void
 }): React.JSX.Element {
   const [doing, setDoing] = useState<Doing>({ at: 'idle' })
+  const [picked, setPicked] = useState<Form | undefined>(undefined)
+  const [asked, setAsked] = useState<Record<string, string>>({})
 
   useEffect(() => {
     setDoing({ at: 'idle' })
+    setPicked(undefined)
   }, [boardId])
 
   useEffect(() => {
@@ -53,6 +60,17 @@ export function WriteOut({ client, boardId, onWritten }: {
     return () => clearInterval(timer)
   }, [client, doing])
 
+  function begin(form: Form): void {
+    setPicked(undefined)
+    setDoing({ at: 'writing', form })
+    void client.write(form, boardId, asked)
+      .then(runId => setDoing({ at: 'writing', runId, form }))
+      .catch((cause: unknown) => setDoing({
+        at: 'failed',
+        why: cause instanceof Error ? cause.message : String(cause),
+      }))
+  }
+
   switch (doing.at) {
     case 'writing':
       return <Said>{`Writing the ${doing.form.label.toLowerCase()}`}</Said>
@@ -66,33 +84,114 @@ export function WriteOut({ client, boardId, onWritten }: {
       )
     case 'idle':
       return (
-        <>
-          {FORMS.map(form => (
-            <button
-              key={form.id}
-              type="button"
-              title={form.purpose}
-              className={ACTION}
-              onClick={() => {
-                setDoing({ at: 'writing', form })
-                void client.write(form, boardId)
-                  .then(runId => setDoing({ at: 'writing', runId, form }))
-                  .catch((cause: unknown) => setDoing({
-                    at: 'failed',
-                    why: cause instanceof Error ? cause.message : String(cause),
-                  }))
-              }}
-            >
-              {`Write the ${form.label.toLowerCase()}`}
-            </button>
-          ))}
-        </>
+        <Panel
+          picked={picked}
+          asked={asked}
+          onPick={(form) => {
+            setPicked(form)
+            setAsked(Object.fromEntries(form.asks.map(ask => [ask.id, ask.fallback])))
+          }}
+          onAnswer={(ask, choice) => setAsked(was => ({ ...was, [ask]: choice }))}
+          onWrite={begin}
+        />
       )
     default: {
       const exhaustive: never = doing
       throw new Error(`Unhandled state: ${JSON.stringify(exhaustive)}`)
     }
   }
+}
+
+/**
+ * The forms a reader may write out, and what the one they picked asks.
+ *
+ * It opens rather than sitting in the header,
+ * because four forms carrying their own questions is more than a toolbar holds,
+ * and a reader arranging a board is not choosing a form at the same time.
+ */
+function Panel({ picked, asked, onPick, onAnswer, onWrite }: {
+  picked: Form | undefined
+  asked: Readonly<Record<string, string>>
+  onPick: (form: Form) => void
+  onAnswer: (ask: string, choice: string) => void
+  onWrite: (form: Form) => void
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  const held = useRef<HTMLDivElement>(null)
+
+  // Clicking away is how a reader closes something they opened by mistake,
+  // and is the only way out that does not need a control of its own.
+  useEffect(() => {
+    if (!open)
+      return
+    function away(event: MouseEvent): void {
+      if (!held.current?.contains(event.target as Node))
+        setOpen(false)
+    }
+    document.addEventListener('mousedown', away)
+    return () => document.removeEventListener('mousedown', away)
+  }, [open])
+
+  return (
+    <div ref={held} className="relative">
+      <button type="button" onClick={() => setOpen(one => !one)} className={ACTION} aria-expanded={open}>
+        Write out
+      </button>
+
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-80 rounded-lg border border-line bg-surface py-2 shadow-lg">
+          <ul>
+            {FORMS.map(form => (
+              <li key={form.id}>
+                <button
+                  type="button"
+                  onClick={() => onPick(form)}
+                  aria-pressed={picked?.id === form.id}
+                  className={`w-full px-3 py-2 text-left transition-colors ${picked?.id === form.id ? 'bg-raised' : 'hover:bg-raised'}`}
+                >
+                  <span className="block font-ui text-prose-sm font-semibold text-ink">{form.label}</span>
+                  <span className="block font-reading text-prose-sm text-ink-subtle">{form.purpose}</span>
+                </button>
+
+                {picked?.id === form.id && (
+                  <div className="border-t border-line px-3 pb-1 pt-2">
+                    {form.asks.map(ask => (
+                      <div key={ask.id} className="mb-2">
+                        <p className="font-ui text-label uppercase tracking-wide text-ink-subtle">{ask.label}</p>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {ask.choices.map(choice => (
+                            <button
+                              key={choice.id}
+                              type="button"
+                              title={choice.why}
+                              onClick={() => onAnswer(ask.id, choice.id)}
+                              aria-pressed={asked[ask.id] === choice.id}
+                              className={`rounded-full border px-2 py-0.5 font-ui text-label transition-colors ${asked[ask.id] === choice.id
+                                ? 'border-ink bg-ink text-canvas'
+                                : 'border-line-strong text-ink-muted hover:bg-raised'}`}
+                            >
+                              {choice.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => { setOpen(false); onWrite(form) }}
+                      className="mb-1 mt-1 w-full rounded-control bg-ink px-2 py-1.5 font-ui text-label text-canvas transition-opacity hover:opacity-85"
+                    >
+                      {`Write the ${form.label.toLowerCase()}`}
+                    </button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
 }
 
 const ACTION = 'rounded-control px-2.5 py-1 font-ui text-label text-ink-subtle transition-colors hover:bg-raised hover:text-ink'

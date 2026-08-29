@@ -15,6 +15,7 @@
     "@dagrejs/dagre": "^3.1.1",
     "@newledge/board": "workspace:*",
     "@newledge/board-layout": "workspace:*",
+    "@newledge/view-generator-handout": "workspace:*",
     "@xyflow/react": "^12.11.3",
     "elkjs": "^0.12.0",
     "marked": "^18.0.11",
