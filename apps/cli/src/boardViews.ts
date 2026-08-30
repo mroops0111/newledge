@@ -6,6 +6,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { SkillId as SkillIdSchema, ViewKind, WorkspaceId as WorkspaceIdSchema } from '@braidhq/schema'
 import { VIEW_KIND } from '@newledge/view-generator-handout'
+import type { Form } from '@newledge/view-generator-handout/forms'
 import { argumentsFor, askedOf, FORMS, formOfId } from '@newledge/view-generator-handout/forms'
 import { z } from 'zod'
 
@@ -73,6 +74,36 @@ function named(): string {
 }
 
 /**
+ * What a form needs from the deployment, and what it was actually given.
+ *
+ * Read off the running process, since these are settings of a deployment,
+ * rather than anything a reader chose or a board holds.
+ * The form names what it needs, so a fifth one needing something else,
+ * is a line in the form list rather than another branch here.
+ *
+ * braid takes one positional argument and that one carries the material,
+ * so a setting travels as environment,
+ * which is the channel braid keeps for when the argument is taken.
+ */
+export function settingsFor(form: Form): Record<string, string> {
+  const given: Record<string, string> = {}
+  for (const name of form.requires ?? [])
+    given[name] = process.env[name] ?? ''
+  return given
+}
+
+/**
+ * Which of those nobody set, read from one snapshot rather than the environment.
+ *
+ * An empty value counts as unset,
+ * because a variable exported as nothing is a reader who meant to set it,
+ * and handing that on gives a skill a path to a directory that is not there.
+ */
+export function unsetIn(given: Readonly<Record<string, string>>): readonly string[] {
+  return Object.entries(given).filter(([, value]) => value === '').map(([name]) => name)
+}
+
+/**
  * Mount the route a reader asks for a view through.
  *
  * A view of a board is created rather than commanded,
@@ -100,9 +131,23 @@ export function mountBoardViews(app: OpenAPIHono, deps: AppDependencies): void {
     if (runner === undefined)
       return context.json({ title: 'ConflictError', detail: 'No agent is configured to write a view' }, 409)
 
+    const settings = settingsFor(form)
+    const unset = unsetIn(settings)
+    if (unset.length > 0) {
+      return context.json({
+        title: 'ConflictError',
+        detail: `Writing a ${form.label.toLowerCase()} needs ${unset.join(' and ')} set.`,
+      }, 409)
+    }
+
     const material = await projectBoard(deps, workspaceId, boardId)
     const workspace = await deps.workspaceService.findById(workspaceId)
-    const runId = await runner.start(workspace, skillFor(form.id), argumentsFor(material, asked))
+    const runId = await runner.start(
+      workspace,
+      skillFor(form.id),
+      argumentsFor(material, asked),
+      { extraEnv: settings },
+    )
 
     return context.json({ runId, form: form.id, asked, material }, 202)
   })

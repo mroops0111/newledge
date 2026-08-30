@@ -49,6 +49,22 @@ export interface Form {
   /** What a reader gets, said in the terms they would ask for it in. */
   readonly purpose: string
   readonly asks: readonly Ask[]
+  /**
+   * Whether what this writes is read back on the surface that asked for it.
+   *
+   * Three of these are pages, and a reader opens them where they stand.
+   * A deck is played full screen by its own runtime, somewhere else,
+   * so there is nothing here to open and saying so beats an empty panel.
+   */
+  readonly readHere: boolean
+  /**
+   * Environment this form cannot be written without, named where it is needed.
+   *
+   * A route refuses before starting a run rather than after,
+   * because a run that fails on a missing setting reaches a reader,
+   * as a failure rather than as the sentence that tells them what to set.
+   */
+  readonly requires?: readonly string[]
 }
 
 /**
@@ -125,6 +141,16 @@ const RUNTIME: Ask = {
 }
 
 /**
+ * The open-slide workspace a deck is written into and styled by.
+ *
+ * Named here rather than in the route,
+ * because the form is what needs it and the route only enforces it,
+ * and named at all rather than assumed,
+ * because where a reader keeps their presentations is theirs to say.
+ */
+export const DECK_WORKSPACE = 'NEWLEDGE_DECK_WORKSPACE'
+
+/**
  * Every form is written out of a board, which is the whole of the split.
  *
  * A board is the only thing carrying both what a view is about,
@@ -142,24 +168,31 @@ export const FORMS: readonly Form[] = [
     label: 'Reference',
     purpose: 'Arranged to be scanned, for coming back and finding one thing',
     asks: [],
+    readHere: true,
   },
   {
     id: 'tutorial',
     label: 'Tutorial',
     purpose: 'Written for someone meeting the subject for the first time',
     asks: [DEPTH],
+    readHere: true,
   },
   {
     id: 'exam',
     label: 'Exam',
     purpose: 'Questions that mark themselves, for finding out what stuck',
     asks: [LEVEL, KINDS, LENGTH],
+    readHere: true,
   },
   {
     id: 'presentation',
     label: 'Presentation',
     purpose: 'Pages to stand in front of, for teaching the board to a room',
     asks: [RUNTIME],
+    // A deck goes to the workspace that plays it, and is styled by that
+    // workspace's own theme, so it needs to be told which one that is.
+    readHere: false,
+    requires: [DECK_WORKSPACE],
   },
 ]
 
