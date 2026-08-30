@@ -77,16 +77,11 @@ export function WriteOut({ client, boardId, onWritten }: {
     case 'failed':
       return <Said>{doing.why}</Said>
     case 'written':
-      // A deck is played by its own runtime somewhere else,
-      // so there is nothing here to open,
-      // and a control that opens an empty panel is worse than a sentence.
-      return doing.form.readHere
-        ? (
-            <button type="button" onClick={onWritten} className={ACTION}>
-              {`Read the ${doing.form.label.toLowerCase()}`}
-            </button>
-          )
-        : <Said>{`The ${doing.form.label.toLowerCase()} is in your deck workspace`}</Said>
+      return (
+        <button type="button" onClick={onWritten} className={ACTION}>
+          {`Read the ${doing.form.label.toLowerCase()}`}
+        </button>
+      )
     case 'idle':
       return (
         <Panel

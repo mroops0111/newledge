@@ -4,8 +4,25 @@ import type { OpenAPIHono } from '@hono/zod-openapi'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 import { WorkspaceId as WorkspaceIdSchema } from '@braidhq/schema'
+import { DECK_WORKSPACE } from '@newledge/view-generator-handout/forms'
+import { readBoards } from './boards.js'
 
 const VIEWS_DIR = join('artifacts', 'views')
+
+/**
+ * Where the runtime that plays decks is serving, and what it serves by default.
+ *
+ * A deck is not read here, so a reader needs somewhere to be sent,
+ * and where that runtime listens is a setting rather than a fact.
+ * The fallback is open-slide's own default port,
+ * which is what a reader has until they change it,
+ * so the common case needs nothing set at all.
+ */
+const DECK_URL = 'NEWLEDGE_DECK_URL'
+const DECK_URL_FALLBACK = 'http://localhost:5173'
+
+/** Where decks sit inside the workspace that plays them. */
+const SLIDES_DIR = 'slides'
 
 /**
  * What a surface is told about one generated view.
@@ -22,6 +39,16 @@ export interface View {
   readonly format: string
   readonly bytes: number
   readonly writtenAt: string
+  /**
+   * Where this is seen, for a view that is not read from here.
+   *
+   * A page is read back through this route,
+   * and a deck is played by its own runtime somewhere else,
+   * so one carries an address and the other does not.
+   * A surface offering both looks for this rather than for a form,
+   * which is what lets a fifth kind arrive without teaching it a name.
+   */
+  readonly seenAt?: string
 }
 
 /**
@@ -49,6 +76,49 @@ async function walk(root: string, at: string = root): Promise<readonly string[]>
       return []
     const here = join(at, entry.name)
     return entry.isDirectory() ? walk(root, here) : [here]
+  }))
+  return found.flat()
+}
+
+/**
+ * The decks the workspace that plays them is holding.
+ *
+ * They are listed beside the pages rather than apart from them,
+ * because a reader thinks of all four as things they wrote out of a board,
+ * and a list that quietly drops one is a list they cannot trust.
+ *
+ * Their path is spelled the way the pages under this route are,
+ * so whatever gathers views by subject gathers these under the same one.
+ *
+ * Only the decks of boards held here are listed.
+ * That workspace is the reader's own and holds decks they wrote by hand,
+ * and a handout list that swept those in,
+ * would be offering them things this workspace never wrote.
+ */
+async function decksHeld(deps: AppDependencies, id: WorkspaceId): Promise<readonly View[]> {
+  const workspace = process.env[DECK_WORKSPACE] ?? ''
+  if (workspace === '')
+    return []
+
+  const boards = new Set((await readBoards(deps, id)).boards.map(one => one.id))
+  const root = join(workspace, SLIDES_DIR)
+  const served = (process.env[DECK_URL] ?? DECK_URL_FALLBACK).replace(/\/+$/, '')
+  const entries = await readdir(root, { withFileTypes: true }).catch(() => [])
+
+  const found = await Promise.all(entries.map(async (entry): Promise<readonly View[]> => {
+    if (!entry.isDirectory() || !boards.has(entry.name))
+      return []
+    const deck = join(root, entry.name, 'index.tsx')
+    const stamped = await stat(deck).catch(() => undefined)
+    if (stamped === undefined)
+      return []
+    return [{
+      path: `presentation/${entry.name}/index.tsx`,
+      format: 'tsx',
+      bytes: stamped.size,
+      writtenAt: stamped.mtime.toISOString(),
+      seenAt: `${served}/s/${encodeURIComponent(entry.name)}`,
+    }]
   }))
   return found.flat()
 }
@@ -92,7 +162,8 @@ export function mountViews(app: OpenAPIHono, deps: AppDependencies): void {
         writtenAt: found.mtime.toISOString(),
       }
     }))
-    return context.json({ items: items.sort((one, other) => one.path.localeCompare(other.path)) })
+    const all = [...items, ...await decksHeld(deps, id)]
+    return context.json({ items: all.sort((one, other) => one.path.localeCompare(other.path)) })
   })
 
   app.get('/workspaces/:workspaceId/views/*', async (context) => {

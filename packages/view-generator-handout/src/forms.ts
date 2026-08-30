@@ -50,14 +50,6 @@ export interface Form {
   readonly purpose: string
   readonly asks: readonly Ask[]
   /**
-   * Whether what this writes is read back on the surface that asked for it.
-   *
-   * Three of these are pages, and a reader opens them where they stand.
-   * A deck is played full screen by its own runtime, somewhere else,
-   * so there is nothing here to open and saying so beats an empty panel.
-   */
-  readonly readHere: boolean
-  /**
    * Environment this form cannot be written without, named where it is needed.
    *
    * A route refuses before starting a run rather than after,
@@ -168,21 +160,18 @@ export const FORMS: readonly Form[] = [
     label: 'Reference',
     purpose: 'Arranged to be scanned, for coming back and finding one thing',
     asks: [],
-    readHere: true,
   },
   {
     id: 'tutorial',
     label: 'Tutorial',
     purpose: 'Written for someone meeting the subject for the first time',
     asks: [DEPTH],
-    readHere: true,
   },
   {
     id: 'exam',
     label: 'Exam',
     purpose: 'Questions that mark themselves, for finding out what stuck',
     asks: [LEVEL, KINDS, LENGTH],
-    readHere: true,
   },
   {
     id: 'presentation',
@@ -191,7 +180,6 @@ export const FORMS: readonly Form[] = [
     asks: [RUNTIME],
     // A deck goes to the workspace that plays it, and is styled by that
     // workspace's own theme, so it needs to be told which one that is.
-    readHere: false,
     requires: [DECK_WORKSPACE],
   },
 ]

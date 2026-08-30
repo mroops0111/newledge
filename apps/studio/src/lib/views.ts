@@ -20,6 +20,12 @@ export interface Listed {
   readonly format: string
   readonly bytes: number
   readonly writtenAt: string
+  /**
+   * Where this is seen, for a view that is not read from here.
+   * A deck is played by its own runtime, so it is shown at its own address,
+   * rather than read as a file and drawn again by this surface.
+   */
+  readonly seenAt?: string
 }
 
 /** One generated view, with what was written in it. */
