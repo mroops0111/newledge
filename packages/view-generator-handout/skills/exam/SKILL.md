@@ -6,7 +6,7 @@ disable-model-invocation: true
 braid:
   category: generate
   summary: Set questions over a board that mark themselves
-  required-env: [BRAID_WORKSPACE]
+  required-env: [BRAID_WORKSPACE, NEWLEDGE_CHECK]
 ---
 
 ## Role
@@ -128,6 +128,10 @@ reorder because another order reads better to you.
    right and why the nearest wrong option is tempting.
 8. Carry the source into the explanation, so a reader who disagrees can check.
 9. Write the fragment, overwriting whatever is there.
+10. Run `$NEWLEDGE_CHECK <the file you just wrote>`. It reads the page and
+    reports what the contract says is wrong with it. Fix everything it names and
+    run it again. Repeat until it reports nothing, and do not finish before it
+    does.
 
 ## Output
 
@@ -150,6 +154,7 @@ there rather than adding beside it.
 
 ## Completion Checklist
 
+- [ ] `$NEWLEDGE_CHECK` was run on what was written, and reported nothing
 - [ ] Nothing from this file is repeated to the reader
 - [ ] Every question's answer is in the material
 - [ ] The level, kinds, and length asked for are what was written

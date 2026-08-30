@@ -62,6 +62,17 @@ describe('what a generator is told it may use', () => {
 describe('what the surface does with what it is handed', () => {
   const worked = ['question', 'choice', 'answer', 'chapter']
 
+  it('takes a reader to what survived a narrowing, rather than leaving them', () => {
+    // A control whose only effect is a chapter below the fold,
+    // is one a reader presses and reads as broken.
+    expect(VIEW_BEHAVIOUR).toContain('function narrow')
+    expect(VIEW_BEHAVIOUR.slice(VIEW_BEHAVIOUR.indexOf('function narrow'))).toContain('go(0)')
+  })
+
+  it('never narrows away a chapter that teaches rather than asks', () => {
+    expect(VIEW_BEHAVIOUR).toContain('held.length === 0')
+  })
+
   it('acts on every class the reference says the surface acts on', () => {
     for (const one of worked)
       expect(VIEW_BEHAVIOUR, `class "${one}" is worked and never read`).toContain(one)

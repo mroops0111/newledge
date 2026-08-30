@@ -109,8 +109,11 @@ export const VIEW_STYLE = `<style>
   /* One step in a sequence, shown alone when a page has more than one. */
   .chapter { margin: 0 0 3rem }
 
-  /* Hidden because a reader narrowed past it, or has not reached it yet. */
+  /* Narrowed past, and so out of the sequence a reader walks entirely. */
   .away { display: none }
+
+  /* In the sequence, but not the step the reader is standing on. */
+  .offstage { display: none }
 
   /* One question, everything belonging to it, and nothing revealed early. */
   .question {
@@ -220,7 +223,17 @@ export const VIEW_STYLE = `<style>
     background: var(--canvas);
     border-bottom: 1px solid var(--line);
   }
-  .v-chips { display: flex; flex-wrap: wrap; gap: .3rem }
+  .v-chips { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem }
+
+  /* What the row of chips is for, since four names alone do not say. */
+  .v-asks {
+    margin-right: .25rem;
+    font-family: ui-sans-serif, system-ui, "PingFang TC", sans-serif;
+    font-size: .7rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ink-subtle);
+  }
   .v-tally { font-family: ui-sans-serif, system-ui, sans-serif; font-size: .75rem; color: var(--ink-subtle); white-space: nowrap }
 
   .v-chip, .v-step, .v-reveal {

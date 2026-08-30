@@ -6,7 +6,7 @@ disable-model-invocation: true
 braid:
   category: generate
   summary: Teach a board to someone new to the subject
-  required-env: [BRAID_WORKSPACE]
+  required-env: [BRAID_WORKSPACE, NEWLEDGE_CHECK]
 ---
 
 ## Role
@@ -105,6 +105,10 @@ reorder because another order reads better to you.
 8. End each chapter with one question, marked up as `style.md` describes, asking
    about what that chapter just taught rather than about the subject at large.
 9. Write the fragment, overwriting whatever is there.
+10. Run `$NEWLEDGE_CHECK <the file you just wrote>`. It reads the page and
+    reports what the contract says is wrong with it. Fix everything it names and
+    run it again. Repeat until it reports nothing, and do not finish before it
+    does.
 
 ## Output
 
@@ -131,6 +135,7 @@ there rather than adding beside it.
 
 ## Completion Checklist
 
+- [ ] `$NEWLEDGE_CHECK` was run on what was written, and reported nothing
 - [ ] Nothing from this file is repeated to the reader
 - [ ] The opening says what the board is for before naming any part of it
 - [ ] Every idea is its own chapter, and every chapter has a heading

@@ -32,7 +32,9 @@ These are the whole vocabulary. A class not named here styles nothing.
 - **`claim`**: an assertion, set apart from the prose that explains it.
 - **`contested`**: goes on a `claim` the sources disagree about. Never settle one.
 - **`label`**: a word or two naming what follows, set small and quiet.
-- **`source`**: where something came from, wrapping a link.
+- **`source`**: where something came from, wrapping a link. Only use it where
+  there is a link. Something the material gave no source for says so in ordinary
+  prose, because a source a reader cannot follow is not one.
 
 ### Moving a reader through
 
@@ -59,6 +61,17 @@ A `question` with `choices` is marked for the reader. A `question` without them 
 one they write, so the surface gives them somewhere to write it before opening the
 answer. Both are worth asking. Recall and relations mark themselves well, and
 anything asking what a reader thinks does not.
+
+## What is checked
+
+The contract above is checked rather than trusted. Run
+`$NEWLEDGE_CHECK <the file you wrote>` when you have written it. It reads the
+page and names what is wrong with it: a question with no answer behind it, an
+empty option, no option marked correct or two of them, a chapter that is a
+heading and nothing else, a source carrying no link, a style block, a script.
+
+Fix everything it names and run it again. It is finished when it reports
+nothing, and so are you.
 
 ## Elements
 

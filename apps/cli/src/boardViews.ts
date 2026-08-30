@@ -4,6 +4,7 @@ import type { AppDependencies } from '@braidhq/server'
 import type { OpenAPIHono } from '@hono/zod-openapi'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { SkillId as SkillIdSchema, ViewKind, WorkspaceId as WorkspaceIdSchema } from '@braidhq/schema'
 import { VIEW_KIND } from '@newledge/view-generator-handout'
 import type { Form } from '@newledge/view-generator-handout/forms'
@@ -72,6 +73,21 @@ function skillFor(form: string): SkillId {
 function named(): string {
   return FORMS.map(one => one.id).join(', ')
 }
+
+/**
+ * The command a skill checks its own page with, resolved rather than assumed.
+ *
+ * A skill runs somewhere else with a cwd of its own,
+ * so it is handed the command rather than left to find it,
+ * and the path is taken from this module so nothing has to be kept in step,
+ * with wherever this happens to be installed.
+ */
+function checker(): string {
+  return `node ${fileURLToPath(new URL('./index.js', import.meta.url))} check`
+}
+
+/** What every run is given, whatever form it is writing. */
+const CHECK = 'NEWLEDGE_CHECK'
 
 /**
  * What a form needs from the deployment, and what it was actually given.
@@ -146,7 +162,7 @@ export function mountBoardViews(app: OpenAPIHono, deps: AppDependencies): void {
       workspace,
       skillFor(form.id),
       argumentsFor(material, asked),
-      { extraEnv: settings },
+      { extraEnv: { ...settings, [CHECK]: checker() } },
     )
 
     return context.json({ runId, form: form.id, asked, material }, 202)

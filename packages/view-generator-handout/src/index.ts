@@ -9,6 +9,8 @@ import { skeletonOf } from './skeleton.js'
 
 export type { Ask, Choice, Form } from './forms.js'
 export { argumentsFor, askedOf, FORMS, formOfId } from './forms.js'
+export type { Problem } from './inspect.js'
+export { problemsIn } from './inspect.js'
 export type { Held, Reading, Skeleton } from './skeleton.js'
 export { missingFrom, skeletonOf } from './skeleton.js'
 

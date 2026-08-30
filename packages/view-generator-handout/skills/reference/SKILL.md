@@ -6,7 +6,7 @@ disable-model-invocation: true
 braid:
   category: generate
   summary: Write a board up as something to look things up in
-  required-env: [BRAID_WORKSPACE]
+  required-env: [BRAID_WORKSPACE, NEWLEDGE_CHECK]
 ---
 
 ## Role
@@ -80,6 +80,10 @@ reorder because another order reads better to you.
 4. Mark a claim carrying `disputedBy` where it sits, and name what disagrees.
 5. Put each claim's source on its own line, as a link.
 6. Write the fragment, overwriting whatever is there.
+7. Run `$NEWLEDGE_CHECK <the file you just wrote>`. It reads the page and
+   reports what the contract says is wrong with it. Fix everything it names and
+   run it again. Repeat until it reports nothing, and do not finish before it
+   does.
 
 ## Output
 
@@ -106,6 +110,7 @@ reference of it.
 
 ## Completion Checklist
 
+- [ ] `$NEWLEDGE_CHECK` was run on what was written, and reported nothing
 - [ ] Nothing from this file is repeated to the reader
 - [ ] Every entry in `held` has a section, in the order the material gave them
 - [ ] No node id appears anywhere a reader can see
