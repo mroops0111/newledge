@@ -62,32 +62,6 @@ describe('what a generator is told it may use', () => {
 describe('what the surface does with what it is handed', () => {
   const worked = ['question', 'choice', 'answer', 'chapter']
 
-  it('takes a reader to what survived a narrowing, rather than leaving them', () => {
-    // A control whose only effect is a chapter below the fold,
-    // is one a reader presses and reads as broken.
-    expect(VIEW_BEHAVIOUR).toContain('function narrow')
-    expect(VIEW_BEHAVIOUR.slice(VIEW_BEHAVIOUR.indexOf('function narrow'))).toContain('go(0)')
-  })
-
-  it('never narrows away a chapter that teaches rather than asks', () => {
-    expect(VIEW_BEHAVIOUR).toContain('held.length === 0')
-  })
-
-  it('says what each level means, for a reader who has not met the word', () => {
-    // The chips are four words with no explanation on the face of them,
-    // so each carries the sentence the plugin already writes for it.
-    for (const level of LEVELS)
-      expect(VIEW_BEHAVIOUR).toContain(level.why)
-  })
-
-  it('offers narrowing only where questions are what the page is', () => {
-    // A page holding one question per chapter is teaching,
-    // and narrowing it hides the chapters that teach,
-    // to reach the checkpoints under them.
-    expect(VIEW_BEHAVIOUR).toContain('function asksThroughout')
-    expect(VIEW_BEHAVIOUR).toContain('asksThroughout() ? levels() : []')
-  })
-
   it('acts on every class the reference says the surface acts on', () => {
     for (const one of worked)
       expect(VIEW_BEHAVIOUR, `class "${one}" is worked and never read`).toContain(one)
@@ -101,6 +75,13 @@ describe('what the surface does with what it is handed', () => {
   it('reads the attribute that marks the right option', () => {
     expect(vocabulary).toContain('data-correct')
     expect(VIEW_BEHAVIOUR).toContain('data-correct')
+  })
+
+  it('draws no score until there is one to draw', () => {
+    // A counter reading "nothing yet" tells a reader who has answered nothing,
+    // that they have answered nothing, in a corner they must work out first.
+    expect(VIEW_BEHAVIOUR).not.toContain('Nothing marked yet')
+    expect(VIEW_BEHAVIOUR).toContain('if (marked === 0) return')
   })
 
   it('names every level a question may carry, in the words a reader sees', () => {

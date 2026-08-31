@@ -109,9 +109,6 @@ export const VIEW_STYLE = `<style>
   /* One step in a sequence, shown alone when a page has more than one. */
   .chapter { margin: 0 0 3rem }
 
-  /* Narrowed past, and so out of the sequence a reader walks entirely. */
-  .away { display: none }
-
   /* In the sequence, but not the step the reader is standing on. */
   .offstage { display: none }
 
@@ -210,40 +207,26 @@ export const VIEW_STYLE = `<style>
   }
   .v-write:disabled { color: var(--ink-muted) }
 
+  /*
+   * Where the score sits, once there is one.
+   * Drawn only after a reader has answered something,
+   * so nothing here has to explain itself before it has anything to say.
+   */
   .v-top {
     position: sticky;
     top: 0;
     z-index: 2;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+    justify-content: flex-end;
     margin: -3.5rem -2.5rem 2.5rem;
     padding: .75rem 2.5rem;
     background: var(--canvas);
     border-bottom: 1px solid var(--line);
   }
-  .v-chips { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem }
-
-  /*
-   * What the row of chips is for, since four names alone do not say.
-   * Set apart from them rather than beside them,
-   * because a word at the same size in the same row reads as a fifth chip,
-   * and a chip that cannot be pressed reads as one that is broken.
-   */
-  .v-asks {
-    margin-right: .55rem;
-    padding-right: .55rem;
-    border-right: 1px solid var(--line);
-    font-family: ui-sans-serif, system-ui, "PingFang TC", sans-serif;
-    font-size: .65rem;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-    color: var(--ink-subtle);
-  }
   .v-tally { font-family: ui-sans-serif, system-ui, sans-serif; font-size: .75rem; color: var(--ink-subtle); white-space: nowrap }
 
-  .v-chip, .v-step, .v-reveal {
+  .v-step, .v-reveal {
     padding: .3rem .7rem;
     background: transparent;
     border: 1px solid var(--line-strong);
@@ -254,8 +237,7 @@ export const VIEW_STYLE = `<style>
     cursor: pointer;
     transition: background-color .12s, color .12s;
   }
-  .v-chip:hover, .v-step:hover, .v-reveal:hover { background: var(--raised); color: var(--ink) }
-  .v-chip.on { background: var(--ink); border-color: var(--ink); color: var(--canvas) }
+  .v-step:hover, .v-reveal:hover { background: var(--raised); color: var(--ink) }
   .v-step:disabled { opacity: .35; cursor: default }
   .v-step:disabled:hover { background: transparent; color: var(--ink-muted) }
   .v-reveal { border-radius: 6px }

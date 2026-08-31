@@ -41,7 +41,6 @@ export const VIEW_BEHAVIOUR: string = `<script>
   var LEVELS = ${NAMED_LEVELS}
   var questions = [].slice.call(document.querySelectorAll('.question'))
   var chapters = [].slice.call(document.querySelectorAll('section.chapter'))
-  var wanted = 'all'
   var marked = 0
   var right = 0
 
@@ -50,10 +49,6 @@ export const VIEW_BEHAVIOUR: string = `<script>
     if (className) node.className = className
     if (text !== undefined) node.textContent = text
     return node
-  }
-
-  function asked(within) {
-    return [].slice.call(within.querySelectorAll('.question'))
   }
 
   // A question says what it tests in markup,
@@ -110,11 +105,19 @@ export const VIEW_BEHAVIOUR: string = `<script>
     question.insertBefore(open, answer)
   }
 
+  // A score is drawn once there is one.
+  // A counter reading "nothing yet" tells a reader who has answered nothing,
+  // that they have answered nothing, in a corner they have to work out first.
   var count = make('span', 'v-tally')
+  var top = make('div', 'v-top')
   function tally() {
-    count.textContent = marked === 0
-      ? 'Nothing marked yet'
-      : right + ' of ' + marked + ' right'
+    if (marked === 0) return
+    count.textContent = right + ' of ' + marked + ' right'
+    if (count.parentNode === null) {
+      top.appendChild(count)
+      document.body.insertBefore(top, document.body.firstChild)
+      document.body.classList.add('has-top')
+    }
   }
 
   questions.forEach(function (question) {
@@ -123,21 +126,6 @@ export const VIEW_BEHAVIOUR: string = `<script>
     if (choices.length > 0) mark(question, choices)
     else if (question.querySelector('.answer')) askFirst(question)
   })
-
-  function fits(question) {
-    return wanted === 'all' || question.getAttribute('data-level') === wanted
-  }
-
-  // A chapter that asks nothing is prose, and prose is never narrowed away.
-  // Narrowing is for choosing among questions, not for hiding what teaches.
-  function keeps(chapter) {
-    var held = asked(chapter)
-    return held.length === 0 || held.some(fits)
-  }
-
-  function standing() {
-    return chapters.filter(keeps)
-  }
 
   var at = 0
   var where = make('span', 'v-where')
@@ -149,17 +137,14 @@ export const VIEW_BEHAVIOUR: string = `<script>
   var paging = chapters.length > 1
 
   function draw() {
-    var shown = standing()
+    var shown = chapters
     at = Math.max(0, Math.min(shown.length - 1, at))
     chapters.forEach(function (chapter) {
       var index = shown.indexOf(chapter)
-      chapter.classList.toggle('away', index === -1)
-      chapter.classList.toggle('offstage', paging && index !== -1 && index !== at)
+      chapter.classList.toggle('offstage', paging && index !== at)
     })
     if (!paging) return
 
-    // The dots stand for the chapters a reader can still reach,
-    // so narrowing shortens the row rather than leaving gaps in it.
     dots.textContent = ''
     shown.forEach(function (chapter, index) {
       var dot = make('button', 'v-dot')
@@ -173,9 +158,7 @@ export const VIEW_BEHAVIOUR: string = `<script>
       dot.addEventListener('click', function () { go(index) })
       dots.appendChild(dot)
     })
-    where.textContent = shown.length === 0
-      ? 'Nothing at that level'
-      : (at + 1) + ' of ' + shown.length
+    where.textContent = (at + 1) + ' of ' + shown.length
     back.disabled = at === 0
     on.disabled = at >= shown.length - 1
   }
@@ -184,73 +167,6 @@ export const VIEW_BEHAVIOUR: string = `<script>
     at = next
     draw()
     window.scrollTo(0, 0)
-  }
-
-  // Narrowing takes the reader to the first thing that survived it.
-  // A control whose effect is a chapter below the fold has none a reader sees.
-  function narrow(to) {
-    wanted = to
-    questions.forEach(function (question) {
-      question.classList.toggle('away', !fits(question))
-    })
-    go(0)
-  }
-
-  // Narrowing is offered only where there is something to narrow to.
-  // One level on every question is not a choice, it is a label.
-  function levels() {
-    var seen = []
-    questions.forEach(function (question) {
-      var level = question.getAttribute('data-level')
-      if (level && LEVELS[level] && seen.indexOf(level) === -1) seen.push(level)
-    })
-    return seen
-  }
-
-  // Whether questions are what this page is, or something attached to it.
-  //
-  // A page whose chapters hold a set of questions each is asking,
-  // and choosing which of them to face is a thing a reader wants.
-  // A page whose chapters hold one apiece is teaching,
-  // and narrowing it would hide the chapters that teach,
-  // to reach the checkpoints under them, which nobody reads a tutorial for.
-  function asksThroughout() {
-    if (chapters.length === 0) return questions.length > 1
-    return chapters.some(function (chapter) { return asked(chapter).length > 1 })
-  }
-
-  var top = make('div', 'v-top')
-  var showing = asksThroughout() ? levels() : []
-  if (showing.length > 1) {
-    var chips = make('div', 'v-chips')
-    chips.appendChild(make('span', 'v-asks', 'Show'))
-    var all = [{ id: 'all', label: 'Everything', why: 'Every question on this page' }]
-      .concat(showing.map(function (id) {
-        return { id: id, label: LEVELS[id][0], why: LEVELS[id][1] }
-      }))
-    all.forEach(function (one, index) {
-      var chip = make('button', 'v-chip', one.label)
-      chip.type = 'button'
-      // What the word means, for a reader who has not met it as a kind of question.
-      chip.title = one.why
-      if (index === 0) chip.classList.add('on')
-      chip.addEventListener('click', function () {
-        var others = [].slice.call(chips.querySelectorAll('.v-chip'))
-        others.forEach(function (other) { other.classList.remove('on') })
-        chip.classList.add('on')
-        narrow(one.id)
-      })
-      chips.appendChild(chip)
-    })
-    top.appendChild(chips)
-  }
-  if (questions.some(function (question) { return question.querySelector('.choice') })) {
-    tally()
-    top.appendChild(count)
-  }
-  if (top.children.length > 0) {
-    document.body.insertBefore(top, document.body.firstChild)
-    document.body.classList.add('has-top')
   }
 
   // One chapter is a page, not a sequence, so nothing is drawn to walk it.
