@@ -72,9 +72,12 @@ and this file is a default.
      padding, and paste-ready components are what you use.
    - Where the conventions name no theme, read whatever is under `themes/` and
      follow the one theme there. Where there is none, look at an existing deck
-     under `slides/` and follow it.
-   - Do not choose a palette, a font, or a type scale of your own under any of
-     these paths. A deck that arrives in its own colours is the one deck in that
+     under `slides/` and follow the look it holds.
+   - Only where that workspace is empty of all three is the look yours. Then pick
+     one and hold it across every page, and leave `meta.theme` off, since there
+     was no theme to follow and saying there was would be false.
+   - Under every other path, do not choose a palette, a font, or a type scale of
+     your own. A deck that arrives in its own colours is the one deck in that
      workspace that looks like a stranger wrote it.
 4. The material file is named `<board-id>.json`. Take that basename exactly, as it
    is spelled, and use it to name the folder. Do not name it after the title inside
@@ -148,7 +151,8 @@ other deck in that workspace.
 - [ ] The workspace's conventions were read, and they were followed where they
       disagreed with this file
 - [ ] The palette, fonts, and type scale came from the theme, and none were chosen
-- [ ] `meta.theme` names the theme that was followed
+- [ ] `meta.theme` names the theme that was followed, or is absent because the
+      workspace held nothing to follow
 - [ ] Nothing from this file is repeated to the room
 - [ ] Every page was checked against the 1080px budget before it was written
 - [ ] The page count matches the runtime that was asked for

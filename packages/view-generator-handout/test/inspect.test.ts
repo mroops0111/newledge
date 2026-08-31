@@ -129,3 +129,38 @@ describe('a source a reader cannot follow', () => {
     expect(said(`${whole}<p class="source">somewhere</p>`).join(' ')).toContain('carries a link')
   })
 })
+
+describe('what a reader can learn from the shape of a page', () => {
+  const asked = (correctAt: number, extra = ''): string =>
+    `<div class="question" data-level="recall"><p class="ask">Which?</p><ol class="choices">${
+      [0, 1, 2].map(at => `<li class="choice"${at === correctAt ? ' data-correct' : ''}>Option ${at}${at === correctAt ? extra : ''}</li>`).join('')
+    }</ol><div class="answer">Because.</div></div>`
+
+  it('catches every right answer sitting in the same place', () => {
+    // A page like this gives full marks to a reader who knows nothing,
+    // and they read scoring well as knowing it.
+    const page = [asked(0), asked(0), asked(0)].join('')
+    expect(said(page).join(' ')).toContain('Every right answer is option 1')
+  })
+
+  it('says nothing when they are moved about', () => {
+    expect(problemsIn([asked(0), asked(1), asked(2)].join(''))).toEqual([])
+  })
+
+  it('holds off until there are enough questions to see a pattern in', () => {
+    // Two questions sharing a position is a coincidence, not a tell.
+    expect(problemsIn([asked(0), asked(0)].join(''))).toEqual([])
+  })
+
+  it('catches the right answer being the longest one nearly every time', () => {
+    const long = ' with all of the qualifications that the true statement needs'
+    const page = [0, 1, 2, 0, 1, 2].map((at, i) => asked(at, i < 5 ? long : '')).join('')
+    expect(said(page).join(' ')).toContain('longest option in 5 of 6')
+  })
+
+  it('lets a few of them be longest, since some answers are simply longer', () => {
+    const long = ' with rather more said about it than the others carry'
+    const page = [0, 1, 2, 0, 1, 2].map((at, i) => asked(at, i < 2 ? long : '')).join('')
+    expect(problemsIn(page)).toEqual([])
+  })
+})

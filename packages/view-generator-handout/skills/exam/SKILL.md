@@ -75,13 +75,24 @@ questions learns that they know the subject.
 - **Every wrong option is one a reader who half-learned this would pick.** Take
   them from the material itself, which is another term's property, a claim about a
   neighbouring concept, or the assertion in `disputedBy`.
-- **Keep the options alike** in length, grammar, and specificity. The longest and
-  most qualified option being right is a tell a reader will learn instead of the
-  subject.
+- **Three options, not four.** Item-writing research finds three plausible options
+  do the work of five, because an option nobody would pick is one nobody reads.
+  Write a fourth only when it is as tempting as the other two, never to fill the
+  shape.
+- **Keep the options alike** in length, grammar, and specificity. You will reach
+  for the true statement first and write it longest, because it is the one you are
+  thinking about and the one that needs the qualifications. Cut it back until it
+  sits with the others.
+- **Move the right answer about.** You will put it first unless you decide not to.
+  Across a page that gives a reader full marks for picking the first option every
+  time, and they will take it and learn nothing.
 - **Exactly one is correct.** Never `all of the above`, never `none of the above`,
   never two that are both defensible.
 - **The explanation says why the tempting one is wrong**, not only why the right
   one is right. A reader who picked it wants to know what they were thinking of.
+
+Both of the last two are checked across the whole page by `$NEWLEDGE_CHECK`,
+because neither is visible while writing one question at a time.
 
 ## Initialization
 
@@ -179,6 +190,8 @@ there rather than adding beside it.
 - [ ] Nothing obscure is labelled judgement merely for being hard
 - [ ] Every choice question has exactly one option carrying `data-correct`
 - [ ] Every wrong option is one a half-prepared reader would actually pick
+- [ ] The right answer is not in the same position on every question
+- [ ] The right answer is not the longest option on most questions
 - [ ] Every explanation says why the nearest wrong option is tempting
 - [ ] Every explanation carries where it came from
 - [ ] No id appears anywhere a reader can see
@@ -208,6 +221,21 @@ Read these if a question's level is not obvious, rather than guessing at it.
 - Bloom's taxonomy as revised by Anderson and Krathwohl, whose six levels are
   remember, understand, apply, analyze, evaluate, and create.
   <https://www.prodigygame.com/main-en/blog/webbs-depth-of-knowledge-dok>
+
+### Where the rules about options come from
+
+The guidance above on how many options to offer, on keeping them alike, and on
+where the right one sits, is the settled part of a body of item-writing rules
+gathered by Haladyna and Downing and revised since. Read it if an option is not
+obviously worth offering.
+
+- Haladyna, Downing and Rodriguez, whose review is the standard collection of
+  these, and whose finding is that three plausible options are usually sufficient,
+  because a distractor nobody selects contributes nothing.
+  <https://site.ufvjm.edu.br/fammuc/files/2016/05/item-writing-guidelines.pdf>
+- A working restatement of the same rules for people writing questions rather
+  than studying them.
+  <https://clime.washington.edu/wp-content/uploads/2020/07/WritingMultipleChoiceQuestions.pdf>
 
 `recall` is that first level in both. `apply` gathers what the frameworks separate
 into understanding, applying, and analysing, because on one board those are the

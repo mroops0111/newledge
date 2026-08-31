@@ -15,6 +15,10 @@ come from that workspace's theme, and the conventions file there outranks
 everything in this document. Read both before you write anything. What you choose
 is what goes on each page, never how it is set.
 
+Only a workspace holding no conventions, no theme, and no other deck leaves the
+look to you. That is the first deck in an empty room, and everything after it will
+follow what you set, so pick one and hold it.
+
 ## The file
 
 One file, `index.tsx`, in a folder named after the board.

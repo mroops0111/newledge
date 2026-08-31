@@ -104,9 +104,67 @@ export function problemsIn(html: string): readonly Problem[] {
   for (const question of taggedWith(html, 'question'))
     problems.push(...problemsInQuestion(question))
 
+  problems.push(...problemsAcrossChoices(taggedWith(html, 'question')))
+
   for (const source of taggedWith(html, 'source')) {
     if (!/<a\s[^>]*href="[^"]+"/i.test(source))
       say(`source "${shortly(source)}"`, 'A source is where a reader goes to check, so it carries a link.')
+  }
+
+  return problems
+}
+
+/** Where the right answer sat, and how long it was against the rest. */
+interface Told {
+  readonly at: number
+  readonly longest: boolean
+}
+
+function toldBy(question: string): Told | undefined {
+  const choices = taggedWith(question, 'choice')
+  const at = choices.findIndex(choice => /\bdata-correct\b/.test(choice))
+  if (at === -1)
+    return undefined
+  // Strictly longer than every other, since options of one length tell nobody
+  // anything, and a tie is what keeping them alike looks like when it worked.
+  const lengths = choices.map(choice => spoken(choice).length)
+  const mine = lengths[at]!
+  return { at, longest: lengths.every((other, index) => index === at || other < mine) }
+}
+
+/**
+ * What a reader learns from the shape of the options rather than the subject.
+ *
+ * A generator writes one question at a time and cannot see the page,
+ * so it puts the answer first and writes it longer than the rest,
+ * because the true statement is the one it is thinking about
+ * and the true statement is the one that needs the qualifications.
+ * Neither shows up while writing, and both are obvious to a reader,
+ * who scores well without knowing anything and reads that as knowing it.
+ *
+ * These are the two tells item-writing guidance keeps warning about,
+ * and the only two a page can be checked for without a class to sit it.
+ */
+function problemsAcrossChoices(questions: readonly string[]): readonly Problem[] {
+  const told = questions.map(toldBy).filter((one): one is Told => one !== undefined)
+  if (told.length < 3)
+    return []
+
+  const problems: Problem[] = []
+  const places = new Set(told.map(one => one.at))
+  if (places.size === 1) {
+    problems.push({
+      at: 'the options across the page',
+      said: `Every right answer is option ${told[0]!.at + 1}. Move them about, or a reader scores full marks by picking that one every time.`,
+    })
+  }
+
+  const longest = told.filter(one => one.longest).length
+  if (told.length >= 5 && longest * 5 > told.length * 3) {
+    problems.push({
+      at: 'the options across the page',
+      said: `The right answer is the longest option in ${longest} of ${told.length}. Cut it back or draw the others out, or its length is the answer.`,
+    })
   }
 
   return problems
