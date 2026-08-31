@@ -1,5 +1,5 @@
 {
-  "name": "@newledge/view-learning",
+  "name": "@newledge/view-generator-handout",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./forms": {
+      "types": "./dist/forms.d.ts",
+      "default": "./dist/forms.js"
     }
   },
   "scripts": {

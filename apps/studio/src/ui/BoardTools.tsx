@@ -22,6 +22,8 @@ export interface BoardToolsProps {
   readonly onFocus: () => void
   readonly focused: boolean
   readonly canFocus: boolean
+  /** Take what is selected off this board, leaving the node where it is. */
+  readonly onTakeOff: () => void
   /**
    * Kept in step with how far the board is zoomed.
    * Snapping is judged in screen pixels,
@@ -36,7 +38,7 @@ export interface BoardToolsProps {
  * rather than from what the canvas has managed to measure,
  * so it takes the whole board in whether or not every card is drawn yet.
  */
-export function BoardTools({ extent, laidOut, onAddSection, onRearrange, onFocus, focused, canFocus, zoom }: BoardToolsProps): React.JSX.Element {
+export function BoardTools({ extent, laidOut, onAddSection, onRearrange, onFocus, focused, canFocus, onTakeOff, zoom }: BoardToolsProps): React.JSX.Element {
   const flow = useReactFlow()
   const fitted = useRef(false)
   const rail = useRef<HTMLDivElement>(null)
@@ -105,6 +107,15 @@ export function BoardTools({ extent, laidOut, onAddSection, onRearrange, onFocus
             onUse: onFocus,
             disabled: !canFocus,
             active: focused,
+          },
+          {
+            id: 'takeOff',
+            // Said as a board doing without it rather than as a deletion,
+            // since the node stays where it is and every other board keeps it.
+            label: 'Take this off the board',
+            icon: GLYPHS.takeOff,
+            onUse: onTakeOff,
+            disabled: !canFocus,
           },
         ],
       ]}
