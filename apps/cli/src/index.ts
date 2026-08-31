@@ -2,6 +2,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { WebSearchProvider } from '@newledge/source-loader-web'
 import { subprocessWebSearchProvider } from '@newledge/source-loader-web'
+import { check } from './check.js'
 import { composeKnowledgeRuntime } from './compose.js'
 import { ingest } from './ingest.js'
 import { directoryWebSearchProvider } from './providers.js'
@@ -61,8 +62,11 @@ async function main(): Promise<void> {
       return runCommand()
     case 'serve':
       return serveCommand()
+    case 'check':
+      process.exitCode = await check(process.argv[3])
+      return
     default:
-      throw new Error(`Unknown command "${command}", expected "run" or "serve"`)
+      throw new Error(`Unknown command "${command}", expected "run", "serve", or "check"`)
   }
 }
 

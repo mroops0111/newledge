@@ -1,12 +1,15 @@
 import type { AppDependencies } from '@braidhq/server'
 import { claudeCodeAgentPlugin } from '@braidhq/agent-claude-code'
+import { WorkspaceId } from '@braidhq/schema'
 import { PluginRegistry } from '@braidhq/core'
 import { composeFsAppWithRegistry, createApp } from '@braidhq/server'
 import { kuzuStoragePlugin } from '@braidhq/storage-kuzu'
 import type { WebSearchProvider } from '@newledge/source-loader-web'
 import { knowledgeOntology } from '@newledge/ontology-knowledge'
 import { createWebSourceLoaderPlugin } from '@newledge/source-loader-web'
-import { mountBoards } from './boards.js'
+import { createHandoutViewPlugin } from '@newledge/view-generator-handout'
+import { mountBoards, readBoards } from './boards.js'
+import { mountBoardViews } from './boardViews.js'
 import { mountViews } from './views.js'
 
 export type KnowledgeApp = ReturnType<typeof createApp>
@@ -41,6 +44,9 @@ export async function composeKnowledgeRuntime(
     registry.register(claudeCodeAgentPlugin)
     registry.register(knowledgeOntology)
     registry.register(createWebSourceLoaderPlugin(provider))
+    // The plugin is handed a way to read a board rather than reaching for one,
+    // since a board is this app's own state and not the model's.
+    registry.register(createHandoutViewPlugin(async id => readBoards(deps, WorkspaceId.parse(id))))
     return registry
   }, { braidHome: options.braidHome, apiUrl: options.apiUrl })
 
@@ -51,5 +57,6 @@ export async function composeKnowledgeRuntime(
   // so reading what a generator has written is Newledge's too,
   // until upstream closes that.
   mountViews(app, deps)
+  mountBoardViews(app, deps)
   return { deps, app }
 }

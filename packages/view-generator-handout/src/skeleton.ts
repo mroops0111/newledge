@@ -43,7 +43,7 @@ export interface Held {
 }
 
 /**
- * A board laid out as the material a learning view is written from.
+ * A board laid out as the material a handout is written from.
  *
  * The order is the reader's own. A board is arranged by hand,
  * so what comes first on it is what they decided comes first,
@@ -76,7 +76,7 @@ function inReadingOrder(board: Board): readonly string[] {
 }
 
 /**
- * Project a board and the graph it names into the material of a learning view.
+ * Project a board and the graph it names into the material of a handout.
  *
  * This half is a function on purpose. Which claim sits under which term,
  * what argues with what, and where a figure came from,
