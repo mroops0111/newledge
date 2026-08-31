@@ -21,9 +21,12 @@ import { LEVELS } from '@newledge/view-generator-handout/forms'
  * and what they understand belongs in the graph rather than in a page.
  */
 
-/** What each level is called where a reader sees it, rather than in markup. */
+/**
+ * What each level is called where a reader sees it, rather than in markup,
+ * and what it means, for the reader who does not already know the word.
+ */
 const NAMED_LEVELS = JSON.stringify(
-  Object.fromEntries(LEVELS.map(level => [level.id, level.label])),
+  Object.fromEntries(LEVELS.map(level => [level.id, [level.label, level.why]])),
 )
 
 /**
@@ -58,7 +61,9 @@ export const VIEW_BEHAVIOUR: string = `<script>
   function nameLevel(question) {
     var level = LEVELS[question.getAttribute('data-level')]
     if (!level) return
-    question.insertBefore(make('span', 'v-level', level), question.firstChild)
+    var badge = make('span', 'v-level', level[0])
+    badge.title = level[1]
+    question.insertBefore(badge, question.firstChild)
   }
 
   function reveal(question) {
@@ -218,13 +223,16 @@ export const VIEW_BEHAVIOUR: string = `<script>
   var showing = asksThroughout() ? levels() : []
   if (showing.length > 1) {
     var chips = make('div', 'v-chips')
-    chips.appendChild(make('span', 'v-asks', 'Ask me'))
-    var all = [{ id: 'all', label: 'Everything' }].concat(showing.map(function (id) {
-      return { id: id, label: LEVELS[id] }
-    }))
+    chips.appendChild(make('span', 'v-asks', 'Show'))
+    var all = [{ id: 'all', label: 'Everything', why: 'Every question on this page' }]
+      .concat(showing.map(function (id) {
+        return { id: id, label: LEVELS[id][0], why: LEVELS[id][1] }
+      }))
     all.forEach(function (one, index) {
       var chip = make('button', 'v-chip', one.label)
       chip.type = 'button'
+      // What the word means, for a reader who has not met it as a kind of question.
+      chip.title = one.why
       if (index === 0) chip.classList.add('on')
       chip.addEventListener('click', function () {
         var others = [].slice.call(chips.querySelectorAll('.v-chip'))

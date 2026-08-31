@@ -73,6 +73,13 @@ describe('what the surface does with what it is handed', () => {
     expect(VIEW_BEHAVIOUR).toContain('held.length === 0')
   })
 
+  it('says what each level means, for a reader who has not met the word', () => {
+    // The chips are four words with no explanation on the face of them,
+    // so each carries the sentence the plugin already writes for it.
+    for (const level of LEVELS)
+      expect(VIEW_BEHAVIOUR).toContain(level.why)
+  })
+
   it('offers narrowing only where questions are what the page is', () => {
     // A page holding one question per chapter is teaching,
     // and narrowing it hides the chapters that teach,
@@ -100,7 +107,7 @@ describe('what the surface does with what it is handed', () => {
     // Taken from the plugin rather than written again,
     // so a fourth level arrives named rather than unlabelled.
     for (const level of LEVELS)
-      expect(VIEW_BEHAVIOUR).toContain(`"${level.id}":"${level.label}"`)
+      expect(VIEW_BEHAVIOUR).toContain(`"${level.id}":["${level.label}"`)
   })
 
   it('styles what it draws, so nothing it inserts arrives unstyled', () => {

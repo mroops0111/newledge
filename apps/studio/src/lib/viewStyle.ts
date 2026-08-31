@@ -225,12 +225,19 @@ export const VIEW_STYLE = `<style>
   }
   .v-chips { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem }
 
-  /* What the row of chips is for, since four names alone do not say. */
+  /*
+   * What the row of chips is for, since four names alone do not say.
+   * Set apart from them rather than beside them,
+   * because a word at the same size in the same row reads as a fifth chip,
+   * and a chip that cannot be pressed reads as one that is broken.
+   */
   .v-asks {
-    margin-right: .25rem;
+    margin-right: .55rem;
+    padding-right: .55rem;
+    border-right: 1px solid var(--line);
     font-family: ui-sans-serif, system-ui, "PingFang TC", sans-serif;
-    font-size: .7rem;
-    letter-spacing: .06em;
+    font-size: .65rem;
+    letter-spacing: .08em;
     text-transform: uppercase;
     color: var(--ink-subtle);
   }
