@@ -26,6 +26,8 @@ import { AppShell } from '../ui/AppShell.js'
 import type { BoardCardData } from '../ui/BoardCard.js'
 import { BoardCard } from '../ui/BoardCard.js'
 import { CanvasGrid } from '../ui/CanvasGrid.js'
+import { CardDrop } from '../ui/CardDrop.js'
+import { CardPicker } from '../ui/CardPicker.js'
 import { BoardMarkers } from '../ui/BoardMarkers.js'
 import { boardEdges } from '../ui/boardEdges.js'
 import { BoardList } from '../ui/BoardList.js'
@@ -57,6 +59,7 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
   const [boards, setBoards] = useState<readonly Board[]>([])
   const [openId, setOpenId] = useState<string | undefined>(undefined)
   const [focused, setFocused] = useState(false)
+  const [putting, setPutting] = useState(false)
   // Laying a board out again gives back the same cards in new places,
   // so what is drawn is rebuilt from a fact other than which cards it holds.
   const [generation, setGeneration] = useState(0)
@@ -149,23 +152,21 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
     })()
   }, [graph, persist])
 
-  // A board a reader adds opens on an arrangement of its own,
-  // the way the first ones did,
-  // since a board with nothing on it and no way to put anything on it,
-  // is not a board a reader can do anything with.
+  /**
+   * A board a reader adds opens on nothing, with the panel they fill it from.
+   *
+   * It used to open on the widest reading of the graph,
+   * because there was no way to put anything on one,
+   * and an empty board could not be worked with.
+   * There is now, and a board of five things made by dropping forty,
+   * was never a reader choosing a subset.
+   */
   const addBoard = useCallback(() => {
-    void (async () => {
-      try {
-        const fresh = newBoard({ boards: [...boards] })
-        const arranged = await firstArrangement(graph, PLACEMENT, fresh.holds)
-        persist({ ...fresh, ...arranged.board })
-        setOpenId(fresh.id)
-      }
-      catch (cause) {
-        setError(cause instanceof Error ? cause.message : String(cause))
-      }
-    })()
-  }, [boards, graph, persist])
+    const fresh = newBoard({ boards: [...boards] })
+    persist(fresh)
+    setOpenId(fresh.id)
+    setPutting(true)
+  }, [boards, persist])
 
   const keepLatest = useCallback(() => {
     const current = latestBoard.current
@@ -447,7 +448,11 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
     <AppShell
       {...nav}
       beneath={<BoardList boards={boards} openId={openId} onOpen={setOpenId} onAdd={addBoard} />}
-      panel={opened === undefined ? undefined : <NodePanel node={opened} held={inside(opened, graph)} />}
+      // Putting things on and reading one of them are different things,
+      // so the panel is whichever the reader last asked for.
+      panel={putting
+        ? <CardPicker nodes={graph.nodes} board={board} />
+        : opened === undefined ? undefined : <NodePanel node={opened} held={inside(opened, graph)} />}
     >
       <div className="flex h-screen flex-col">
         <header className="flex items-center gap-3 border-b border-line px-6 py-3">
@@ -479,7 +484,7 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
           since a child of the canvas is given the store too late to drive it.
         */}
         <ReactFlowProvider>
-          <div className="relative min-h-0 flex-1">
+          <CardDrop board={board} persist={persist} className="relative min-h-0 flex-1">
             <BoardMarkers weight={STROKE} />
             <ReactFlow
               nodes={attended}
@@ -508,9 +513,11 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
               focused={focused}
               canFocus={pickedId !== undefined}
               onTakeOff={takeOff}
+              onPutting={() => setPutting(now => !now)}
+              putting={putting}
               zoom={zoom}
             />
-          </div>
+          </CardDrop>
         </ReactFlowProvider>
       </div>
     </AppShell>

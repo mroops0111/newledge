@@ -17,6 +17,9 @@ export interface BoardToolsProps {
    */
   readonly laidOut: boolean
   readonly onAddSection: () => void
+  /** Open or close what a reader drags nodes onto the board from. */
+  readonly onPutting: () => void
+  readonly putting: boolean
   /** Throw the reader's arrangement away and lay the board out again. */
   readonly onRearrange: () => void
   readonly onFocus: () => void
@@ -38,7 +41,7 @@ export interface BoardToolsProps {
  * rather than from what the canvas has managed to measure,
  * so it takes the whole board in whether or not every card is drawn yet.
  */
-export function BoardTools({ extent, laidOut, onAddSection, onRearrange, onFocus, focused, canFocus, onTakeOff, zoom }: BoardToolsProps): React.JSX.Element {
+export function BoardTools({ extent, laidOut, onAddSection, onPutting, putting, onRearrange, onFocus, focused, canFocus, onTakeOff, zoom }: BoardToolsProps): React.JSX.Element {
   const flow = useReactFlow()
   const fitted = useRef(false)
   const rail = useRef<HTMLDivElement>(null)
@@ -91,6 +94,13 @@ export function BoardTools({ extent, laidOut, onAddSection, onRearrange, onFocus
           { id: 'out', label: 'Zoom out', icon: GLYPHS.zoomOut, onUse: () => void flow.zoomOut({ duration: STEP }) },
         ],
         [
+          {
+            id: 'put',
+            label: putting ? 'Done putting things on' : 'Put something on this board',
+            icon: GLYPHS.put,
+            onUse: onPutting,
+            active: putting,
+          },
           { id: 'section', label: 'Add a section', icon: GLYPHS.section, onUse: onAddSection },
           {
             id: 'rearrange',

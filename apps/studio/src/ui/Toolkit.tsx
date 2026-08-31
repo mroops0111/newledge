@@ -66,6 +66,8 @@ export const GLYPHS = {
   section: <Glyph><rect x="3" y="4" width="14" height="12" rx="2" /><path d="M3 8h14" /></Glyph>,
   card: <Glyph><rect x="4" y="3" width="12" height="14" rx="2" /><path d="M7 7h6M7 10h6M7 13h3" /></Glyph>,
   focus: <Glyph><circle cx="10" cy="10" r="3" /><path d="M10 2v2M10 16v2M2 10h2M16 10h2" /></Glyph>,
+  // A card carried in from the side and set down, which is the whole gesture.
+  put: <Glyph><path d="M10 3v8M10 11l-3-3M10 11l3-3M4 13v3a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-3" /></Glyph>,
   rearrange: <Glyph><path d="M4 6h5a3 3 0 0 1 3 3v5M16 6h-2M16 6l-2-2M16 6l-2 2M12 14l-2-2M12 14l2-2" /></Glyph>,
   panel: <Glyph><rect x="3" y="4" width="14" height="12" rx="2" /><path d="M8 4v12" /></Glyph>,
   check: <Glyph><path d="M4 10.5 8 14.5 16 6" /></Glyph>,

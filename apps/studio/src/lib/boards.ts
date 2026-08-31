@@ -1,4 +1,4 @@
-import type { Board, BoardState } from '@newledge/board'
+import type { Board, BoardState, Placement } from '@newledge/board'
 import { CARD_WIDTH, nodeStyle } from './boardStyle.js'
 import type { GraphNode } from './graph.js'
 
@@ -77,10 +77,12 @@ export function openingBoards(nodes: readonly GraphNode[]): readonly {
 }
 
 /**
- * A board a reader asked for, named so they can rename it.
- * It says nothing about which kinds it holds,
- * so it opens on whatever the drawing rules find worth placing,
- * which is the widest reading of the graph and the easiest one to cut down.
+ * A board a reader asked for, empty, because a board is what they put on it.
+ *
+ * It opens on nothing rather than on the widest reading of the graph.
+ * Building a board of five things by dropping forty,
+ * is not choosing a subset, it is disagreeing with one,
+ * and it was only ever done that way because nothing could be added.
  *
  * The id is the first one nothing has taken,
  * so a board added after another was dropped never lands on its name.
@@ -156,6 +158,24 @@ export function renameSection(board: Board, sectionId: string, name: string): Bo
     ...board,
     sections: board.sections.map(section => (section.id === sectionId ? { ...section, name } : section)),
   }
+}
+
+/**
+ * A board with one more card on it, where the reader let go of it.
+ *
+ * The placement is theirs rather than worked out here.
+ * A board arranged by hand means what its arrangement says,
+ * so somewhere a reader chose beats anywhere this could pick for them,
+ * which is what the old arrival point got wrong.
+ *
+ * A node already on the board is left where it is rather than moved,
+ * because a reader dragging one they already placed,
+ * has not asked for it to jump.
+ */
+export function withCard(board: Board, nodeId: string, at: Placement): Board {
+  if (board.cards.some(card => card.nodeId === nodeId))
+    return board
+  return { ...board, cards: [...board.cards, { ...at, nodeId }] }
 }
 
 /**

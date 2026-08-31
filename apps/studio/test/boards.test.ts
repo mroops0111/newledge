@@ -6,6 +6,7 @@ import {
   openingBoards,
   renameSection,
   withBoard,
+  withCard,
   withoutCard,
   withSection,
 } from '../src/lib/boards.js'
@@ -163,6 +164,35 @@ describe('the boards a workspace opens on', () => {
     const plain = openingBoards([{ id: 'a', type: 'Concept', name: 'A' }])
     expect(plain).toHaveLength(1)
     expect(plain[0]!.holds).toEqual(['Concept'])
+  })
+})
+
+describe('withCard', () => {
+  const held = board({ cards: [{ nodeId: 'one', x: 0, y: 0 }] })
+
+  it('puts a card where the reader let go of it', () => {
+    const wider = withCard(held, 'two', { x: 240, y: 360 })
+    expect(wider.cards).toContainEqual({ nodeId: 'two', x: 240, y: 360 })
+  })
+
+  it('leaves everything already arranged exactly where it was', () => {
+    // A reader put the rest of the board where they meant it,
+    // so adding to one is never a reason to move any of it.
+    const wider = withCard(held, 'two', { x: 240, y: 360 })
+    expect(wider.cards[0]).toEqual({ nodeId: 'one', x: 0, y: 0 })
+    expect(wider.sections).toEqual(held.sections)
+  })
+
+  it('leaves a node it already holds where it already sits', () => {
+    // A reader dragging on one they placed has not asked for it to jump.
+    const again = withCard(held, 'one', { x: 999, y: 999 })
+    expect(again.cards).toEqual(held.cards)
+  })
+
+  it('says nothing about the graph, which knew the node either way', () => {
+    const wider = withCard(held, 'two', { x: 1, y: 2 })
+    expect(wider.id).toBe(held.id)
+    expect(wider.name).toBe(held.name)
   })
 })
 
