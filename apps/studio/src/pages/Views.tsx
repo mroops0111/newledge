@@ -29,13 +29,12 @@ export function Views({ client, boards, nav }: {
   const [listed, setListed] = useState<readonly Listed[] | undefined>(undefined)
   const [named, setNamed] = useState<ReadonlyMap<string, string>>(new Map())
   const [showing, setShowing] = useState<Listed | undefined>(undefined)
-  const [open, setOpen] = useState<Written | undefined>(undefined)
+  const [reading, setReading] = useState<Reading>({ at: 'reading' })
   // Failing to list is the surface failing, since nothing is left to stand on.
   // Failing to read one is that one failing,
   // and it is said where that one would have been drawn,
   // so one unreadable file does not take the list of the rest with it.
   const [lost, setLost] = useState<string | undefined>(undefined)
-  const [unreadable, setUnreadable] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     void client.list()
@@ -57,11 +56,10 @@ export function Views({ client, boards, nav }: {
     if (showing === undefined || showing.seenAt !== undefined)
       return
     const path = showing.path
-    setOpen(undefined)
-    setUnreadable(undefined)
+    setReading({ at: 'reading' })
     void client.read(path)
-      .then(setOpen)
-      .catch((cause: unknown) => setUnreadable(said(cause)))
+      .then(written => setReading({ at: 'read', written }))
+      .catch((cause: unknown) => setReading({ at: 'failed', why: said(cause) }))
   }, [client, showing])
 
   const made = useMemo(
@@ -93,15 +91,39 @@ export function Views({ client, boards, nav }: {
         <div className="min-w-0 flex-1 overflow-hidden bg-canvas">
           {showing?.seenAt !== undefined
             ? <Played at={showing.seenAt} name={titleOf(showing.path)} />
-            : unreadable !== undefined
-              ? <p className="p-10 font-ui text-sm text-claim">{unreadable}</p>
-              : open === undefined
-                ? <p className="p-10 font-ui text-sm text-ink-subtle">Reading</p>
-                : <Page written={open} />}
+            : <Whatever reading={reading} />}
         </div>
       </div>
     </AppShell>
   )
+}
+
+/**
+ * How far reading the open view got, which is one thing rather than two.
+ *
+ * Held apart, the absence of a page and the presence of a failure,
+ * are two flags a reader of this has to combine to learn one fact,
+ * and a combination nobody named is one that eventually goes wrong.
+ */
+type Reading =
+  | { readonly at: 'reading' }
+  | { readonly at: 'read', readonly written: Written }
+  | { readonly at: 'failed', readonly why: string }
+
+/** What reading the open view came to, drawn where the view would have been. */
+function Whatever({ reading }: { reading: Reading }): React.JSX.Element {
+  switch (reading.at) {
+    case 'reading':
+      return <p className="p-10 font-ui text-sm text-ink-subtle">Reading</p>
+    case 'failed':
+      return <p className="p-10 font-ui text-sm text-claim">{reading.why}</p>
+    case 'read':
+      return <Page written={reading.written} />
+    default: {
+      const exhaustive: never = reading
+      throw new Error(`Unhandled state: ${JSON.stringify(exhaustive)}`)
+    }
+  }
 }
 
 /** What went wrong, in the words it came with. */
@@ -184,8 +206,8 @@ function Page({ written }: { written: Written }): React.JSX.Element {
  * which is what gives a reader the thumbnails, the transitions,
  * and the full screen play this surface would otherwise have to build.
  *
- * It is another origin, so nothing here reaches into it and it reaches
- * nothing here, and when that runtime is not running the frame says so,
+ * It is another origin, so neither reaches into the other.
+ * When that runtime is not running the frame says so itself,
  * which is a truer answer than one this surface could invent.
  */
 function Played({ at, name }: { at: string, name: string }): React.JSX.Element {

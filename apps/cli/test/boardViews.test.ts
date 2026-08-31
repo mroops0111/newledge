@@ -77,8 +77,8 @@ describe('asking for a view of a board', () => {
   })
 
   it('refuses a form whose setting is unset, rather than failing mid-run', async () => {
-    // A deck goes to the workspace that plays it and is styled by that
-    // workspace's theme, so with nowhere named there is nothing to write.
+    // A deck goes to the workspace that plays it,
+    // so with nowhere named there is nothing to write.
     delete process.env[DECK_WORKSPACE]
     const response = await ask('b1', { form: 'presentation' })
     expect(response.status).toBe(409)

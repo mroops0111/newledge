@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Form, ViewClient } from '../lib/views.js'
+import type { Ask, Form, ViewClient } from '../lib/views.js'
 import { FORMS } from '../lib/views.js'
 
 /** How often a run is asked whether it is over, while one is going. */
@@ -143,53 +143,99 @@ function Panel({ picked, asked, onPick, onAnswer, onWrite }: {
           <ul>
             {FORMS.map(form => (
               <li key={form.id}>
-                <button
-                  type="button"
-                  onClick={() => onPick(form)}
-                  aria-pressed={picked?.id === form.id}
-                  className={`w-full px-3 py-2 text-left transition-colors ${picked?.id === form.id ? 'bg-raised' : 'hover:bg-raised'}`}
-                >
-                  <span className="block font-ui text-prose-sm font-semibold text-ink">{form.label}</span>
-                  <span className="block font-reading text-prose-sm text-ink-subtle">{form.purpose}</span>
-                </button>
-
-                {picked?.id === form.id && (
-                  <div className="border-t border-line px-3 pb-1 pt-2">
-                    {form.asks.map(ask => (
-                      <div key={ask.id} className="mb-2">
-                        <p className="font-ui text-label uppercase tracking-wide text-ink-subtle">{ask.label}</p>
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {ask.choices.map(choice => (
-                            <button
-                              key={choice.id}
-                              type="button"
-                              title={choice.why}
-                              onClick={() => onAnswer(ask.id, choice.id)}
-                              aria-pressed={asked[ask.id] === choice.id}
-                              className={`rounded-full border px-2 py-0.5 font-ui text-label transition-colors ${asked[ask.id] === choice.id
-                                ? 'border-ink bg-ink text-canvas'
-                                : 'border-line-strong text-ink-muted hover:bg-raised'}`}
-                            >
-                              {choice.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => { setOpen(false); onWrite(form) }}
-                      className="mb-1 mt-1 w-full rounded-control bg-ink px-2 py-1.5 font-ui text-label text-canvas transition-opacity hover:opacity-85"
-                    >
-                      {`Write the ${form.label.toLowerCase()}`}
-                    </button>
-                  </div>
-                )}
+                <Offered
+                  form={form}
+                  picked={picked?.id === form.id}
+                  asked={asked}
+                  onPick={() => onPick(form)}
+                  onAnswer={onAnswer}
+                  onWrite={() => { setOpen(false); onWrite(form) }}
+                />
               </li>
             ))}
           </ul>
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * One form a reader may pick, and what it asks once they have.
+ *
+ * What it asks is shown under it rather than beside it,
+ * because what an exam asks and what a presentation asks share nothing,
+ * and a reader who has picked one is not choosing for the other.
+ */
+function Offered({ form, picked, asked, onPick, onAnswer, onWrite }: {
+  form: Form
+  picked: boolean
+  asked: Readonly<Record<string, string>>
+  onPick: () => void
+  onAnswer: (ask: string, choice: string) => void
+  onWrite: () => void
+}): React.JSX.Element {
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onPick}
+        aria-pressed={picked}
+        className={`w-full px-3 py-2 text-left transition-colors ${picked ? 'bg-raised' : 'hover:bg-raised'}`}
+      >
+        <span className="block font-ui text-prose-sm font-semibold text-ink">{form.label}</span>
+        <span className="block font-reading text-prose-sm text-ink-subtle">{form.purpose}</span>
+      </button>
+
+      {picked && (
+        <div className="border-t border-line px-3 pb-1 pt-2">
+          {form.asks.map(ask => (
+            <Asked
+              key={ask.id}
+              ask={ask}
+              answered={asked[ask.id]}
+              onAnswer={choice => onAnswer(ask.id, choice)}
+            />
+          ))}
+          <button
+            type="button"
+            onClick={onWrite}
+            className="mb-1 mt-1 w-full rounded-control bg-ink px-2 py-1.5 font-ui text-label text-canvas transition-opacity hover:opacity-85"
+          >
+            {`Write the ${form.label.toLowerCase()}`}
+          </button>
+        </div>
+      )}
+    </>
+  )
+}
+
+/** One thing a form asks, and the answers a reader may give it. */
+function Asked({ ask, answered, onAnswer }: {
+  ask: Ask
+  answered: string | undefined
+  onAnswer: (choice: string) => void
+}): React.JSX.Element {
+  return (
+    <div className="mb-2">
+      <p className="font-ui text-label uppercase tracking-wide text-ink-subtle">{ask.label}</p>
+      <div className="mt-1 flex flex-wrap gap-1">
+        {ask.choices.map(choice => (
+          <button
+            key={choice.id}
+            type="button"
+            // What picking it gets them, since a word alone does not say.
+            title={choice.why}
+            onClick={() => onAnswer(choice.id)}
+            aria-pressed={answered === choice.id}
+            className={`rounded-full border px-2 py-0.5 font-ui text-label transition-colors ${answered === choice.id
+              ? 'border-ink bg-ink text-canvas'
+              : 'border-line-strong text-ink-muted hover:bg-raised'}`}
+          >
+            {choice.label}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

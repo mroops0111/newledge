@@ -186,8 +186,9 @@ export const FORMS: readonly Form[] = [
     label: 'Presentation',
     purpose: 'Pages to stand in front of, for teaching the board to a room',
     asks: [RUNTIME],
-    // A deck goes to the workspace that plays it, and is styled by that
-    // workspace's own theme, so it needs to be told which one that is.
+    // A deck goes to the workspace that plays it,
+    // and is styled by that workspace's own theme,
+    // so it needs to be told which one that is.
     requires: [DECK_WORKSPACE],
   },
 ]

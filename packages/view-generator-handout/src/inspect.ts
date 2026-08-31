@@ -31,6 +31,33 @@ export interface Problem {
 const KNOWN_LEVELS = new Set(LEVELS.map(level => level.id))
 
 /**
+ * What a fragment may not carry, and what to do about each.
+ *
+ * One table rather than a run of conditions,
+ * so forbidding a fifth thing is an entry rather than another branch,
+ * and so the reference and this cannot come to disagree,
+ * about how many there are.
+ */
+const FORBIDDEN: readonly { readonly found: RegExp, readonly said: string }[] = [
+  {
+    found: /^\s*<(?:!doctype\s+html|html[\s>])/i,
+    said: 'A whole document arrived where a fragment was asked for. Drop the doctype, html, head, and body.',
+  },
+  {
+    found: /<style[\s>]/i,
+    said: 'A style block is here. The surface reading this owns how it looks.',
+  },
+  {
+    found: /<script[\s>]/i,
+    said: 'A script is here. The surface reading this owns how it behaves.',
+  },
+  {
+    found: /<details[\s>]/i,
+    said: 'A details element is here. Put the answer in a div with class answer and the surface hides it.',
+  },
+]
+
+/**
  * Text a reader would see, with markup and entities out of the way.
  * A page whose question is an empty paragraph reads as written and is not,
  * so what counts is what is left once the tags are gone.
@@ -82,14 +109,10 @@ export function problemsIn(html: string): readonly Problem[] {
   const problems: Problem[] = []
   const say = (at: string, said: string): void => { problems.push({ at, said }) }
 
-  if (/^\s*<(?:!doctype\s+html|html[\s>])/i.test(html))
-    say('the page', 'A whole document arrived where a fragment was asked for. Drop the doctype, html, head, and body.')
-  if (/<style[\s>]/i.test(html))
-    say('the page', 'A style block is here. The surface reading this owns how it looks.')
-  if (/<script[\s>]/i.test(html))
-    say('the page', 'A script is here. The surface reading this owns how it behaves.')
-  if (/<details[\s>]/i.test(html))
-    say('the page', 'A details element is here. Put the answer in a div with class answer and the surface hides it.')
+  for (const banned of FORBIDDEN) {
+    if (banned.found.test(html))
+      say('the page', banned.said)
+  }
 
   if (spoken(html) === '')
     say('the page', 'Nothing was written.')
@@ -101,10 +124,10 @@ export function problemsIn(html: string): readonly Problem[] {
       say(`chapter "${shortly(chapter)}"`, 'A chapter holding almost nothing is a heading, not a step. Write it or drop it.')
   }
 
-  for (const question of taggedWith(html, 'question'))
+  const questions = taggedWith(html, 'question')
+  for (const question of questions)
     problems.push(...problemsInQuestion(question))
-
-  problems.push(...problemsAcrossChoices(taggedWith(html, 'question')))
+  problems.push(...problemsAcrossChoices(questions))
 
   for (const source of taggedWith(html, 'source')) {
     if (!/<a\s[^>]*href="[^"]+"/i.test(source))
@@ -125,8 +148,9 @@ function toldBy(question: string): Told | undefined {
   const at = choices.findIndex(choice => /\bdata-correct\b/.test(choice))
   if (at === -1)
     return undefined
-  // Strictly longer than every other, since options of one length tell nobody
-  // anything, and a tie is what keeping them alike looks like when it worked.
+  // Strictly longer than every other, since options of one length,
+  // tell nobody anything, and a tie is what keeping them alike,
+  // looks like when it worked.
   const lengths = choices.map(choice => spoken(choice).length)
   const mine = lengths[at]!
   return { at, longest: lengths.every((other, index) => index === at || other < mine) }
@@ -136,9 +160,9 @@ function toldBy(question: string): Told | undefined {
  * What a reader learns from the shape of the options rather than the subject.
  *
  * A generator writes one question at a time and cannot see the page,
- * so it puts the answer first and writes it longer than the rest,
- * because the true statement is the one it is thinking about
- * and the true statement is the one that needs the qualifications.
+ * so it puts the answer first and writes it longer than the rest.
+ * The true statement is the one it is thinking about,
+ * and the one carrying the qualifications.
  * Neither shows up while writing, and both are obvious to a reader,
  * who scores well without knowing anything and reads that as knowing it.
  *
