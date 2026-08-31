@@ -202,8 +202,20 @@ export const VIEW_BEHAVIOUR: string = `<script>
     return seen
   }
 
+  // Whether questions are what this page is, or something attached to it.
+  //
+  // A page whose chapters hold a set of questions each is asking,
+  // and choosing which of them to face is a thing a reader wants.
+  // A page whose chapters hold one apiece is teaching,
+  // and narrowing it would hide the chapters that teach,
+  // to reach the checkpoints under them, which nobody reads a tutorial for.
+  function asksThroughout() {
+    if (chapters.length === 0) return questions.length > 1
+    return chapters.some(function (chapter) { return asked(chapter).length > 1 })
+  }
+
   var top = make('div', 'v-top')
-  var showing = levels()
+  var showing = asksThroughout() ? levels() : []
   if (showing.length > 1) {
     var chips = make('div', 'v-chips')
     chips.appendChild(make('span', 'v-asks', 'Ask me'))

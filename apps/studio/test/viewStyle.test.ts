@@ -73,6 +73,14 @@ describe('what the surface does with what it is handed', () => {
     expect(VIEW_BEHAVIOUR).toContain('held.length === 0')
   })
 
+  it('offers narrowing only where questions are what the page is', () => {
+    // A page holding one question per chapter is teaching,
+    // and narrowing it hides the chapters that teach,
+    // to reach the checkpoints under them.
+    expect(VIEW_BEHAVIOUR).toContain('function asksThroughout')
+    expect(VIEW_BEHAVIOUR).toContain('asksThroughout() ? levels() : []')
+  })
+
   it('acts on every class the reference says the surface acts on', () => {
     for (const one of worked)
       expect(VIEW_BEHAVIOUR, `class "${one}" is worked and never read`).toContain(one)
