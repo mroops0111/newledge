@@ -2,7 +2,7 @@ import { sectionHolding } from '@newledge/board'
 import { gridPlacement } from '@newledge/board-layout'
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { Arrangement } from '../src/lib/arrange.js'
-import { firstArrangement } from '../src/lib/arrange.js'
+import { alreadyOn, firstArrangement, ofKinds } from '../src/lib/arrange.js'
 import { broodOf } from '../src/lib/brood.js'
 import type { GraphEdge, GraphNode } from '../src/lib/graph.js'
 
@@ -457,7 +457,7 @@ describe('what shares a block with what', () => {
         }
         return gridPlacement().place(request)
       },
-    }, ['Concept', 'Claim'])
+    }, ofKinds(['Concept', 'Claim']))
     return seats
   }
 
@@ -536,5 +536,34 @@ describe('lining up two cards a relation joins', () => {
   it('leaves two already in line alone', async () => {
     const [above, below] = await centres(0)
     expect(above).toBe(below)
+  })
+})
+
+describe('which nodes an arrangement is of', () => {
+  const held: readonly GraphNode[] = [
+    node('retrieval', 'Concept'),
+    node('paperOne', 'Source'),
+    node('freshness', 'Claim'),
+  ]
+
+  it('takes the kinds a board was seeded from', () => {
+    expect(held.filter(ofKinds(['Concept'])).map(one => one.id)).toEqual(['retrieval'])
+  })
+
+  it('takes whatever is worth placing when a board named no kinds', () => {
+    // A claim is drawn on the card it concerns rather than as one of its own.
+    expect(held.filter(ofKinds(undefined)).map(one => one.id)).toEqual(['retrieval', 'paperOne'])
+  })
+
+  it('takes what a board holds now, whatever kinds it was seeded from', () => {
+    // A reader who dragged a source onto a board of terms,
+    // and then asked for it to be laid out again,
+    // has not asked for the source to be thrown away.
+    const board = { cards: [{ nodeId: 'retrieval' }, { nodeId: 'paperOne' }] }
+    expect(held.filter(alreadyOn(board)).map(one => one.id)).toEqual(['retrieval', 'paperOne'])
+  })
+
+  it('takes nothing off a board holding nothing', () => {
+    expect(held.filter(alreadyOn({ cards: [] }))).toEqual([])
   })
 })

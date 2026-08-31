@@ -5,7 +5,7 @@ import { ReactFlow, ReactFlowProvider, useNodesState } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Box } from '@newledge/board-layout'
 import { orthogonalRouting } from '@newledge/board-layout'
-import { firstArrangement } from '../lib/arrange.js'
+import { alreadyOn, firstArrangement, ofKinds } from '../lib/arrange.js'
 import { DIMMED, emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { elkPlacement } from '../lib/elkPlacement.js'
 import type { BoardClient } from '../lib/boards.js'
@@ -95,7 +95,7 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
         const opening = await Promise.all(openingBoards(loaded.nodes).map(async board => ({
           ...board,
           holds: [...board.holds],
-          ...(await firstArrangement(loaded, PLACEMENT, board.holds)).board,
+          ...(await firstArrangement(loaded, PLACEMENT, ofKinds(board.holds))).board,
         })))
         setBoards(opening)
         setOpenId(opening[0]?.id)
@@ -142,7 +142,11 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
         const current = latestBoard.current
         if (current === undefined)
           return
-        const again = await firstArrangement(graph, PLACEMENT, current.holds)
+        // Of what the board holds now, not of the kinds it was seeded from.
+        // A reader who dragged a source onto a board of terms,
+        // and then asked for it to be laid out again,
+        // has not asked for the source to be thrown away.
+        const again = await firstArrangement(graph, PLACEMENT, alreadyOn(current))
         setGeneration(count => count + 1)
         persist({ ...current, ...again.board })
       }
@@ -492,7 +496,14 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
               nodeTypes={NODE_TYPES}
               edgeTypes={EDGE_TYPES}
               onNodesChange={drag.onNodesChange}
-              onNodeClick={(_, node) => setGrabbed(node.type === 'section' ? node.id : undefined)}
+              onNodeClick={(_, node) => {
+                setGrabbed(node.type === 'section' ? node.id : undefined)
+                // Picking a card is asking what it is,
+                // and the answer takes the place the panel is putting things on in,
+                // so asking is what closes it.
+                if (node.type !== 'section')
+                  setPutting(false)
+              }}
               onPaneClick={() => setGrabbed(undefined)}
               onNodeDragStart={drag.onNodeDragStart}
               onNodeDragStop={drag.onNodeDragStop}
