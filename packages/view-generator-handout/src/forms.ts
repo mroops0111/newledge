@@ -60,12 +60,20 @@ export interface Form {
 }
 
 /**
- * How hard the questions are, which is the axis a reader moves along.
+ * How deep a question reaches, which is the axis a reader moves along.
  *
- * The three are not degrees of the same question.
+ * Depth is not difficulty, and calling it that is the mistake to avoid.
+ * A recall question can be brutally hard and is still recall,
+ * because what makes it hard is how obscure the fact was,
+ * rather than how much of the reader's understanding it draws on.
+ * So the three are different tests rather than one test at three strengths.
  * Recall asks what the material said, apply asks what follows from it,
- * and judgement asks what would settle something the material left open,
- * so each tests a different thing rather than the same thing harder.
+ * and judgement asks what would settle something the material left open.
+ *
+ * The axis is the one educational assessment has used for decades,
+ * cut to the three a page that marks itself can carry.
+ * Its deepest level is work spanning days and is left out for that reason,
+ * rather than overlooked.
  *
  * Named separately from the ask that offers them,
  * because a written page carries one of these on every question,
@@ -73,18 +81,18 @@ export interface Form {
  * Two lists of the same three drift the moment a fourth is wanted.
  */
 export const LEVELS: readonly Choice[] = [
-  { id: 'recall', label: 'Recall', why: 'What the material said, asked back' },
-  { id: 'apply', label: 'Apply', why: 'What follows from it, and how the parts stand together' },
-  { id: 'judge', label: 'Judgement', why: 'What would settle what the sources left open' },
+  { id: 'recall', label: 'Recall', why: 'What the material said, asked straight back' },
+  { id: 'apply', label: 'Apply', why: 'What follows from it, and how two parts stand together' },
+  { id: 'judge', label: 'Judgement', why: 'What the sources left open, and what would settle it' },
 ]
 
 const LEVEL: Ask = {
   id: 'level',
-  label: 'Difficulty',
+  label: 'Depth',
   fallback: 'mixed',
   choices: [
     ...LEVELS,
-    { id: 'mixed', label: 'Mixed', why: 'All three, in rising order' },
+    { id: 'mixed', label: 'Mixed', why: 'All three, weighted away from plain recall' },
   ],
 }
 

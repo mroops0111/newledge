@@ -44,6 +44,9 @@ before teaching them anything.
   something nobody established.
 - **No jargon the material did not introduce**, and none it did introduce without
   saying what it means first.
+- **A chapter's question reaches as deep as the chapter went.** Depth is not
+  difficulty, so a chapter that only introduced a term ends on a recall question
+  rather than an obscure one dressed up as something harder.
 
 ## Initialization
 
@@ -104,6 +107,9 @@ reorder because another order reads better to you.
 7. Draw with inline SVG wherever a picture carries what a sentence cannot.
 8. End each chapter with one question, marked up as `style.md` describes, asking
    about what that chapter just taught rather than about the subject at large.
+   Say how deep it reaches with `data-level`, and let the chapter decide which:
+   a chapter that introduced a term takes `recall`, one that put two terms beside
+   each other takes `apply`, and one that presented a disagreement takes `judge`.
 9. Write the fragment, overwriting whatever is there.
 10. Run `$NEWLEDGE_CHECK <the file you just wrote>`. It reads the page and
     reports what the contract says is wrong with it. Fix everything it names and
@@ -140,6 +146,7 @@ there rather than adding beside it.
 - [ ] The opening says what the board is for before naming any part of it
 - [ ] Every idea is its own chapter, and every chapter has a heading
 - [ ] Every chapter ends with one question about what that chapter taught
+- [ ] Each question's level is the depth its own chapter reached
 - [ ] The depth asked for is the depth that was written
 - [ ] Terms arrive in the order the material gave them
 - [ ] No term is used before it has been introduced
@@ -157,3 +164,8 @@ there rather than adding beside it.
 the whole vocabulary of classes and elements a written view may use, and the
 markup the surface reads to make a page work. Read it before you write, because a
 class it does not name styles nothing and does nothing.
+
+The three levels a question may carry are a three-way cut of an axis educational
+assessment has used for decades. The exam skill in this same namespace sets them
+out in full, under "Where the three levels come from", along with the sources.
+Read that if a question's level is not obvious.

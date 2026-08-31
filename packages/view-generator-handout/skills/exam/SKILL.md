@@ -40,17 +40,31 @@ material rather than choosing at random.
 - **Spread across the terms** rather than mining one. A reader who can answer five
   questions about the first term has learned that it was at the top of the board.
 
-### What each level tests
+### How deep a question reaches
 
 These are three different tests, not one test at three strengths.
 
-- **`recall`**: what the material said, asked back. A definition, a figure, which
-  source something came from.
+- **`recall`**: what the material said, asked straight back. A definition, a
+  figure, which source something came from.
 - **`apply`**: what follows from it. How two terms stand to each other, what a
-  claim rules out, which of two situations a term covers.
+  claim rules out, which of two situations a term covers. Nothing here is a
+  sentence the material contains, which is what makes it apply rather than recall.
 - **`judge`**: what the material left open. What would settle a dispute, which of
-  two disagreeing sources a given piece of evidence would favour, what the material
-  does not establish.
+  two disagreeing sources a piece of evidence would favour, what the material does
+  not establish.
+
+**Depth is not difficulty.** A recall question can be brutally hard and is still
+recall, because what makes it hard is how obscure the fact was rather than how
+much of the reader's understanding it draws on. Never reach for an obscure detail
+and label it `judge`. Ask what a level asks, and let it land where it lands.
+
+**Recall is the easy one to write**, so an exam left to drift becomes a reading
+test. When `level=mixed`, no more than half the questions are `recall`, and every
+contested claim on the board has a `judge` question standing on it.
+
+There is a fourth level in the frameworks below, work spanning days rather than
+minutes. A page that marks itself cannot carry it, so it is left out rather than
+faked with a long question.
 
 ### What makes a wrong option worth offering
 
@@ -76,7 +90,8 @@ questions learns that they know the subject.
 2. What follows the path is what the reader asked for, as `key=value`. Read it and
    obey it. A key that is not here is one you can ignore.
    - `level=recall|apply|judge|mixed`. A single level means every question is that
-     one. `mixed` means all three, ordered so the page rises rather than jumps.
+     one. `mixed` means all three, ordered so the page rises rather than jumps,
+     with no more than half of them at `recall`.
    - `kinds=choice|written|mixed`. `choice` means every question carries options.
      `written` means none do, so the reader produces every answer. `mixed` means
      choice where a question marks itself well, written where it does not.
@@ -160,6 +175,8 @@ there rather than adding beside it.
 - [ ] The level, kinds, and length asked for are what was written
 - [ ] No contested claim is asked as though it were settled
 - [ ] Questions are spread across the terms rather than gathered on a few
+- [ ] Under `mixed`, no more than half the questions are recall
+- [ ] Nothing obscure is labelled judgement merely for being hard
 - [ ] Every choice question has exactly one option carrying `data-correct`
 - [ ] Every wrong option is one a half-prepared reader would actually pick
 - [ ] Every explanation says why the nearest wrong option is tempting
@@ -176,3 +193,24 @@ there rather than adding beside it.
 the whole vocabulary of classes and elements a written view may use, and the
 markup the surface reads to make a page work. Read it before you write, because a
 class it does not name styles nothing and does nothing.
+
+### Where the three levels come from
+
+They are a three-way cut of an axis educational assessment has used for decades.
+Read these if a question's level is not obvious, rather than guessing at it.
+
+- Webb's Depth of Knowledge, whose four levels are recall and reproduction, skills
+  and concepts, strategic thinking, and extended thinking. It is also where the
+  warning above comes from, that depth measures the thinking a task demands rather
+  than how hard the task is.
+  <https://www.structural-learning.com/post/webbs-depth-of-knowledge>
+  <https://www.edutopia.org/blog/webbs-depth-knowledge-increase-rigor-gerald-aungst>
+- Bloom's taxonomy as revised by Anderson and Krathwohl, whose six levels are
+  remember, understand, apply, analyze, evaluate, and create.
+  <https://www.prodigygame.com/main-en/blog/webbs-depth-of-knowledge-dok>
+
+`recall` is that first level in both. `apply` gathers what the frameworks separate
+into understanding, applying, and analysing, because on one board those are the
+same act of putting two things beside each other. `judge` is evaluating. The
+deepest level in each framework is extended work and has no place on a page a
+reader finishes in one sitting.

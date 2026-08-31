@@ -48,8 +48,13 @@ These are the whole vocabulary. A class not named here styles nothing.
 ### Asking
 
 - **`question`**: one question and everything belonging to it. Put
-  `data-level="recall"`, `"apply"`, or `"judge"` on it to say what it tests. The
-  surface shows that to the reader and lets them narrow to it.
+  `data-level="recall"`, `"apply"`, or `"judge"` on it to say how deep it reaches.
+  The surface shows that to the reader and lets them narrow to it.
+
+  These say what a question draws on, not how hard it is. `recall` asks what the
+  material said, `apply` asks what follows from it, and `judge` asks what the
+  material left open. An obscure fact is a hard `recall` question and is still
+  `recall`.
 - **`ask`**: the question itself, as a paragraph. One per `question`.
 - **`choices`**: an `ol` of options. Put it inside the `question`.
 - **`choice`**: one option, as an `li` inside `choices`. Put `data-correct` on

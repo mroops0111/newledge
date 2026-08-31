@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { argumentsFor, askedOf, FORMS, formOfId, LEVELS } from '../src/forms.js'
 
@@ -55,6 +56,28 @@ describe('argumentsFor', () => {
 
   it('hands over a path alone when a form asks nothing', () => {
     expect(argumentsFor('material/a.json', {})).toBe('material/a.json')
+  })
+})
+
+describe('the axis a question sits on', () => {
+  const depth = exam.asks.find(ask => ask.id === 'level')!
+
+  it('is named for the thinking a question draws on, not for how hard it is', () => {
+    // Calling it difficulty is the mistake the frameworks warn about,
+    // since an obscure fact is a hard recall question and is still recall.
+    expect(depth.label).toBe('Depth')
+  })
+
+  it('says so where the skill that writes the questions will read it', () => {
+    const skill = readFileSync(new URL('../skills/exam/SKILL.md', import.meta.url), 'utf-8')
+    expect(skill).toContain('Depth is not difficulty')
+    expect(skill).toContain('Where the three levels come from')
+  })
+
+  it('names where the three came from, rather than presenting them as its own', () => {
+    const skill = readFileSync(new URL('../skills/exam/SKILL.md', import.meta.url), 'utf-8')
+    expect(skill).toContain("Webb's Depth of Knowledge")
+    expect(skill).toContain("Bloom's taxonomy")
   })
 })
 
