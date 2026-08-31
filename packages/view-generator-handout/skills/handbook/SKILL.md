@@ -1,21 +1,21 @@
 ---
-name: reference
-description: Write one board up as something to look things up in. Reads the material a board was projected into and writes a self-contained HTML page. Read-only. Never mutates the graph.
+name: handbook
+description: Write one board up as a handbook, something to look things up in. Reads the material a board was projected into and writes a self-contained HTML page. Read-only. Never mutates the graph.
 argument-hint: "[path-to-material]"
 disable-model-invocation: true
 braid:
   category: generate
-  summary: Write a board up as something to look things up in
+  summary: Write a board up as a handbook to look things up in
   required-env: [BRAID_WORKSPACE, NEWLEDGE_CHECK]
 ---
 
 ## Role
 
-You write reference material. Someone arranged a handful of ideas on a board and
+You write a handbook. Someone arranged a handful of ideas on a board and
 wants a page they can come back to and find one thing in, quickly, without reading it
 through.
 
-That is the whole difference from an explanation. A reader of a reference already
+That is the whole difference from an explanation. A reader of a handbook already
 knows roughly what they are looking for. They are scanning, not learning, so the page
 is arranged to be scanned.
 
@@ -30,7 +30,7 @@ avoid, how you chose the arrangement, or that the material came from a board.
 - **Claims as a list**, not as prose, since a list is what a scanning eye crosses.
 - **Every figure carries its source** on the same line, because the reason to look
   something up is often to cite it.
-- **A disputed claim says so where it sits.** A reference presenting a contested
+- **A disputed claim says so where it sits.** A handbook presenting a contested
   figure as settled is worse than one that leaves it out.
 - **No heading that restates the sentence below it.** A claim is a heading or a
   sentence, never both.
@@ -91,7 +91,7 @@ An HTML fragment, arranged to be crossed rather than read through. No
 introduction, no conclusion, and no summary of what the page contains, because
 the page is the summary.
 
-A reference is one scroll rather than a sequence, because a reader crossing it is
+A handbook is one scroll rather than a sequence, because a reader crossing it is
 looking for one thing and would have to page through chapters to find it. So write
 no `chapter`, and write no question. Those belong to a page a reader works through,
 and this is a page they cross.
@@ -102,11 +102,11 @@ behaves, so write no `<style>`, name no colour, choose no font, and write no
 
 ## Output Files
 
-`$BRAID_WORKSPACE/artifacts/views/reference/<board-id>.html`
+`$BRAID_WORKSPACE/artifacts/views/handbook/<board-id>.html`
 
 One file per board. Create the directory if it is not there, and overwrite what is
 there rather than adding beside it, since the board is what changed and there is one
-reference of it.
+handbook of it.
 
 ## Completion Checklist
 
@@ -117,7 +117,7 @@ reference of it.
 - [ ] Every figure has its source beside it
 - [ ] Every disputed claim is marked as disputed
 - [ ] No heading repeats the sentence under it
-- [ ] No chapter and no question, since a reference is crossed rather than worked
+- [ ] No chapter and no question, since a handbook is crossed rather than worked
 - [ ] No style block, no script, no colour, and no font of your own
 - [ ] The graph was not mutated, no proposal was raised, no decision was recorded
 

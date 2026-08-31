@@ -41,7 +41,7 @@ describe('createViewClient', () => {
       }) as unknown as typeof fetch,
     })
     await asking.write(FORMS[0]!, 'b1', { level: 'judge' })
-    expect(JSON.parse(sent!)).toEqual({ form: 'reference', asked: { level: 'judge' } })
+    expect(JSON.parse(sent!)).toEqual({ form: 'handbook', asked: { level: 'judge' } })
   })
 
   it('escapes each segment alone, so a name cannot pose as a directory', async () => {
@@ -99,7 +99,7 @@ describe('FORMS', () => {
   it('offers every form over the same thing, which is a board', () => {
     // A split where one form took a topic and the rest took a board,
     // is what would make a reader learn two places to ask from.
-    expect(FORMS.map(form => form.id)).toEqual(['reference', 'tutorial', 'exam', 'presentation'])
+    expect(FORMS.map(form => form.id)).toEqual(['handbook', 'tutorial', 'exam', 'presentation'])
     expect(FORMS.every(form => form.purpose.length > 0)).toBe(true)
   })
 })
@@ -123,7 +123,7 @@ describe('naming a view', () => {
   })
 
   it('says which form it is in, not which folder it landed in', () => {
-    expect(formOf('reference/retrieval.html')).toBe('Reference')
+    expect(formOf('handbook/retrieval.html')).toBe('Handbook')
     expect(formOf('tutorial/retrieval.html')).toBe('Tutorial')
     expect(formOf('exam/retrieval.html')).toBe('Exam')
   })
@@ -141,7 +141,7 @@ describe('madeFrom', () => {
 
   const listed = [
     at('exam/board-terms.html', '2026-08-28T10:00:00Z'),
-    at('reference/board-terms.html', '2026-08-28T09:00:00Z'),
+    at('handbook/board-terms.html', '2026-08-28T09:00:00Z'),
     at('tutorial/board-two.html', '2026-08-28T12:00:00Z'),
   ]
   const named = (subject: string): string | undefined =>
@@ -167,7 +167,7 @@ describe('madeFrom', () => {
 
   it('reads the forms in the order they were offered, not when they were made', () => {
     const forms = madeFrom(listed, named).find(one => one.name === 'Terms')?.of ?? []
-    expect(forms.map(one => one.form)).toEqual(['Reference', 'Exam'])
+    expect(forms.map(one => one.form)).toEqual(['Handbook', 'Exam'])
   })
 
   it('leads with the subject written to most recently', () => {

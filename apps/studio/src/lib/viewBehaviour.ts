@@ -31,7 +31,7 @@ const NAMED_LEVELS = JSON.stringify(
  *
  * Written against the classes the reference offers and nothing else,
  * so a page that uses none of them is left exactly as it arrived,
- * which is what a reference wants and why it opts in by writing no chapter.
+ * which is what a handbook wants and why it opts in by writing no chapter.
  */
 export const VIEW_BEHAVIOUR: string = `<script>
 (function () {

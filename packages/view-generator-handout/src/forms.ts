@@ -150,14 +150,14 @@ export const DECK_WORKSPACE = 'NEWLEDGE_DECK_WORKSPACE'
  * So a reader arranges and then writes it out,
  * and there is one place to do either.
  *
- * A reference asks nothing.
+ * A handbook asks nothing.
  * A reader looking something up wants the same document every time,
  * because a lookup they have to configure is one they will not make.
  */
 export const FORMS: readonly Form[] = [
   {
-    id: 'reference',
-    label: 'Reference',
+    id: 'handbook',
+    label: 'Handbook',
     purpose: 'Arranged to be scanned, for coming back and finding one thing',
     asks: [],
   },

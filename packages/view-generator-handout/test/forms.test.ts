@@ -18,8 +18,8 @@ describe('the forms a board can be written in', () => {
     }
   })
 
-  it('offers a reference no choices, since a lookup nobody makes twice is one', () => {
-    expect(formOfId('reference')?.asks).toEqual([])
+  it('offers a handbook no choices, since a lookup nobody makes twice is one', () => {
+    expect(formOfId('handbook')?.asks).toEqual([])
   })
 
   it('knows nothing of a form it does not ship', () => {

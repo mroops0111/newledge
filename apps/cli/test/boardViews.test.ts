@@ -71,7 +71,7 @@ describe('asking for a view of a board', () => {
   })
 
   it('says the board is missing rather than failing at it', async () => {
-    const response = await ask('gone', { form: 'reference' })
+    const response = await ask('gone', { form: 'handbook' })
     expect(response.status).toBe(404)
     expect(await response.text()).toContain('not one this workspace holds')
   })
@@ -96,7 +96,7 @@ describe('asking for a view of a board', () => {
     // Only the form that declares a requirement is held to one,
     // so the check cannot quietly gate every form on one deployment's setting.
     delete process.env[DECK_WORKSPACE]
-    expect((await ask('gone', { form: 'reference' })).status).toBe(404)
+    expect((await ask('gone', { form: 'handbook' })).status).toBe(404)
   })
 
   it('refuses a body that is not an ask at all', async () => {
@@ -108,13 +108,13 @@ describe('asking for a view of a board', () => {
     // Both refusals land before anything is spawned,
     // which is why they can be tested on a machine with no agent on it.
     expect((await ask('b1', { form: 'poem' })).status).toBe(400)
-    expect((await ask('gone', { form: 'reference' })).status).toBe(404)
+    expect((await ask('gone', { form: 'handbook' })).status).toBe(404)
   })
 })
 
 describe('what a form needs from the deployment', () => {
   const presentation = formOfId('presentation')!
-  const reference = formOfId('reference')!
+  const handbook = formOfId('handbook')!
 
   it('gathers only what the form named', () => {
     process.env[DECK_WORKSPACE] = '/somewhere/decks'
@@ -123,7 +123,7 @@ describe('what a form needs from the deployment', () => {
   })
 
   it('gathers nothing for a form that named nothing', () => {
-    expect(settingsFor(reference)).toEqual({})
+    expect(settingsFor(handbook)).toEqual({})
   })
 
   it('reads a variable nobody exported as one nobody set', () => {
