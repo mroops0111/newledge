@@ -118,7 +118,12 @@ function Draggable({ offer }: { offer: Offer }): React.JSX.Element {
       <span className="shrink-0 text-ink-subtle transition-colors group-hover:text-ink-muted">
         {GLYPHS.grip}
       </span>
-      <span className="line-clamp-2 min-w-0 font-ui text-prose-sm leading-snug text-ink-muted transition-colors group-hover:text-ink">
+      {/*
+        The names are what this panel is, so they are set in the ink the
+        node panel sets its own content in. Everything else here is a label
+        about them and recedes, which is the whole of the hierarchy.
+      */}
+      <span className="line-clamp-2 min-w-0 font-ui text-prose-sm leading-snug text-ink">
         {offer.name}
       </span>
     </li>
