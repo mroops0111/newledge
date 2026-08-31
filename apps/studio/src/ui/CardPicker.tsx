@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { Board } from '@newledge/board'
 import type { GraphNode } from '../lib/graph.js'
 import type { Offer } from '../lib/unplaced.js'
-import { placeable, unplaced } from '../lib/unplaced.js'
+import { byKind, placeable, unplaced } from '../lib/unplaced.js'
 import { GroupLabel } from './Surface.js'
 import { GLYPHS } from './Toolkit.js'
 
@@ -19,7 +19,11 @@ export const DRAGGED_NODE = 'application/x-newledge-node'
  * The panel it replaced listed every unplaced node flat,
  * and could not be dragged from,
  * so a reader could say a node should be on the board but never where.
- * Both are why this narrows first, and why every row is a drag handle.
+ * Both are why this gathers and searches, and why every row is a drag handle.
+ *
+ * Two ways of narrowing, not three.
+ * A kind names the group its offers sit under, so a control for kinds as well,
+ * would be a third thing on a panel doing the work of the heading above it.
  *
  * It is the width the node panel is, because they take the same place,
  * and a slot that changes width as a reader works,
@@ -30,13 +34,13 @@ export function CardPicker({ nodes, board }: {
   board: Board
 }): React.JSX.Element {
   const [like, setLike] = useState('')
-  const [kind, setKind] = useState<string | undefined>(undefined)
 
   const kinds = useMemo(() => placeable(nodes), [nodes])
-  const offers = useMemo(
-    () => unplaced(nodes, board, { like, ...(kind === undefined ? {} : { kind }) }),
-    [nodes, board, like, kind],
+  const gathered = useMemo(
+    () => byKind(unplaced(nodes, board, { like }), kinds),
+    [nodes, board, kinds, like],
   )
+  const empty = gathered.length === 0
 
   return (
     <div className="flex h-full w-96 flex-col">
@@ -57,27 +61,9 @@ export function CardPicker({ nodes, board }: {
           aria-label="Find a term"
           className="mt-3 w-full rounded-control border border-line bg-canvas px-2.5 py-1.5 font-ui text-prose-sm text-ink outline-none placeholder:text-ink-subtle focus:border-line-strong"
         />
-        {/* One kind is not a choice, it is what the graph happens to hold. */}
-        {kinds.length > 1 && (
-          <div className="mt-2 flex flex-wrap gap-1">
-            {[undefined, ...kinds].map(one => (
-              <button
-                key={one ?? 'all'}
-                type="button"
-                onClick={() => setKind(one)}
-                aria-pressed={kind === one}
-                className={`rounded-full border px-2 py-0.5 font-ui text-label transition-colors ${kind === one
-                  ? 'border-ink bg-ink text-canvas'
-                  : 'border-line-strong text-ink-muted hover:bg-raised'}`}
-              >
-                {one ?? 'Everything'}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
-      {offers.length === 0
+      {empty
         ? (
             <p className="px-6 py-5 font-reading text-prose-sm text-ink-subtle">
               {like === ''
@@ -86,9 +72,17 @@ export function CardPicker({ nodes, board }: {
             </p>
           )
         : (
-            <ul className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-6 py-4">
-              {offers.map(offer => <Draggable key={offer.id} offer={offer} showKind={kinds.length > 1} />)}
-            </ul>
+            <div className="min-h-0 flex-1 overflow-y-auto py-4">
+              {gathered.map(group => (
+                <section key={group.kind} className="mb-4 last:mb-0">
+                  {/* A kind names its group rather than trailing every name in it. */}
+                  <div className="px-6 pb-1"><GroupLabel>{group.kind}</GroupLabel></div>
+                  <ul>
+                    {group.offers.map(offer => <Draggable key={offer.id} offer={offer} />)}
+                  </ul>
+                </section>
+              ))}
+            </div>
           )}
     </div>
   )
@@ -97,26 +91,35 @@ export function CardPicker({ nodes, board }: {
 /**
  * One node, picked up rather than pressed.
  *
- * Drawn as the card it is about to become rather than as a line of a list,
- * because what a reader is doing is moving a card onto a board,
- * and a row that looks like text reads as something to click.
- * Pressing one does nothing, which is why it carries a grip and not a border,
- * that a button would have.
+ * A row rather than a box. Seven boxes down a panel is a wall,
+ * and what a reader is reading here is a list,
+ * so it is drawn as one and the grip is what says it can be carried.
+ *
+ * A title runs to two lines and then stops,
+ * because a source names itself at length,
+ * and rows of three heights each are harder to run an eye down,
+ * than rows a reader has to open one of to read the whole of.
  */
-function Draggable({ offer, showKind }: { offer: Offer, showKind: boolean }): React.JSX.Element {
+function Draggable({ offer }: { offer: Offer }): React.JSX.Element {
   return (
     <li
       draggable
+      title={offer.name}
       onDragStart={(event) => {
         event.dataTransfer.setData(DRAGGED_NODE, offer.id)
         event.dataTransfer.effectAllowed = 'copy'
       }}
-      className="flex cursor-grab items-start gap-2 rounded-card border border-line bg-surface px-2.5 py-2 transition-colors hover:border-line-strong hover:bg-raised active:cursor-grabbing"
+      className="group flex cursor-grab items-center gap-2 px-6 py-1.5 transition-colors hover:bg-raised active:cursor-grabbing"
     >
-      <span className="mt-px shrink-0 text-ink-subtle">{GLYPHS.grip}</span>
-      <span className="min-w-0 font-ui text-prose-sm leading-snug text-ink">
+      {/*
+        Visible before a reader hovers, since the whole trouble with the panel
+        this replaces was that nothing on a row said it could be carried.
+      */}
+      <span className="shrink-0 text-ink-subtle transition-colors group-hover:text-ink-muted">
+        {GLYPHS.grip}
+      </span>
+      <span className="line-clamp-2 min-w-0 font-ui text-prose-sm leading-snug text-ink-muted transition-colors group-hover:text-ink">
         {offer.name}
-        {showKind && <span className="ml-1.5 font-ui text-label text-ink-subtle">{offer.kind}</span>}
       </span>
     </li>
   )

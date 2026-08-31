@@ -1,7 +1,7 @@
 import type { Board } from '@newledge/board'
 import { describe, expect, it } from 'vitest'
 import type { GraphNode } from '../src/lib/graph.js'
-import { placeable, unplaced } from '../src/lib/unplaced.js'
+import { byKind, placeable, unplaced } from '../src/lib/unplaced.js'
 
 const node = (id: string, type: string, name = ''): GraphNode => ({ id, type, name })
 
@@ -65,5 +65,23 @@ describe('the kinds a card is ever drawn for', () => {
 
   it('says nothing about a graph holding nothing placeable', () => {
     expect(placeable([node('a', 'Claim')])).toEqual([])
+  })
+})
+
+describe('gathering the offers under their kinds', () => {
+  it('says a kind once over a group rather than after every name', () => {
+    const gathered = byKind(unplaced(graph, board([])), placeable(graph))
+    expect(gathered.map(one => one.kind)).toEqual(['Concept', 'Source'])
+    expect(gathered[0]?.offers.map(one => one.name)).toEqual(['Grounding', 'Retrieval'])
+  })
+
+  it('leaves out a kind nothing is left of', () => {
+    const board_ = board(['paperOne'])
+    expect(byKind(unplaced(graph, board_), placeable(graph)).map(one => one.kind)).toEqual(['Concept'])
+  })
+
+  it('offers them in the order a board bands them, not alphabetically', () => {
+    // What a board is mostly about is what a reader should reach first.
+    expect(byKind(unplaced(graph, board([])), placeable(graph))[0]?.kind).toBe('Concept')
   })
 })

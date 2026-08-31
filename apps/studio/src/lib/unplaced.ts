@@ -20,6 +20,12 @@ export interface Offer {
   readonly kind: string
 }
 
+/** The offers of one kind, under the name of that kind. */
+export interface Gathered {
+  readonly kind: string
+  readonly offers: readonly Offer[]
+}
+
 /**
  * The kinds a card is ever drawn for.
  *
@@ -62,4 +68,21 @@ export function unplaced(
     .map(node => ({ id: node.id, name: node.name || worded(node.id), kind: node.type }))
     .filter(offer => wanted === '' || offer.name.toLowerCase().includes(wanted))
     .sort((one, other) => one.name.localeCompare(other.name))
+}
+
+/**
+ * The offers gathered under the kind each one is.
+ *
+ * Said once over a group rather than after every name.
+ * A kind repeated down a list is a word a reader reads seven times,
+ * to learn one thing, and on a long title it lands mid-sentence,
+ * where it reads as part of the title rather than as a note about it.
+ *
+ * Kinds come in the order a board bands them,
+ * so what a board is mostly about is what a reader reaches first.
+ */
+export function byKind(offers: readonly Offer[], kinds: readonly string[]): readonly Gathered[] {
+  return kinds
+    .map(kind => ({ kind, offers: offers.filter(offer => offer.kind === kind) }))
+    .filter(gathered => gathered.offers.length > 0)
 }
