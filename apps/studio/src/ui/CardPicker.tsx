@@ -3,6 +3,8 @@ import type { Board } from '@newledge/board'
 import type { GraphNode } from '../lib/graph.js'
 import type { Offer } from '../lib/unplaced.js'
 import { placeable, unplaced } from '../lib/unplaced.js'
+import { GroupLabel } from './Surface.js'
+import { GLYPHS } from './Toolkit.js'
 
 /**
  * What a card being dragged carries, which is only which node it is.
@@ -18,6 +20,10 @@ export const DRAGGED_NODE = 'application/x-newledge-node'
  * and could not be dragged from,
  * so a reader could say a node should be on the board but never where.
  * Both are why this narrows first, and why every row is a drag handle.
+ *
+ * It is the width the node panel is, because they take the same place,
+ * and a slot that changes width as a reader works,
+ * moves the canvas out from under what they were looking at.
  */
 export function CardPicker({ nodes, board }: {
   nodes: readonly GraphNode[]
@@ -33,15 +39,23 @@ export function CardPicker({ nodes, board }: {
   )
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="border-b border-line px-4 py-3">
-        <p className="font-ui text-label uppercase tracking-wide text-ink-subtle">Put on this board</p>
+    <div className="flex h-full w-96 flex-col">
+      <div className="border-b border-line px-6 pb-4 pt-7">
+        <GroupLabel>Put on this board</GroupLabel>
+        {/*
+          What to do with a row, said once rather than guessed at.
+          A list of names beside a canvas reads as a list of names,
+          and nothing about one says it is meant to be carried.
+        */}
+        <p className="mt-1 font-reading text-prose-sm text-ink-subtle">
+          Drag one onto the board. It lands where you let go.
+        </p>
         <input
           value={like}
           onChange={event => setLike(event.target.value)}
           placeholder="Find a term"
           aria-label="Find a term"
-          className="mt-2 w-full rounded-control border border-line bg-canvas px-2 py-1 font-ui text-prose-sm text-ink outline-none focus:border-line-strong"
+          className="mt-3 w-full rounded-control border border-line bg-canvas px-2.5 py-1.5 font-ui text-prose-sm text-ink outline-none placeholder:text-ink-subtle focus:border-line-strong"
         />
         {/* One kind is not a choice, it is what the graph happens to hold. */}
         {kinds.length > 1 && (
@@ -65,12 +79,14 @@ export function CardPicker({ nodes, board }: {
 
       {offers.length === 0
         ? (
-            <p className="px-4 py-3 font-reading text-prose-sm text-ink-subtle">
-              {like === '' ? 'This board holds everything there is to place.' : 'Nothing by that name.'}
+            <p className="px-6 py-5 font-reading text-prose-sm text-ink-subtle">
+              {like === ''
+                ? 'This board already holds everything there is to place.'
+                : 'Nothing by that name.'}
             </p>
           )
         : (
-            <ul className="min-h-0 flex-1 overflow-y-auto py-2">
+            <ul className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-6 py-4">
               {offers.map(offer => <Draggable key={offer.id} offer={offer} showKind={kinds.length > 1} />)}
             </ul>
           )}
@@ -81,9 +97,11 @@ export function CardPicker({ nodes, board }: {
 /**
  * One node, picked up rather than pressed.
  *
- * It is a list item rather than a button, because pressing it does nothing.
- * Adding without placing is what made the panel before this one unsatisfying,
- * so the only thing to do with one of these is carry it somewhere.
+ * Drawn as the card it is about to become rather than as a line of a list,
+ * because what a reader is doing is moving a card onto a board,
+ * and a row that looks like text reads as something to click.
+ * Pressing one does nothing, which is why it carries a grip and not a border,
+ * that a button would have.
  */
 function Draggable({ offer, showKind }: { offer: Offer, showKind: boolean }): React.JSX.Element {
   return (
@@ -93,10 +111,13 @@ function Draggable({ offer, showKind }: { offer: Offer, showKind: boolean }): Re
         event.dataTransfer.setData(DRAGGED_NODE, offer.id)
         event.dataTransfer.effectAllowed = 'copy'
       }}
-      className="cursor-grab px-4 py-1.5 font-ui text-prose-sm text-ink-muted transition-colors hover:bg-raised hover:text-ink active:cursor-grabbing"
+      className="flex cursor-grab items-start gap-2 rounded-card border border-line bg-surface px-2.5 py-2 transition-colors hover:border-line-strong hover:bg-raised active:cursor-grabbing"
     >
-      {offer.name}
-      {showKind && <span className="ml-2 font-ui text-label text-ink-subtle">{offer.kind}</span>}
+      <span className="mt-px shrink-0 text-ink-subtle">{GLYPHS.grip}</span>
+      <span className="min-w-0 font-ui text-prose-sm leading-snug text-ink">
+        {offer.name}
+        {showKind && <span className="ml-1.5 font-ui text-label text-ink-subtle">{offer.kind}</span>}
+      </span>
     </li>
   )
 }

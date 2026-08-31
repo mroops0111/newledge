@@ -93,6 +93,7 @@ export function BoardTools({ extent, laidOut, onAddSection, onPutting, putting, 
           { id: 'in', label: 'Zoom in', icon: GLYPHS.zoomIn, onUse: () => void flow.zoomIn({ duration: STEP }) },
           { id: 'out', label: 'Zoom out', icon: GLYPHS.zoomOut, onUse: () => void flow.zoomOut({ duration: STEP }) },
         ],
+        // What goes on the board.
         [
           {
             id: 'put',
@@ -102,13 +103,8 @@ export function BoardTools({ extent, laidOut, onAddSection, onPutting, putting, 
             active: putting,
           },
           { id: 'section', label: 'Add a section', icon: GLYPHS.section, onUse: onAddSection },
-          {
-            id: 'rearrange',
-            label: 'Lay the board out again, losing how you have arranged it',
-            icon: GLYPHS.rearrange,
-            onUse: onRearrange,
-          },
         ],
+        // What is selected, which is nothing until a reader picks a card.
         [
           {
             id: 'focus',
@@ -126,6 +122,15 @@ export function BoardTools({ extent, laidOut, onAddSection, onPutting, putting, 
             icon: GLYPHS.takeOff,
             onUse: onTakeOff,
             disabled: !canFocus,
+          },
+        ],
+        // Alone, because it is the one that throws a reader's work away.
+        [
+          {
+            id: 'rearrange',
+            label: 'Lay the board out again, losing how you have arranged it',
+            icon: GLYPHS.rearrange,
+            onUse: onRearrange,
           },
         ],
       ]}
