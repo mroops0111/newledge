@@ -65,9 +65,10 @@ export async function projectBoard(
 /**
  * What a board would be projected into now, without writing any of it.
  *
- * The projection is a function, so asking what it would say costs a walk of
- * the graph and nothing else. That is what lets a view be told it has gone
- * stale, by comparing this against the material it was actually written from.
+ * The projection is a function,
+ * so asking what it would say costs a walk of the graph and nothing else.
+ * That is what lets a view be told it has gone stale,
+ * by comparing this against the material it was actually written from.
  */
 export async function materialOf(
   deps: AppDependencies,

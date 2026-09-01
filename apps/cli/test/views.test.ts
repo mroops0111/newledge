@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { DECK_WORKSPACE } from '@newledge/view-generator-handout/forms'
+import { projectBoard } from '../src/boardViews.js'
 import { composeKnowledgeRuntime } from '../src/compose.js'
 import { ensureWorkspace, WORKSPACE_NAME } from '../src/run.js'
 
@@ -155,5 +156,84 @@ describe('the decks the workspace that plays them is holding', () => {
   it('lists nothing when the workspace named is not there', async () => {
     process.env[DECK_WORKSPACE] = join(tmpdir(), 'newledge-nothing-here')
     expect(await listed()).toEqual([])
+  })
+})
+
+describe('a board that has moved on since a view of it was written', () => {
+  let braidHome: string
+  let runtime: Awaited<ReturnType<typeof composeKnowledgeRuntime>>
+  let views: string
+
+  const keep = async (name: string, cards: readonly string[] = []): Promise<void> => {
+    await runtime.app.request(`/workspaces/${WORKSPACE_NAME}/boards`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        boards: [{ id: 'b1', name, cards: cards.map((nodeId, at) => ({ nodeId, x: at, y: at })), sections: [] }],
+      }),
+    })
+  }
+
+  const staleness = async (): Promise<Record<string, boolean>> => {
+    const response = await runtime.app.request(`/workspaces/${WORKSPACE_NAME}/views`)
+    const { items } = await response.json() as { items: { path: string, stale?: boolean }[] }
+    return Object.fromEntries(items.map(one => [one.path, one.stale === true]))
+  }
+
+  beforeAll(async () => {
+    braidHome = await mkdtemp(join(tmpdir(), 'newledge-stale-'))
+    runtime = await composeKnowledgeRuntime(fakeProvider, { braidHome, apiUrl: 'http://localhost:4405' })
+    await ensureWorkspace(runtime, { query: 'test' })
+    const workspace = await runtime.deps.workspaceService.findById(WORKSPACE_NAME as never)
+    views = join(workspace.rootPath, 'artifacts', 'views')
+    await keep('One')
+    // A view of that board, standing in for whatever a skill would have written.
+    await mkdir(join(views, 'handbook'), { recursive: true })
+    await writeFile(join(views, 'handbook', 'b1.html'), '<p>Written</p>\n', 'utf-8')
+    await projectBoard(runtime.deps, WORKSPACE_NAME as never, 'b1')
+  })
+
+  afterAll(async () => {
+    await rm(braidHome, { recursive: true, force: true })
+  })
+
+  it('says nothing while the board still projects into what was written from', async () => {
+    expect(await staleness()).toEqual({ 'handbook/b1.html': false })
+  })
+
+  it('says so once the board projects into something else', async () => {
+    // What a board is called is the title of every view written from it.
+    await keep('Renamed')
+    expect(await staleness()).toEqual({ 'handbook/b1.html': true })
+  })
+
+  it('says nothing of a card for a node the graph does not hold', async () => {
+    // Nothing is projected out of it, so nothing a reader would read moved,
+    // and a view of the board is still a reading of what it says.
+    await projectBoard(runtime.deps, WORKSPACE_NAME as never, 'b1')
+    await keep('Renamed', ['nothingTheGraphHolds'])
+    expect(await staleness()).toEqual({ 'handbook/b1.html': false })
+  })
+
+  it('says nothing again once it has been written from as it stands', async () => {
+    await keep('Renamed again')
+    expect(await staleness()).toEqual({ 'handbook/b1.html': true })
+    await projectBoard(runtime.deps, WORKSPACE_NAME as never, 'b1')
+    expect(await staleness()).toEqual({ 'handbook/b1.html': false })
+  })
+
+  it('leaves a board nothing was ever written from out of it', async () => {
+    // Not stale, unwritten, which is not a thing to tell a reader about.
+    await runtime.app.request(`/workspaces/${WORKSPACE_NAME}/boards`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        boards: [
+          { id: 'b1', name: 'Renamed again', cards: [], sections: [] },
+          { id: 'b2', name: 'Two', cards: [], sections: [] },
+        ],
+      }),
+    })
+    expect(Object.keys(await staleness())).toEqual(['handbook/b1.html'])
   })
 })
