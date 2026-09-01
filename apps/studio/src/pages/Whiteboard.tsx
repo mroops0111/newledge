@@ -238,7 +238,6 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
         // Only where there is something to tell a card apart from.
         // A board of one kind says one word on every card, and so says nothing.
         ...((current.holds ?? []).length > 1 ? { kind: card.node.type } : {}),
-        acts: actsOn(card.nodeId),
       },
       style: { width: card.width, height: CARD_HEIGHT },
       zIndex: 3,
@@ -251,6 +250,18 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
     [drawn],
   )
   const [pickedId] = [...selected]
+
+  // What this board holds.
+  // How it is arranged and how it is drawn are answered elsewhere,
+  // and this is answered where they are not.
+  const { putting, setPutting, actsOn } = useBoardCards({
+    latestBoard,
+    picked: pickedId,
+    focused,
+    persist,
+    onFocus: setFocused,
+  })
+
 
   /**
    * The section a reader has taken hold of, which is the only one that moves.
@@ -413,12 +424,16 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
           byId,
           parentId => kinColour(familyLed.get(parentId) ?? NO_FAMILY),
         ),
+        // Here rather than where the card is built.
+        // What a card offers reads back what a reader is attending to,
+        // and that is settled here and nowhere earlier.
+        acts: actsOn(node.id),
       },
     }
     return [emphasis === 'dimmed'
       ? { ...picked, style: { ...picked.style, opacity: DIMMED } }
       : picked]
-  }), [drawn, near, attention, grabbed, relations, byId, hangsOff, familyLed, grounds])
+  }), [drawn, near, attention, grabbed, relations, byId, hangsOff, familyLed, grounds, actsOn])
 
   const edges: Edge[] = useMemo(() => boardEdges(relations.lines, {
     boxes,
@@ -434,17 +449,6 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
 
   // Opening a concept is what shows what is asserted about it,
   // and where that came from, since a board draws neither.
-  // What this board holds.
-  // How it is arranged and how it is drawn are answered elsewhere,
-  // and this is answered where they are not.
-  const { putting, setPutting, actsOn } = useBoardCards({
-    latestBoard,
-    picked: pickedId,
-    focused,
-    persist,
-    onFocus: setFocused,
-  })
-
   const opened = pickedId === undefined ? undefined : byId.get(pickedId)
 
   if (error !== undefined)

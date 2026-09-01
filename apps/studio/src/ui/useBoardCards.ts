@@ -1,6 +1,6 @@
 import type { Board } from '@newledge/board'
 import type { RefObject } from 'react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { withoutCard } from '../lib/boards.js'
 import type { CardAct } from './CardMenu.js'
 import { GLYPHS } from './Toolkit.js'
@@ -42,12 +42,6 @@ export function useBoardCards({ latestBoard, picked, focused, persist, onFocus }
 }): BoardCards {
   const [putting, setPutting] = useState(false)
 
-  // Read where a card's own acts are built.
-  // They must not be rebuilt every time focus changes,
-  // since that redraws every card on the board.
-  const focusedNow = useRef(focused)
-  focusedNow.current = focused
-
   /**
    * Take one card off this board.
    * The node stays in the graph and on every other board,
@@ -64,9 +58,12 @@ export function useBoardCards({ latestBoard, picked, focused, persist, onFocus }
   const actsOn = useCallback((nodeId: string): readonly CardAct[] => [
     {
       id: 'focus',
-      label: focusedNow.current ? 'Show all' : 'Focus',
+      // What it will do rather than what it is.
+      // A reader opens a menu to find the thing they want done,
+      // and not to be told which way round they already are.
+      label: focused ? 'Show all' : 'Focus',
       icon: GLYPHS.focus,
-      onUse: () => onFocus(!focusedNow.current),
+      onUse: () => onFocus(!focused),
     },
     {
       id: 'takeOff',
@@ -80,7 +77,7 @@ export function useBoardCards({ latestBoard, picked, focused, persist, onFocus }
       key: '⌫',
       onUse: () => takeOff(nodeId),
     },
-  ], [takeOff, onFocus])
+  ], [focused, takeOff, onFocus])
 
   /**
    * Backspace takes the picked card off.
