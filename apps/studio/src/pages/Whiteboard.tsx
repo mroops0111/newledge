@@ -446,6 +446,30 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
     setFocused(false)
   }, [pickedId, persist])
 
+  /**
+   * Backspace takes the picked card off.
+   * It is what a canvas has taught everyone to reach for,
+   * and what a rail of glyphs cannot teach anybody.
+   *
+   * Not while a reader is typing.
+   * A board's name, a section's name, and what is being searched for,
+   * are all fields, and a key pressed in one of them belongs to the field,
+   * rather than to the board behind it.
+   */
+  useEffect(() => {
+    function pressed(event: KeyboardEvent): void {
+      if (event.key !== 'Backspace' && event.key !== 'Delete')
+        return
+      const at = event.target as HTMLElement | null
+      if (at?.tagName === 'INPUT' || at?.tagName === 'TEXTAREA' || at?.isContentEditable === true)
+        return
+      event.preventDefault()
+      takeOff()
+    }
+    document.addEventListener('keydown', pressed)
+    return () => document.removeEventListener('keydown', pressed)
+  }, [takeOff])
+
   const opened = pickedId === undefined ? undefined : byId.get(pickedId)
 
   if (error !== undefined)

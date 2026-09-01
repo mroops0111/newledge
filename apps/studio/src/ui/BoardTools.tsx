@@ -118,7 +118,9 @@ export function BoardTools({ extent, laidOut, onAddSection, onPutting, putting, 
             id: 'takeOff',
             // Said as a board doing without it rather than as a deletion,
             // since the node stays where it is and every other board keeps it.
-            label: 'Take this off the board',
+            // The key is named because a rail of glyphs cannot teach a gesture,
+            // and this is the one a reader reaches for before looking here.
+            label: 'Take this off the board  ⌫',
             icon: GLYPHS.takeOff,
             onUse: onTakeOff,
             disabled: !canFocus,
