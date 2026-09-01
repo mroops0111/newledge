@@ -32,11 +32,13 @@ export interface BoardCards {
  * A card is taken off in a handler that outlives the render it was built in,
  * and the board it should act on is the one there by then.
  */
-export function useBoardCards({ latestBoard, picked, persist }: {
+export function useBoardCards({ latestBoard, picked, focused, persist, onFocus }: {
   latestBoard: RefObject<Board | undefined>
   /** The card a reader has picked, which is the one a key acts on. */
   picked: string | undefined
+  focused: boolean
   persist: (board: Board) => void
+  onFocus: (focused: boolean) => void
 }): BoardCards {
   const [putting, setPutting] = useState(false)
 
@@ -50,9 +52,19 @@ export function useBoardCards({ latestBoard, picked, persist }: {
     if (current === undefined)
       return
     persist(withoutCard(current, nodeId))
-  }, [latestBoard, persist])
+    onFocus(false)
+  }, [latestBoard, persist, onFocus])
 
   const actsOn = useCallback((nodeId: string): readonly CardAct[] => [
+    {
+      id: 'focus',
+      // What it will do rather than what it is.
+      // A reader opens a menu to find the thing they want done,
+      // and not to be told which way round they already are.
+      label: focused ? 'Show all' : 'Only this',
+      icon: GLYPHS.focus,
+      onUse: () => onFocus(!focused),
+    },
     {
       id: 'takeOff',
       // Remove rather than delete.
@@ -65,7 +77,7 @@ export function useBoardCards({ latestBoard, picked, persist }: {
       key: '⌫',
       onUse: () => takeOff(nodeId),
     },
-  ], [takeOff])
+  ], [focused, takeOff, onFocus])
 
   /**
    * Backspace takes the picked card off.
