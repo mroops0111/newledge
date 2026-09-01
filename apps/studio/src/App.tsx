@@ -17,7 +17,7 @@ import type { SurfaceLink } from './ui/AppShell.js'
  * Ordering them any other way puts a surface before the one it draws from.
  */
 const SURFACES: readonly SurfaceLink[] = [
-  { id: 'inbox', label: 'Reading inbox' },
+  { id: 'inbox', label: 'Inbox' },
   { id: 'graph', label: 'Graph' },
   { id: 'board', label: 'Board' },
   { id: 'views', label: 'Handouts' },
