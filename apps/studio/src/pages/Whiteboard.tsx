@@ -25,6 +25,7 @@ import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
 import type { BoardCardData } from '../ui/BoardCard.js'
 import { BoardCard } from '../ui/BoardCard.js'
+import type { CardAct } from '../ui/CardMenu.js'
 import { CanvasGrid } from '../ui/CanvasGrid.js'
 import { CardDrop } from '../ui/CardDrop.js'
 import { CardPicker } from '../ui/CardPicker.js'
@@ -60,6 +61,10 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
   const [openId, setOpenId] = useState<string | undefined>(undefined)
   const [focused, setFocused] = useState(false)
   const [putting, setPutting] = useState(false)
+  // Read where a card's own acts are built, which must not be rebuilt,
+  // every time focus changes, since that redraws every card on the board.
+  const focusedRef = useRef(focused)
+  focusedRef.current = focused
   // Laying a board out again gives back the same cards in new places,
   // so what is drawn is rebuilt from a fact other than which cards it holds.
   const [generation, setGeneration] = useState(0)
@@ -198,6 +203,42 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
     [board, generation],
   )
 
+  /**
+   * Take one card off this board.
+   * The node stays in the graph and on every other board,
+   * so this narrows one reading rather than losing anything.
+   */
+  const takeOff = useCallback((nodeId: string) => {
+    const current = latestBoard.current
+    if (current === undefined)
+      return
+    persist(withoutCard(current, nodeId))
+    setFocused(false)
+  }, [persist])
+
+  /**
+   * What a reader can do to one card, offered on that card.
+   *
+   * Taking a card off is said as the board doing without it,
+   * rather than as a deletion,
+   * since the node stays where it is and every other board keeps it.
+   * The key is named beside it because a menu a reader has to open,
+   * cannot teach the gesture they would have reached for instead.
+   */
+  const actsOn = useCallback((nodeId: string): readonly CardAct[] => [
+    {
+      id: 'focus',
+      label: focusedRef.current ? 'Show the rest' : 'Focus on this',
+      onUse: () => setFocused(now => !now),
+    },
+    {
+      id: 'takeOff',
+      label: 'Take off this board',
+      key: '⌫',
+      onUse: () => takeOff(nodeId),
+    },
+  ], [takeOff])
+
   useEffect(() => {
     const current = latestBoard.current
     if (current === undefined)
@@ -238,6 +279,7 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
         // Only where there is something to tell a card apart from.
         // A board of one kind says one word on every card, and so says nothing.
         ...((current.holds ?? []).length > 1 ? { kind: card.node.type } : {}),
+        acts: actsOn(card.nodeId),
       },
       style: { width: card.width, height: CARD_HEIGHT },
       zIndex: 3,
@@ -434,19 +476,6 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
   // Opening a concept is what shows what is asserted about it,
   // and where that came from, since a board draws neither.
   /**
-   * Take what is selected off this board.
-   * The node stays in the graph and on every other board,
-   * so this narrows one reading rather than losing anything.
-   */
-  const takeOff = useCallback(() => {
-    const current = latestBoard.current
-    if (current === undefined || pickedId === undefined)
-      return
-    persist(withoutCard(current, pickedId))
-    setFocused(false)
-  }, [pickedId, persist])
-
-  /**
    * Backspace takes the picked card off.
    * It is what a canvas has taught everyone to reach for,
    * and what a rail of glyphs cannot teach anybody.
@@ -463,12 +492,14 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
       const at = event.target as HTMLElement | null
       if (at?.tagName === 'INPUT' || at?.tagName === 'TEXTAREA' || at?.isContentEditable === true)
         return
+      if (pickedId === undefined)
+        return
       event.preventDefault()
-      takeOff()
+      takeOff(pickedId)
     }
     document.addEventListener('keydown', pressed)
     return () => document.removeEventListener('keydown', pressed)
-  }, [takeOff])
+  }, [pickedId, takeOff])
 
   const opened = pickedId === undefined ? undefined : byId.get(pickedId)
 
@@ -549,10 +580,6 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
               laidOut={laidOut}
               onAddSection={() => persist(withSection(board))}
               onRearrange={rearrange}
-              onFocus={() => setFocused(now => !now)}
-              focused={focused}
-              canFocus={pickedId !== undefined}
-              onTakeOff={takeOff}
               onPutting={() => setPutting(now => !now)}
               putting={putting}
               zoom={zoom}

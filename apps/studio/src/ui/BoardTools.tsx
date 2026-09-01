@@ -22,11 +22,6 @@ export interface BoardToolsProps {
   readonly putting: boolean
   /** Throw the reader's arrangement away and lay the board out again. */
   readonly onRearrange: () => void
-  readonly onFocus: () => void
-  readonly focused: boolean
-  readonly canFocus: boolean
-  /** Take what is selected off this board, leaving the node where it is. */
-  readonly onTakeOff: () => void
   /**
    * Kept in step with how far the board is zoomed.
    * Snapping is judged in screen pixels,
@@ -37,11 +32,16 @@ export interface BoardToolsProps {
 
 /**
  * The instruments a reader works a board with.
+ *
+ * What a board is looked at through, what goes on it, and laying it out again.
+ * What is done to one card is offered on that card,
+ * since a rail is where a reader reaches before they have picked anything,
+ * and an act on a card is a question they have not asked yet.
  * Fitting is worked out from where things are,
  * rather than from what the canvas has managed to measure,
  * so it takes the whole board in whether or not every card is drawn yet.
  */
-export function BoardTools({ extent, laidOut, onAddSection, onPutting, putting, onRearrange, onFocus, focused, canFocus, onTakeOff, zoom }: BoardToolsProps): React.JSX.Element {
+export function BoardTools({ extent, laidOut, onAddSection, onPutting, putting, onRearrange, zoom }: BoardToolsProps): React.JSX.Element {
   const flow = useReactFlow()
   const fitted = useRef(false)
   const rail = useRef<HTMLDivElement>(null)
@@ -103,28 +103,6 @@ export function BoardTools({ extent, laidOut, onAddSection, onPutting, putting, 
             active: putting,
           },
           { id: 'section', label: 'Add a section', icon: GLYPHS.section, onUse: onAddSection },
-        ],
-        // What is selected, which is nothing until a reader picks a card.
-        [
-          {
-            id: 'focus',
-            label: focused ? 'Show the rest of the board' : 'Focus on what is selected',
-            icon: GLYPHS.focus,
-            onUse: onFocus,
-            disabled: !canFocus,
-            active: focused,
-          },
-          {
-            id: 'takeOff',
-            // Said as a board doing without it rather than as a deletion,
-            // since the node stays where it is and every other board keeps it.
-            // The key is named because a rail of glyphs cannot teach a gesture,
-            // and this is the one a reader reaches for before looking here.
-            label: 'Take this off the board  ⌫',
-            icon: GLYPHS.takeOff,
-            onUse: onTakeOff,
-            disabled: !canFocus,
-          },
         ],
         // Alone, because it is the one that throws a reader's work away.
         [
