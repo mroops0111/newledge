@@ -20,7 +20,13 @@ export interface CardAct {
   readonly id: string
   readonly label: string
   readonly icon: ReactNode
-  /** Said beside the label, for an act a reader can reach without this menu. */
+  /**
+   * Whether this takes something away.
+   * It is the one act in a menu a reader wants to be sure of,
+   * before they press it.
+   */
+  readonly removes?: boolean
+  /** How else it can be reached, said where a reader hovers rather than drawn. */
   readonly key?: string
   readonly onUse: () => void
 }
@@ -71,13 +77,13 @@ export function CardMenu({ acts }: { acts: readonly CardAct[] }): React.JSX.Elem
           event.stopPropagation()
           setOpen(now => !now)
         }}
-        // Drawn the way every small control here is,
-        // which is a glyph taking a ground on hover,
-        // and the ink itself while it is open.
-        // Set in the muted ink rather than the subtle one,
-        // since three faint dots on a white card is a control nobody finds.
+        // A glyph that takes a ground,
+        // which is how every small control here is drawn.
+        // Open, it holds the ground it took rather than inverting,
+        // since a dark square is a weight this card did not ask for,
+        // to say a menu under it is showing.
         className={`flex size-7 items-center justify-center rounded-control transition-colors ${open
-          ? 'bg-ink text-canvas'
+          ? 'bg-raised text-ink'
           : 'text-ink-muted hover:bg-raised hover:text-ink'}`}
       >
         {GLYPHS.more}
@@ -89,18 +95,21 @@ export function CardMenu({ acts }: { acts: readonly CardAct[] }): React.JSX.Elem
             <li key={act.id}>
               <button
                 type="button"
+                // Where else it can be reached, said on hover rather than drawn.
+                // A glyph at each end of two words,
+                // is two glyphs to read past to reach them.
+                title={act.key === undefined ? act.label : `${act.label}  ${act.key}`}
                 onClick={(event) => {
                   event.stopPropagation()
                   setOpen(false)
                   act.onUse()
                 }}
-                className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left font-ui text-prose-sm text-ink-muted transition-colors hover:bg-raised hover:text-ink"
+                className={`flex w-full items-center gap-2 px-2.5 py-1.5 text-left font-ui text-prose-sm transition-colors ${act.removes === true
+                  ? 'text-claim hover:bg-claim/5'
+                  : 'text-ink-muted hover:bg-raised hover:text-ink'}`}
               >
-                <span className="shrink-0 text-ink-subtle">{act.icon}</span>
+                <span className="shrink-0">{act.icon}</span>
                 {act.label}
-                {act.key !== undefined && (
-                  <span className="ml-auto font-ui text-label text-ink-subtle">{act.key}</span>
-                )}
               </button>
             </li>
           ))}

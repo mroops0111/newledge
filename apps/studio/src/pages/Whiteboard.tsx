@@ -235,8 +235,12 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
     },
     {
       id: 'takeOff',
-      label: 'Take off',
+      // Remove rather than delete. Delete would say the node is gone,
+      // and it is not. It stays in the graph and on every other board,
+      // so what a reader removes is this board's claim to be about it.
+      label: 'Remove',
       icon: GLYPHS.takeOff,
+      removes: true,
       key: '⌫',
       onUse: () => takeOff(nodeId),
     },
