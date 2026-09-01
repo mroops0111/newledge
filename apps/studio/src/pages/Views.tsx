@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { BoardClient } from '../lib/boards.js'
 import type { Listed, Made, ViewClient, Written } from '../lib/views.js'
-import { madeFrom, pageOf, titleOf } from '../lib/views.js'
+import { FORMS, madeFrom, pageOf, titleOf } from '../lib/views.js'
+import { askedOf } from '@newledge/view-generator-handout/forms'
 import { paletteOf } from '../lib/viewStyle.js'
 import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
@@ -35,6 +36,11 @@ export function Views({ client, boards, nav }: {
   // and it is said where that one would have been drawn,
   // so one unreadable file does not take the list of the rest with it.
   const [lost, setLost] = useState<string | undefined>(undefined)
+  // Which subjects have a rewrite going.
+  // The count asks for the list again once one is over,
+  // since what is stale is worked out on the way out.
+  const [rewriting, setRewriting] = useState<ReadonlySet<string>>(new Set())
+  const [written, setWritten] = useState(0)
 
   useEffect(() => {
     void client.list()
@@ -48,7 +54,7 @@ export function Views({ client, boards, nav }: {
     void boards.read()
       .then(state => setNamed(new Map(state.boards.map(one => [one.id, one.name]))))
       .catch(() => undefined)
-  }, [client, boards])
+  }, [client, boards, written])
 
   // A view with an address is shown at it rather than read,
   // so nothing is fetched for one and nothing can fail to be.
@@ -66,6 +72,27 @@ export function Views({ client, boards, nav }: {
     () => madeFrom(listed ?? [], subject => named.get(subject)),
     [listed, named],
   )
+  const stale = useMemo(() => made.filter(one => one.stale), [made])
+
+  /**
+   * Write every form of a subject again, from the board as it stands now.
+   *
+   * A form is rewritten in the form it is already in.
+   * A reader holding a handbook and an exam has said what they want,
+   * so a rewrite brings those two up to date,
+   * rather than offering them the two they did not ask for.
+   */
+  const rewrite = useCallback((subjects: readonly Made[]) => {
+    setRewriting(now => new Set([...now, ...subjects.map(one => one.subject)]))
+    void Promise.all(subjects.flatMap(subject => subject.of.map(async (held) => {
+      const form = FORMS.find(one => one.label === held.form)
+      if (form === undefined)
+        return
+      await client.write(form, subject.subject, askedOf(form, {})).catch(() => undefined)
+    })))
+      .then(() => setWritten(count => count + 1))
+      .finally(() => setRewriting(new Set()))
+  }, [client])
 
   if (lost !== undefined)
     return <AppShell {...nav}><p className="p-10 font-ui text-sm text-claim">{lost}</p></AppShell>
@@ -74,7 +101,25 @@ export function Views({ client, boards, nav }: {
     <AppShell {...nav}>
       <div className="flex h-screen">
         <aside className="w-72 shrink-0 overflow-y-auto border-r border-line bg-surface py-5">
-          <div className="px-4"><GroupLabel>Handouts</GroupLabel></div>
+          <div className="flex items-center justify-between gap-2 px-4">
+            <GroupLabel>Handouts</GroupLabel>
+            {/*
+              Offered over all of them only where more than one has moved on,
+              since a single one is rewritten from its own subject,
+              and a control for doing one thing to one thing is a second way
+              to do it.
+            */}
+            {stale.length > 1 && (
+              <button
+                type="button"
+                onClick={() => rewrite(stale)}
+                disabled={rewriting.size > 0}
+                className="rounded-control px-1.5 py-0.5 font-ui text-label text-ink-subtle transition-colors hover:bg-raised hover:text-ink disabled:opacity-40"
+              >
+                {`Rewrite all ${stale.length}`}
+              </button>
+            )}
+          </div>
           {listed?.length === 0 && (
             <p className="mt-3 px-4 font-reading text-prose-sm text-ink-subtle">
               Nothing written out yet. Open a board and write one.
@@ -83,7 +128,13 @@ export function Views({ client, boards, nav }: {
           <ul className="mt-3 space-y-5">
             {made.map(one => (
               <li key={one.name}>
-                <Subject made={one} showing={showing} onShow={setShowing} />
+                <Subject
+                  made={one}
+                  showing={showing}
+                  onShow={setShowing}
+                  rewriting={rewriting.has(one.subject)}
+                  onRewrite={() => rewrite([one])}
+                />
               </li>
             ))}
           </ul>
@@ -137,14 +188,37 @@ function said(cause: unknown): string {
  * and the forms sit under it,
  * because which one they want is the second question.
  */
-function Subject({ made, showing, onShow }: {
+function Subject({ made, showing, onShow, rewriting, onRewrite }: {
   made: Made
   showing: Listed | undefined
   onShow: (view: Listed) => void
+  /** Whether a rewrite of this subject is going, so it is not asked for twice. */
+  rewriting: boolean
+  onRewrite: () => void
 }): React.JSX.Element {
   return (
     <div>
       <p className="truncate px-4 font-ui text-prose-sm font-semibold text-ink">{made.name}</p>
+      {/*
+        Said once over the subject rather than on each form under it.
+        One board projects into one material, so every form of it goes out of
+        date together, and saying so four times would read as four problems.
+      */}
+      {made.stale && (
+        <div className="mt-0.5 px-4">
+          <p className="font-reading text-prose-sm text-ink-subtle">
+            The board has changed since these were written.
+          </p>
+          <button
+            type="button"
+            onClick={onRewrite}
+            disabled={rewriting}
+            className="mt-1 rounded-control border border-line-strong px-2 py-0.5 font-ui text-label text-ink-muted transition-colors hover:bg-raised hover:text-ink disabled:opacity-40"
+          >
+            {rewriting ? 'Writing' : `Write ${made.of.length === 1 ? 'it' : 'them'} again`}
+          </button>
+        </div>
+      )}
       <ul className="mt-1">
         {made.of.map(one => (
           <li key={one.view.path}>

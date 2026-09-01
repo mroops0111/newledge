@@ -104,6 +104,28 @@ describe('FORMS', () => {
   })
 })
 
+describe('a board that has moved on since its handouts were written', () => {
+  const at = (path: string, stale?: boolean): Listed =>
+    ({ path, format: 'html', bytes: 1, writtenAt: '2026-08-28T09:00:00Z', ...(stale === undefined ? {} : { stale }) })
+
+  it('says so over the subject, since every form of one goes stale together', () => {
+    // One board projects into one material,
+    // so saying it four times would read as four problems.
+    const made = madeFrom([at('handbook/b1.html', true), at('exam/b1.html')], () => 'One')
+    expect(made[0]?.stale).toBe(true)
+  })
+
+  it('says nothing where nothing has changed', () => {
+    expect(madeFrom([at('handbook/b1.html'), at('exam/b1.html')], () => 'One')[0]?.stale).toBe(false)
+  })
+
+  it('carries what the board is called, so a rewrite can ask for it', () => {
+    // The name is the reader's and can be anything, including another board's,
+    // so what a rewrite is asked for by is the id underneath it.
+    expect(madeFrom([at('handbook/b1.html')], () => 'A name')[0]).toMatchObject({ subject: 'b1', name: 'A name' })
+  })
+})
+
 describe('what a subject was written out of', () => {
   it('reads a form that writes one file per board', () => {
     expect(subjectOf('exam/retrieval.html')).toBe('retrieval')
