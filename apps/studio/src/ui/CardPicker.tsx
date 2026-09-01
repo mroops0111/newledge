@@ -40,7 +40,10 @@ export function CardPicker({ nodes, board }: {
     () => byKind(unplaced(nodes, board, { like }), kinds),
     [nodes, board, kinds, like],
   )
-  const empty = gathered.length === 0
+  // While a reader is searching, a kind with no match is noise,
+  // and the one line saying nothing matched covers all of them at once.
+  const shown = like === '' ? gathered : gathered.filter(group => group.offers.length > 0)
+  const empty = shown.every(group => group.offers.length === 0)
 
   return (
     <div className="flex h-full w-96 flex-col">
@@ -63,23 +66,25 @@ export function CardPicker({ nodes, board }: {
         />
       </div>
 
-      {empty
-        ? (
-            <p className="px-6 py-5 font-reading text-prose-sm text-ink-subtle">
-              {like === ''
-                ? 'This board already holds everything there is to place.'
-                : 'Nothing by that name.'}
-            </p>
-          )
+      {empty && like !== ''
+        ? <p className="px-6 py-5 font-reading text-prose-sm text-ink-subtle">Nothing by that name.</p>
         : (
             <div className="min-h-0 flex-1 overflow-y-auto py-4">
-              {gathered.map(group => (
+              {shown.map(group => (
                 <section key={group.kind} className="mb-4 last:mb-0">
                   {/* A kind names its group rather than trailing every name in it. */}
                   <div className="px-6 pb-1"><GroupLabel>{group.kind}</GroupLabel></div>
-                  <ul>
-                    {group.offers.map(offer => <Draggable key={offer.id} offer={offer} />)}
-                  </ul>
+                  {group.offers.length === 0
+                    ? (
+                        <p className="px-6 font-reading text-prose-sm text-ink-subtle">
+                          Every one of these is already on the board.
+                        </p>
+                      )
+                    : (
+                        <ul>
+                          {group.offers.map(offer => <Draggable key={offer.id} offer={offer} />)}
+                        </ul>
+                      )}
                 </section>
               ))}
             </div>

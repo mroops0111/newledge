@@ -75,9 +75,12 @@ describe('gathering the offers under their kinds', () => {
     expect(gathered[0]?.offers.map(one => one.name)).toEqual(['Grounding', 'Retrieval'])
   })
 
-  it('leaves out a kind nothing is left of', () => {
-    const board_ = board(['paperOne'])
-    expect(byKind(unplaced(graph, board_), placeable(graph)).map(one => one.kind)).toEqual(['Concept'])
+  it('keeps a kind nothing is left of, so a reader is not left wondering', () => {
+    // A heading that disappears once a board holds every one of its kind,
+    // leaves a reader asking where that kind went.
+    const gathered = byKind(unplaced(graph, board(['paperOne'])), placeable(graph))
+    expect(gathered.map(one => one.kind)).toEqual(['Concept', 'Source'])
+    expect(gathered[1]?.offers).toEqual([])
   })
 
   it('offers them in the order a board bands them, not alphabetically', () => {

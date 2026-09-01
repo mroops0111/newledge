@@ -80,9 +80,12 @@ export function unplaced(
  *
  * Kinds come in the order a board bands them,
  * so what a board is mostly about is what a reader reaches first.
+ *
+ * A kind with nothing left is kept rather than dropped.
+ * A heading that quietly disappears once a board holds every one of its kind,
+ * leaves a reader asking where that kind went,
+ * and the answer, that they already have all of it, is worth a line.
  */
 export function byKind(offers: readonly Offer[], kinds: readonly string[]): readonly Gathered[] {
-  return kinds
-    .map(kind => ({ kind, offers: offers.filter(offer => offer.kind === kind) }))
-    .filter(gathered => gathered.offers.length > 0)
+  return kinds.map(kind => ({ kind, offers: offers.filter(offer => offer.kind === kind) }))
 }
