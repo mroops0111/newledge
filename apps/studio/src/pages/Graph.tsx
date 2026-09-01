@@ -1,6 +1,6 @@
 import type { Node } from '@xyflow/react'
 import { Controls, getViewportForBounds, ReactFlow, ReactFlowProvider, useReactFlow, useStoreApi } from '@xyflow/react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { onSurface, SURVEY_STROKE } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
@@ -38,44 +38,58 @@ const UNTYPED = 'var(--ink-subtle)'
  */
 const PADDING = '8%'
 
+/** How long a reframe takes, which is long enough to be followed by eye. */
+const EASE = 250
+
 /**
- * Frame the graph once its nodes have somewhere to be.
+ * Frame whatever is drawn, again each time what is drawn changes.
  *
  * Placement lands after the graph is read,
  * so fitting on mount would frame a canvas still at the origin.
  *
- * Framed on arrival and then left alone.
- * A reader who has moved the canvas is somewhere they went on purpose.
- * Reframing whenever the room changes takes that away,
- * for a reason the reader never gave.
- * Opening the column beside it is the plainest case of that,
- * and asking for the frame back is one button, which is where asking belongs.
+ * Keyed on which cards are drawn rather than on the canvas.
+ * A reader who has moved the canvas is somewhere they went on purpose,
+ * and a window resized, or a column opened beside it, is not them asking
+ * to be shown everything again. Focusing and filtering are,
+ * since each changes what there is to look at,
+ * and an arrangement of six left in the frame ninety needed is not a reading.
  *
- * Taken at once rather than eased.
+ * The arrival is taken at once and every frame after it is eased.
  * The canvas takes an eased viewport only while nothing else is moving,
- * so easing this one is a frame that silently never arrives.
+ * which on arrival everything is, so easing that one never arrives.
  */
-function FitOnPlacement({ ready }: { ready: boolean }): null {
+function FitOnWhatIsDrawn({ drawing }: {
+  /** Which cards are drawn, or nothing while any of them lacks a position. */
+  drawing: string | undefined
+}): null {
   const flow = useReactFlow()
   // Read when the frame is taken rather than watched,
   // since watching the canvas is what would reframe on every resize,
   // and a resize is not a reader asking to be shown everything again.
   const canvas = useStoreApi()
+  const framed = useRef<string | undefined>(undefined)
 
   useEffect(() => {
-    if (!ready)
+    if (drawing === undefined || drawing === framed.current)
       return
     // The nodes reach the canvas a tick before their positions do,
     // so the frame is taken after the browser has drawn them.
     const timer = setTimeout(() => {
       const { width, height, minZoom, maxZoom } = canvas.getState()
+      // Nothing has been measured yet, so the frame is left for the next change,
+      // rather than taken against a canvas of no size.
       if (width === 0)
         return
+      const arriving = framed.current === undefined
+      framed.current = drawing
       const bounds = flow.getNodesBounds(flow.getNodes())
-      flow.setViewport(getViewportForBounds(bounds, width, height, minZoom, maxZoom, PADDING))
+      flow.setViewport(
+        getViewportForBounds(bounds, width, height, minZoom, maxZoom, PADDING),
+        arriving ? undefined : { duration: EASE },
+      )
     }, 0)
     return () => clearTimeout(timer)
-  }, [ready, canvas, flow])
+  }, [drawing, canvas, flow])
   return null
 }
 
@@ -188,8 +202,15 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
     [shown, near, attention],
   )
 
-  // Fitting before every node has a position frames a canvas at the origin.
-  const placedAll = shown.nodes.length > 0 && shown.nodes.every(node => placed.has(node.id))
+  // What the frame is taken of, and what a change of frame is asked for by.
+  // Held back until every card has a position,
+  // since fitting before then frames a canvas still at the origin.
+  const drawing = useMemo(
+    () => (flowNodes.length > 0 && flowNodes.every(node => placed.has(node.id))
+      ? flowNodes.map(node => node.id).join('|')
+      : undefined),
+    [flowNodes, placed],
+  )
 
   const only = useCallback((kind: 'nodeTypes' | 'edgeTypes', ids: readonly string[]) => {
     setView(current => current === undefined ? current : { ...current, [kind]: new Set(ids) })
@@ -279,7 +300,7 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
             maxZoom={2}
             proOptions={{ hideAttribution: true }}
           >
-            <FitOnPlacement ready={placedAll} />
+            <FitOnWhatIsDrawn drawing={drawing} />
             <CanvasGrid />
             {/*
               Down the same edge the panel and the switch that opens it are on,
