@@ -127,12 +127,6 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
     [graph, view],
   )
 
-  // Laid out again whenever the canvas gains or loses something,
-  // and not when a node's own contents change,
-  // since a description a reader edited is no reason to move every card.
-  const membership = `${shown.nodes.map(node => node.id).join('|')}#${shown.edges.map(edge => edge.id).join('|')}`
-  const placed = useMemo(() => laidOut(shown.nodes, shown.edges), [membership])
-
   /**
    * A reader who picked something wants the rest out of the way,
    * gently while they glance and entirely once they ask to focus.
@@ -145,6 +139,31 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
       shown.edges.map(edge => ({ id: edge.id, from: edge.fromNodeId, to: edge.toNodeId })),
     ),
     [attention.selectedId, shown],
+  )
+
+  // Laid out again whenever the canvas gains or loses something,
+  // and not when a node's own contents change,
+  // since a description a reader edited is no reason to move every card.
+  const membership = `${shown.nodes.map(node => node.id).join('|')}#${shown.edges.map(edge => edge.id).join('|')}`
+
+  /**
+   * Focusing lays out what is left rather than leaving it where it was.
+   *
+   * Nothing here is a reader's arrangement. Every position is worked out
+   * from the shape of the graph, so a graph of six read as a graph of six
+   * costs nothing and is the only thing worth showing.
+   * Hiding alone would leave six cards spread over the room ninety needed.
+   */
+  const placed = useMemo(
+    () => (attention.focused
+      ? laidOut(
+          shown.nodes.filter(node => near.nodes.has(node.id)),
+          shown.edges.filter(edge => near.edges.has(edge.id)),
+        )
+      : laidOut(shown.nodes, shown.edges)),
+    // Keyed on membership rather than on the graph itself,
+    // for the reason the line above it gives.
+    [membership, attention.focused, near],
   )
 
   const flowNodes: Node<NodeCardData>[] = useMemo(() => shown.nodes.flatMap((node): Node<NodeCardData>[] => {
@@ -213,7 +232,7 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
               ? 'bg-ink text-surface'
               : 'text-ink-subtle hover:bg-raised hover:text-ink'}`}
           >
-            {focused ? 'Show the rest' : 'Only this'}
+            {focused ? 'Show all' : 'Focus'}
           </button>
         )}
       </header>

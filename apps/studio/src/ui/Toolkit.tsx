@@ -64,7 +64,6 @@ export const GLYPHS = {
   zoomIn: <Glyph><circle cx="9" cy="9" r="5.5" /><path d="M9 7v4M7 9h4M13 13l4 4" /></Glyph>,
   zoomOut: <Glyph><circle cx="9" cy="9" r="5.5" /><path d="M7 9h4M13 13l4 4" /></Glyph>,
   section: <Glyph><rect x="3" y="4" width="14" height="12" rx="2" /><path d="M3 8h14" /></Glyph>,
-  focus: <Glyph><circle cx="10" cy="10" r="3" /><path d="M10 2v2M10 16v2M2 10h2M16 10h2" /></Glyph>,
   card: <Glyph><rect x="4" y="3" width="12" height="14" rx="2" /><path d="M7 7h6M7 10h6M7 13h3" /></Glyph>,
   // A card and a plus, against a card and a minus for taking one off.
   // They are opposites, so they are drawn as one shape differing by a stroke.

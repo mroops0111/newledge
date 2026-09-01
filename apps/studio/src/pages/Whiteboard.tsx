@@ -26,7 +26,6 @@ import { AppShell } from '../ui/AppShell.js'
 import type { BoardCardData } from '../ui/BoardCard.js'
 import { BoardCard } from '../ui/BoardCard.js'
 import { useBoardCards } from '../ui/useBoardCards.js'
-import { useFocusedLayout } from '../ui/useFocusedLayout.js'
 import { CanvasGrid } from '../ui/CanvasGrid.js'
 import { CardDrop } from '../ui/CardDrop.js'
 import { CardPicker } from '../ui/CardPicker.js'
@@ -60,7 +59,6 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
   const [graph, setGraph] = useState<{ nodes: readonly GraphNode[], edges: readonly GraphEdge[] }>({ nodes: [], edges: [] })
   const [boards, setBoards] = useState<readonly Board[]>([])
   const [openId, setOpenId] = useState<string | undefined>(undefined)
-  const [focused, setFocused] = useState(false)
   // Laying a board out again gives back the same cards in new places,
   // so what is drawn is rebuilt from a fact other than which cards it holds.
   const [generation, setGeneration] = useState(0)
@@ -258,9 +256,7 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
   const { putting, setPutting, actsOn } = useBoardCards({
     latestBoard,
     picked: pickedId,
-    focused,
     persist,
-    onFocus: setFocused,
   })
 
 
@@ -273,9 +269,11 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
    */
   const [grabbed, setGrabbed] = useState<string | undefined>(undefined)
 
-  // A reader who picked something wants the rest out of the way,
-  // gently while they glance and entirely once they ask to focus.
-  const attention = pickedId === undefined ? IDLE : { selectedId: pickedId, focused }
+  // A reader who picked something wants the rest out of the way, gently.
+  // Only that, since a board is arranged by hand,
+  // and taking the rest away would leave holes a reading cannot close,
+  // without laying out an arrangement that is the reader's and not ours.
+  const attention = pickedId === undefined ? IDLE : { selectedId: pickedId, focused: false }
   const near = useMemo(
     () => neighbourhood(
       attention.selectedId,
@@ -283,23 +281,6 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
     ),
     [attention.selectedId, graph],
   )
-
-  /**
-   * The board a reader is looking through, which is theirs until they focus.
-   *
-   * Everything about where a thing sits is worked out from here down,
-   * so a reading of the board is arranged, grown and routed as a board is,
-   * rather than as the one underneath with its cards moved.
-   */
-  const looking = useFocusedLayout({
-    board,
-    graph,
-    near: near.nodes,
-    focused,
-    placement: PLACEMENT,
-    onFail: setError,
-  })
-  const shown = looking ?? board
 
   /**
    * Where each card is, and how big.
@@ -311,24 +292,19 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
    * Read from where the cards are now rather than from the arrangement,
    * since a reader may have moved any of them since it opened.
    */
-  const boxes = useMemo(() => {
-    // A reading has its own places, and nothing is dragged through one,
-    // so what the canvas is holding is only asked for when there is not one.
-    const placed: { id: string, x: number, y: number }[] = looking === undefined
-      ? drawn.filter(node => node.type === 'card').map(node => ({ id: node.id, ...node.position }))
-      : looking.cards.map(card => ({ id: card.nodeId, x: card.x, y: card.y }))
-
-    return new Map(placed.flatMap((one): [string, Box][] => {
-      const graphNode = byId.get(one.id)
+  const boxes = useMemo(() => new Map(drawn
+    .filter(node => node.type === 'card')
+    .flatMap((node): [string, Box][] => {
+      const graphNode = byId.get(node.id)
       if (graphNode === undefined)
         return []
-      return [[one.id, { x: one.x, y: one.y, ...cardExtent(graphNode) }]]
-    }))
-  }, [drawn, looking, byId])
+      const size = cardExtent(graphNode)
+      return [[node.id, { x: node.position.x, y: node.position.y, ...size }]]
+    })), [drawn, byId])
 
   const grounds = useMemo(
-    () => grownSections(shown?.sections ?? [], boxes.values()),
-    [shown, boxes],
+    () => grownSections(board?.sections ?? [], boxes.values()),
+    [board, boxes],
   )
 
   const kin = useMemo(() => kinship(
@@ -422,21 +398,13 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
    * Picking first also makes moving a card something a reader means to do.
    */
   const attended: Node[] = useMemo(() => drawn.flatMap((node): Node[] => {
-    // Where it stands in the reading a board is being looked through,
-    // which is not where a reader put it and is not kept.
-    const stood = looking === undefined
-      ? undefined
-      : [...looking.cards, ...looking.sections]
-          .find(one => ('nodeId' in one ? one.nodeId : one.id) === node.id)
-    const at = stood === undefined ? {} : { position: { x: stood.x, y: stood.y } }
-
     if (node.type !== 'card') {
-      const held = node.id === grabbed && looking === undefined
+      const held = node.id === grabbed
       // Given the ground grown to hold what stands on it,
       // which is worked out from what the browser measured,
       // and so is not known when a section is first built.
       const section = grounds.find(one => one.id === node.id) ?? node.data.section
-      return [{ ...node, ...at, draggable: held, data: { ...node.data, grabbed: held, section } }]
+      return [{ ...node, draggable: held, data: { ...node.data, grabbed: held, section } }]
     }
     const emphasis = emphasisOf(node.id, near.nodes, attention)
     if (emphasis === 'gone')
@@ -446,10 +414,7 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
     // once the lines have been worked out.
     const picked: Node = {
       ...node,
-      ...at,
-      // Nothing moves through a reading.
-      // A card dragged here would be moved in a board nobody asked to change.
-      draggable: node.selected === true && looking === undefined,
+      draggable: node.selected === true,
       data: {
         ...node.data,
         says: saidOnCard(
@@ -467,7 +432,7 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
     return [emphasis === 'dimmed'
       ? { ...picked, style: { ...picked.style, opacity: DIMMED } }
       : picked]
-  }), [drawn, near, attention, grabbed, relations, byId, hangsOff, familyLed, grounds, actsOn, looking])
+  }), [drawn, near, attention, grabbed, relations, byId, hangsOff, familyLed, grounds, actsOn])
 
   const edges: Edge[] = useMemo(() => boardEdges(relations.lines, {
     boxes,
