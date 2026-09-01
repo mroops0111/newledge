@@ -1,4 +1,5 @@
 import type { Board, BoardState, Placement } from '@newledge/board'
+import type { Extent } from '@newledge/board-layout'
 import { CARD_WIDTH, nodeStyle } from './boardStyle.js'
 import type { GraphNode } from './graph.js'
 
@@ -113,6 +114,13 @@ const ARRIVAL = { x: 96, y: 120 }
  * and a reader would have to resize before they could file.
  */
 const SECTION_EXTENT = { width: 576, height: 408 }
+
+/**
+ * The least a section may be made.
+ * One that could not hold a single card refuses the first thing dragged in,
+ * and a reader would have to resize before they could file anything.
+ */
+const LEAST = { width: CARD_WIDTH + 48, height: 160 }
 const NEW_SECTION_NAME = 'New section'
 const NEW_BOARD_NAME = 'New board'
 const CLEAR_OF_EVERYTHING = 96
@@ -149,6 +157,25 @@ export function withSection(board: Board): Board {
       y: ARRIVAL.y,
       ...SECTION_EXTENT,
     }],
+  }
+}
+
+/**
+ * Resize a section a reader took hold of the corner of.
+ *
+ * What is kept is a floor rather than the size it is drawn at.
+ * A section is grown on the way to the canvas to hold whatever stands on it,
+ * so one made smaller than its contents is still drawn around them,
+ * and comes back to the size a reader asked for once they are taken off.
+ * That is what lets a section be brought back in,
+ * which growing on its own could never do.
+ */
+export function resizeSection(board: Board, sectionId: string, extent: Extent): Board {
+  return {
+    ...board,
+    sections: board.sections.map(section => (section.id === sectionId
+      ? { ...section, width: Math.max(extent.width, LEAST.width), height: Math.max(extent.height, LEAST.height) }
+      : section)),
   }
 }
 

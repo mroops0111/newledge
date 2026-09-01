@@ -5,6 +5,7 @@ import {
   newBoard,
   openingBoards,
   renameSection,
+  resizeSection,
   withBoard,
   withCard,
   withoutCard,
@@ -193,6 +194,47 @@ describe('withCard', () => {
     const wider = withCard(held, 'two', { x: 1, y: 2 })
     expect(wider.id).toBe(held.id)
     expect(wider.name).toBe(held.name)
+  })
+})
+
+describe('resizeSection', () => {
+  const drawn = board({ sections: [{ id: 's1', name: 'One', x: 0, y: 0, width: 576, height: 408 }] })
+
+  it('keeps the size a reader dragged a corner to', () => {
+    const wider = resizeSection(drawn, 's1', { width: 900, height: 600 })
+    expect(wider.sections[0]).toMatchObject({ width: 900, height: 600 })
+  })
+
+  it('leaves where it sits and what it is called alone', () => {
+    const wider = resizeSection(drawn, 's1', { width: 900, height: 600 })
+    expect(wider.sections[0]).toMatchObject({ id: 's1', name: 'One', x: 0, y: 0 })
+  })
+
+  it('refuses a size that could not hold one card', () => {
+    // A section too small to take the first thing dropped into it,
+    // would make a reader resize before they could file anything.
+    const tiny = resizeSection(drawn, 's1', { width: 10, height: 10 })
+    expect(tiny.sections[0]!.width).toBeGreaterThan(400)
+    expect(tiny.sections[0]!.height).toBeGreaterThan(100)
+  })
+
+  it('keeps a smaller size than the contents need, since growing raises it', () => {
+    // What is kept is a floor.
+    // A section made smaller than what stands on it is still drawn around them,
+    // and comes back once they are taken off.
+    const smaller = resizeSection(drawn, 's1', { width: 528, height: 160 })
+    expect(smaller.sections[0]).toMatchObject({ width: 528, height: 160 })
+  })
+
+  it('leaves every other section as it was', () => {
+    const two = board({
+      sections: [
+        { id: 's1', name: 'One', x: 0, y: 0, width: 576, height: 408 },
+        { id: 's2', name: 'Two', x: 800, y: 0, width: 576, height: 408 },
+      ],
+    })
+    expect(resizeSection(two, 's1', { width: 900, height: 600 }).sections[1])
+      .toEqual(two.sections[1])
   })
 })
 

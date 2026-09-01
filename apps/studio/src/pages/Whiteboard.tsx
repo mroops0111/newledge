@@ -9,7 +9,7 @@ import { alreadyOn, firstArrangement, ofKinds } from '../lib/arrange.js'
 import { DIMMED, emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { elkPlacement } from '../lib/elkPlacement.js'
 import type { BoardClient } from '../lib/boards.js'
-import { newBoard, openingBoards, renameSection, withBoard, withoutCard, withSection } from '../lib/boards.js'
+import { newBoard, openingBoards, renameSection, resizeSection, withBoard, withoutCard, withSection } from '../lib/boards.js'
 import { nodeStyle, STROKE } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import { drawnCards, drawnRelations } from '../lib/drawing.js'
@@ -216,6 +216,11 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
         section,
         onRename: name => rename(section.id, name),
         onRenamed: keepLatest,
+        onResized: (extent) => {
+          const now = latestBoard.current
+          if (now !== undefined)
+            persist(resizeSection(now, section.id, extent))
+        },
         grabbed: false,
       },
       selectable: false,

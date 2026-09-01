@@ -1,5 +1,5 @@
 import type { Section } from '@newledge/board'
-import { Handle, Position, useStore } from '@xyflow/react'
+import { Handle, NodeResizer, Position, useStore } from '@xyflow/react'
 import { SECTION_HEADER } from '../lib/arrange.js'
 import { growthAt } from '../lib/boardStyle.js'
 
@@ -28,10 +28,20 @@ const NAME_PADDING = 8
  */
 const NAME_GROWS_TO = (SECTION_HEADER - NAME_TOP - NAME_PADDING) / (NAME_SIZE * NAME_LEADING)
 
+/**
+ * The least a reader may drag a section down to.
+ * One that could not hold a single card refuses the first thing dragged in,
+ * and a reader would have to resize before they could file anything.
+ */
+const LEAST_WIDE = 528
+const LEAST_TALL = 160
+
 export interface SectionBoxData {
   readonly section: Section
   readonly onRename: (name: string) => void
   readonly onRenamed: () => void
+  /** Keep the size a reader dragged a corner to, once they let go of it. */
+  readonly onResized: (extent: { width: number, height: number }) => void
   /** Whether a reader has taken hold of this section, which is what moves. */
   readonly grabbed: boolean
   [key: string]: unknown
@@ -54,10 +64,24 @@ export interface SectionBoxData {
  * so a section that moved by its ground would be a hole the board fell into.
  */
 export function SectionBox({ data }: { data: SectionBoxData }): React.JSX.Element {
-  const { section, onRename, onRenamed, grabbed } = data
+  const { section, onRename, onRenamed, onResized, grabbed } = data
   const growth = growthAt(useStore(state => state.transform[2]), NAME_GROWS_TO)
   return (
     <div className="relative" style={{ width: section.width, height: section.height }}>
+      {/*
+        The corners appear once a reader has taken hold of the section,
+        the same gesture that lets it move,
+        so ground a reader is only working over does not sprout handles,
+        every time they drag a card across it.
+      */}
+      <NodeResizer
+        isVisible={grabbed}
+        minWidth={LEAST_WIDE}
+        minHeight={LEAST_TALL}
+        lineClassName="!border-transparent"
+        handleClassName="!size-2.5 !rounded-sm !border-line-strong !bg-surface"
+        onResizeEnd={(_, extent) => onResized({ width: extent.width, height: extent.height })}
+      />
       {/*
         A section is a topic, so a relation can run between two of them, and a
         canvas drops an edge whose end has nowhere to attach.
