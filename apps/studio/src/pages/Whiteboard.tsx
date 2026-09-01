@@ -26,6 +26,7 @@ import { AppShell } from '../ui/AppShell.js'
 import type { BoardCardData } from '../ui/BoardCard.js'
 import { BoardCard } from '../ui/BoardCard.js'
 import type { CardAct } from '../ui/CardMenu.js'
+import { GLYPHS } from '../ui/Toolkit.js'
 import { CanvasGrid } from '../ui/CanvasGrid.js'
 import { CardDrop } from '../ui/CardDrop.js'
 import { CardPicker } from '../ui/CardPicker.js'
@@ -228,12 +229,14 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
   const actsOn = useCallback((nodeId: string): readonly CardAct[] => [
     {
       id: 'focus',
-      label: focusedRef.current ? 'Show the rest' : 'Focus on this',
+      label: focusedRef.current ? 'Show all' : 'Focus',
+      icon: GLYPHS.focus,
       onUse: () => setFocused(now => !now),
     },
     {
       id: 'takeOff',
-      label: 'Take off this board',
+      label: 'Take off',
+      icon: GLYPHS.takeOff,
       key: '⌫',
       onUse: () => takeOff(nodeId),
     },

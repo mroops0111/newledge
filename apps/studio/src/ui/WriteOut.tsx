@@ -139,7 +139,7 @@ function Panel({ picked, asked, onPick, onAnswer, onWrite }: {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-20 mt-1 w-80 rounded-lg border border-line bg-surface py-2 shadow-lg">
+        <div className="absolute right-0 z-20 mt-1 w-80 rounded-card border border-line bg-surface py-2 shadow-lifted">
           <ul>
             {FORMS.map(form => (
               <li key={form.id}>
