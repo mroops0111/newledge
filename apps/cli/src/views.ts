@@ -4,7 +4,7 @@ import type { OpenAPIHono } from '@hono/zod-openapi'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 import { WorkspaceId as WorkspaceIdSchema } from '@braidhq/schema'
-import { DECK_WORKSPACE } from '@newledge/view-generator-handout/forms'
+import { DECK_FORM, DECK_WORKSPACE } from '@newledge/view-generator-handout/forms'
 import { readBoards } from './boards.js'
 import { materialOf } from './boardViews.js'
 
@@ -123,7 +123,7 @@ async function decksHeld(deps: AppDependencies, id: WorkspaceId): Promise<readon
     if (stamped === undefined)
       return []
     return [{
-      path: `presentation/${entry.name}/index.tsx`,
+      path: `${DECK_FORM}/${entry.name}/index.tsx`,
       format: 'tsx',
       bytes: stamped.size,
       writtenAt: stamped.mtime.toISOString(),

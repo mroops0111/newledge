@@ -9,7 +9,7 @@ import { alreadyOn, firstArrangement, ofKinds } from '../lib/arrange.js'
 import { DIMMED, emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { elkPlacement } from '../lib/elkPlacement.js'
 import type { BoardClient } from '../lib/boards.js'
-import { newBoard, openingBoards, renameSection, resizeSection, withBoard, withoutCard, withSection } from '../lib/boards.js'
+import { newBoard, openingBoards, renameSection, resizeSection, withBoard, withSection } from '../lib/boards.js'
 import { nodeStyle, STROKE } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import { drawnCards, drawnRelations } from '../lib/drawing.js'
@@ -25,8 +25,7 @@ import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
 import type { BoardCardData } from '../ui/BoardCard.js'
 import { BoardCard } from '../ui/BoardCard.js'
-import type { CardAct } from '../ui/CardMenu.js'
-import { GLYPHS } from '../ui/Toolkit.js'
+import { useBoardCards } from '../ui/useBoardCards.js'
 import { CanvasGrid } from '../ui/CanvasGrid.js'
 import { CardDrop } from '../ui/CardDrop.js'
 import { CardPicker } from '../ui/CardPicker.js'
@@ -61,11 +60,6 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
   const [boards, setBoards] = useState<readonly Board[]>([])
   const [openId, setOpenId] = useState<string | undefined>(undefined)
   const [focused, setFocused] = useState(false)
-  const [putting, setPutting] = useState(false)
-  // Read where a card's own acts are built, which must not be rebuilt,
-  // every time focus changes, since that redraws every card on the board.
-  const focusedRef = useRef(focused)
-  focusedRef.current = focused
   // Laying a board out again gives back the same cards in new places,
   // so what is drawn is rebuilt from a fact other than which cards it holds.
   const [generation, setGeneration] = useState(0)
@@ -203,48 +197,6 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
       : [generation, ...board.cards.map(card => card.nodeId), ...board.sections.map(section => section.id)].join('|')),
     [board, generation],
   )
-
-  /**
-   * Take one card off this board.
-   * The node stays in the graph and on every other board,
-   * so this narrows one reading rather than losing anything.
-   */
-  const takeOff = useCallback((nodeId: string) => {
-    const current = latestBoard.current
-    if (current === undefined)
-      return
-    persist(withoutCard(current, nodeId))
-    setFocused(false)
-  }, [persist])
-
-  /**
-   * What a reader can do to one card, offered on that card.
-   *
-   * Taking a card off is said as the board doing without it,
-   * rather than as a deletion,
-   * since the node stays where it is and every other board keeps it.
-   * The key is named beside it because a menu a reader has to open,
-   * cannot teach the gesture they would have reached for instead.
-   */
-  const actsOn = useCallback((nodeId: string): readonly CardAct[] => [
-    {
-      id: 'focus',
-      label: focusedRef.current ? 'Show all' : 'Focus',
-      icon: GLYPHS.focus,
-      onUse: () => setFocused(now => !now),
-    },
-    {
-      id: 'takeOff',
-      // Remove rather than delete. Delete would say the node is gone,
-      // and it is not. It stays in the graph and on every other board,
-      // so what a reader removes is this board's claim to be about it.
-      label: 'Remove',
-      icon: GLYPHS.takeOff,
-      removes: true,
-      key: '⌫',
-      onUse: () => takeOff(nodeId),
-    },
-  ], [takeOff])
 
   useEffect(() => {
     const current = latestBoard.current
@@ -482,31 +434,16 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
 
   // Opening a concept is what shows what is asserted about it,
   // and where that came from, since a board draws neither.
-  /**
-   * Backspace takes the picked card off.
-   * It is what a canvas has taught everyone to reach for,
-   * and what a rail of glyphs cannot teach anybody.
-   *
-   * Not while a reader is typing.
-   * A board's name, a section's name, and what is being searched for,
-   * are all fields, and a key pressed in one of them belongs to the field,
-   * rather than to the board behind it.
-   */
-  useEffect(() => {
-    function pressed(event: KeyboardEvent): void {
-      if (event.key !== 'Backspace' && event.key !== 'Delete')
-        return
-      const at = event.target as HTMLElement | null
-      if (at?.tagName === 'INPUT' || at?.tagName === 'TEXTAREA' || at?.isContentEditable === true)
-        return
-      if (pickedId === undefined)
-        return
-      event.preventDefault()
-      takeOff(pickedId)
-    }
-    document.addEventListener('keydown', pressed)
-    return () => document.removeEventListener('keydown', pressed)
-  }, [pickedId, takeOff])
+  // What this board holds.
+  // How it is arranged and how it is drawn are answered elsewhere,
+  // and this is answered where they are not.
+  const { putting, setPutting, actsOn } = useBoardCards({
+    latestBoard,
+    picked: pickedId,
+    focused,
+    persist,
+    onFocus: setFocused,
+  })
 
   const opened = pickedId === undefined ? undefined : byId.get(pickedId)
 
@@ -587,7 +524,7 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
               laidOut={laidOut}
               onAddSection={() => persist(withSection(board))}
               onRearrange={rearrange}
-              onPutting={() => setPutting(now => !now)}
+              onPutting={() => setPutting(!putting)}
               putting={putting}
               zoom={zoom}
             />

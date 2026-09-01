@@ -151,6 +151,16 @@ const RUNTIME: Ask = {
 export const DECK_WORKSPACE = 'NEWLEDGE_DECK_WORKSPACE'
 
 /**
+ * The form whose output is a deck rather than a page.
+ *
+ * Named rather than spelled where it is needed,
+ * because what a deck is called decides the skill directory it ships in,
+ * and the path a surface reads a deck back under,
+ * and two spellings of one name is one of them going quietly wrong.
+ */
+export const DECK_FORM = 'presentation'
+
+/**
  * Every form is written out of a board, which is the whole of the split.
  *
  * A board is the only thing carrying both what a view is about,
@@ -182,7 +192,7 @@ export const FORMS: readonly Form[] = [
     asks: [LEVEL, KINDS, LENGTH],
   },
   {
-    id: 'presentation',
+    id: DECK_FORM,
     label: 'Presentation',
     purpose: 'Pages to stand in front of, for teaching the board to a room',
     asks: [RUNTIME],
