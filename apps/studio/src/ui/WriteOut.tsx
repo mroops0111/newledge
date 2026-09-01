@@ -140,7 +140,7 @@ function Panel({ picked, asked, onPick, onAnswer, onWrite }: {
         wants one of the four things under it, which are the handouts.
       */}
       <button type="button" onClick={() => setOpen(one => !one)} className={ACTION} aria-expanded={open}>
-        New handout
+        New Handout
       </button>
 
       {open && (

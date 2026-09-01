@@ -59,7 +59,6 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
   const [graph, setGraph] = useState<{ nodes: readonly GraphNode[], edges: readonly GraphEdge[] }>({ nodes: [], edges: [] })
   const [boards, setBoards] = useState<readonly Board[]>([])
   const [openId, setOpenId] = useState<string | undefined>(undefined)
-  const [focused, setFocused] = useState(false)
   // Laying a board out again gives back the same cards in new places,
   // so what is drawn is rebuilt from a fact other than which cards it holds.
   const [generation, setGeneration] = useState(0)
@@ -257,9 +256,7 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
   const { putting, setPutting, actsOn } = useBoardCards({
     latestBoard,
     picked: pickedId,
-    focused,
     persist,
-    onFocus: setFocused,
   })
 
 
@@ -272,9 +269,10 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
    */
   const [grabbed, setGrabbed] = useState<string | undefined>(undefined)
 
-  // A reader who picked something wants the rest out of the way,
-  // gently while they glance and entirely once they ask to focus.
-  const attention = pickedId === undefined ? IDLE : { selectedId: pickedId, focused }
+  // A reader who picked something wants the rest out of the way, gently.
+  // Taking it further, to only what they picked, is the graph surface's,
+  // until a board can arrange what is left rather than leave holes in itself.
+  const attention = pickedId === undefined ? IDLE : { selectedId: pickedId, focused: false }
   const near = useMemo(
     () => neighbourhood(
       attention.selectedId,
