@@ -1,5 +1,6 @@
-import type { Board, BoardState } from '@newledge/board'
-import { CARD_WIDTH, nodeStyle } from './boardStyle.js'
+import type { Board, BoardState, Placement } from '@newledge/board'
+import type { Extent } from '@newledge/board-layout'
+import { cardable, CARD_WIDTH, nodeStyle } from './boardStyle.js'
 import type { GraphNode } from './graph.js'
 
 export interface BoardClientOptions {
@@ -56,7 +57,7 @@ export function openingBoards(nodes: readonly GraphNode[]): readonly {
   readonly holds: readonly string[]
 }[] {
   const kinds = [...new Set(nodes.map(node => node.type))]
-    .filter(type => nodeStyle(type).placed && !nodeStyle(type).ground)
+    .filter(cardable)
     .sort((one, other) => nodeStyle(one).band - nodeStyle(other).band || one.localeCompare(other))
 
   // Only the readings that actually differ.
@@ -77,10 +78,11 @@ export function openingBoards(nodes: readonly GraphNode[]): readonly {
 }
 
 /**
- * A board a reader asked for, named so they can rename it.
- * It says nothing about which kinds it holds,
- * so it opens on whatever the drawing rules find worth placing,
- * which is the widest reading of the graph and the easiest one to cut down.
+ * A board a reader asked for, empty, because a board is what they put on it.
+ *
+ * It opens on nothing rather than on the widest reading of the graph,
+ * since building a board of five things by dropping forty,
+ * is not choosing a subset, it is disagreeing with one.
  *
  * The id is the first one nothing has taken,
  * so a board added after another was dropped never lands on its name.
@@ -111,6 +113,13 @@ const ARRIVAL = { x: 96, y: 120 }
  * and a reader would have to resize before they could file.
  */
 const SECTION_EXTENT = { width: 576, height: 408 }
+
+/**
+ * The least a section may be made.
+ * One that could not hold a single card refuses the first thing dragged in,
+ * and a reader would have to resize before they could file anything.
+ */
+const LEAST_SECTION_EXTENT = { width: CARD_WIDTH + 48, height: 160 }
 const NEW_SECTION_NAME = 'New section'
 const NEW_BOARD_NAME = 'New board'
 const CLEAR_OF_EVERYTHING = 96
@@ -150,12 +159,52 @@ export function withSection(board: Board): Board {
   }
 }
 
+/**
+ * Resize a section a reader took hold of the corner of.
+ *
+ * What is kept is a floor rather than the size it is drawn at.
+ * A section is grown on the way to the canvas to hold whatever stands on it,
+ * so one made smaller than its contents is still drawn around them,
+ * and comes back to the size a reader asked for once they are taken off.
+ * That is what lets a section be brought back in,
+ * which growing on its own could never do.
+ */
+export function resizeSection(board: Board, sectionId: string, extent: Extent): Board {
+  return {
+    ...board,
+    sections: board.sections.map(section => (section.id === sectionId
+      ? {
+          ...section,
+          width: Math.max(extent.width, LEAST_SECTION_EXTENT.width),
+          height: Math.max(extent.height, LEAST_SECTION_EXTENT.height),
+        }
+      : section)),
+  }
+}
+
 /** Rename a section, leaving where it sits and what it holds alone. */
 export function renameSection(board: Board, sectionId: string, name: string): Board {
   return {
     ...board,
     sections: board.sections.map(section => (section.id === sectionId ? { ...section, name } : section)),
   }
+}
+
+/**
+ * A board with one more card on it, where the reader let go of it.
+ *
+ * The placement is theirs rather than worked out here.
+ * A board arranged by hand means what its arrangement says,
+ * so somewhere a reader chose beats anywhere this could pick for them.
+ *
+ * A node already on the board is left where it is rather than moved,
+ * because a reader dragging one they already placed,
+ * has not asked for it to jump.
+ */
+export function withCard(board: Board, nodeId: string, at: Placement): Board {
+  if (board.cards.some(card => card.nodeId === nodeId))
+    return board
+  return { ...board, cards: [...board.cards, { ...at, nodeId }] }
 }
 
 /**

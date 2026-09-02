@@ -91,7 +91,7 @@ export function Inbox({ client, nav }: { client: InboxClient, nav: Nav }): React
   return (
     <Shell nav={nav} count={cards.length} outline={outlineOf(cards)}>
       <header className="mb-10">
-        <h1 className="font-ui text-xl font-semibold tracking-tight text-ink">Reading inbox</h1>
+        <h1 className="font-ui text-xl font-semibold tracking-tight text-ink">Inbox</h1>
         <p className="mt-2 font-reading text-prose-sm text-ink-muted">
           {cards.length === 0
             ? 'Nothing waiting. Your graph holds only what you have absorbed.'

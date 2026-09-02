@@ -1,13 +1,14 @@
 import type { Node } from '@xyflow/react'
-import { Controls, getViewportForBounds, ReactFlow, ReactFlowProvider, useReactFlow, useStoreApi } from '@xyflow/react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Controls, getViewportForBounds, ReactFlow, ReactFlowProvider, useReactFlow, useStore, useStoreApi } from '@xyflow/react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { onSurface, SURVEY_STROKE } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import type { GraphEdge, GraphNode, GraphView, Ontology } from '../lib/graph.js'
 import { openingView, visibleGraph, withType } from '../lib/graph.js'
 import { inside } from '../lib/inside.js'
-import { laidOut } from '../lib/layout.js'
+import type { Arrangement } from '../lib/layout.js'
+import { arrangementOf, laidOut } from '../lib/layout.js'
 import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
 import { BoardMarkers } from '../ui/BoardMarkers.js'
@@ -38,44 +39,53 @@ const UNTYPED = 'var(--ink-subtle)'
  */
 const PADDING = '8%'
 
+/** How long a reframe takes, which is long enough to be followed by eye. */
+const EASE = 250
+
 /**
- * Frame the graph once its nodes have somewhere to be.
+ * Frame the arrangement on the canvas, again each time there is a new one.
  *
- * Placement lands after the graph is read,
- * so fitting on mount would frame a canvas still at the origin.
+ * Which cards are drawn is what a new frame is asked for by,
+ * rather than anything about the canvas itself.
+ * A reader who has moved the canvas is somewhere they went on purpose,
+ * and a window resized, or a column opened beside it,
+ * is not them asking to be shown everything a second time.
+ * Focusing and filtering are, since each changes what there is to look at,
+ * and an arrangement of six left in the frame ninety needed is not a reading.
  *
- * Framed on arrival and then left alone.
- * A reader who has moved the canvas is somewhere they went on purpose.
- * Reframing whenever the room changes takes that away,
- * for a reason the reader never gave.
- * Opening the column beside it is the plainest case of that,
- * and asking for the frame back is one button, which is where asking belongs.
- *
- * Taken at once rather than eased.
- * The canvas takes an eased viewport only while nothing else is moving,
- * so easing this one is a frame that silently never arrives.
+ * The arrival is taken at once, and every frame after it is eased.
+ * A reader arriving never saw the viewport it would be eased from,
+ * so there is nothing there for them to follow.
  */
-function FitOnPlacement({ ready }: { ready: boolean }): null {
+function FitOnArrangement({ arrangement }: {
+  arrangement: Arrangement | undefined
+}): null {
   const flow = useReactFlow()
-  // Read when the frame is taken rather than watched,
-  // since watching the canvas is what would reframe on every resize,
-  // and a resize is not a reader asking to be shown everything again.
   const canvas = useStoreApi()
+  const framed = useRef<string | undefined>(undefined)
+  /**
+   * How wide the canvas is, watched rather than only read.
+   *
+   * A frame owed while the canvas had no size is taken once it has one.
+   * Watching does not make a resize reframe,
+   * since the name of what was framed last is what turns this away,
+   * and a window made narrower does not change that name.
+   */
+  const canvasWidth = useStore(state => state.width)
 
   useEffect(() => {
-    if (!ready)
+    if (arrangement === undefined || canvasWidth === 0)
       return
-    // The nodes reach the canvas a tick before their positions do,
-    // so the frame is taken after the browser has drawn them.
-    const timer = setTimeout(() => {
-      const { width, height, minZoom, maxZoom } = canvas.getState()
-      if (width === 0)
-        return
-      const bounds = flow.getNodesBounds(flow.getNodes())
-      flow.setViewport(getViewportForBounds(bounds, width, height, minZoom, maxZoom, PADDING))
-    }, 0)
-    return () => clearTimeout(timer)
-  }, [ready, canvas, flow])
+    if (arrangement.of === framed.current)
+      return
+    const arriving = framed.current === undefined
+    framed.current = arrangement.of
+    const { height, minZoom, maxZoom } = canvas.getState()
+    void flow.setViewport(
+      getViewportForBounds(arrangement.over, canvasWidth, height, minZoom, maxZoom, PADDING),
+      arriving ? undefined : { duration: EASE },
+    )
+  }, [arrangement, canvasWidth, canvas, flow])
   return null
 }
 
@@ -127,12 +137,6 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
     [graph, view],
   )
 
-  // Laid out again whenever the canvas gains or loses something,
-  // and not when a node's own contents change,
-  // since a description a reader edited is no reason to move every card.
-  const membership = `${shown.nodes.map(node => node.id).join('|')}#${shown.edges.map(edge => edge.id).join('|')}`
-  const placed = useMemo(() => laidOut(shown.nodes, shown.edges), [membership])
-
   /**
    * A reader who picked something wants the rest out of the way,
    * gently while they glance and entirely once they ask to focus.
@@ -146,6 +150,35 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
     ),
     [attention.selectedId, shown],
   )
+
+  // What the canvas holds, which is the one thing a fresh layout waits on.
+  const membership = `${shown.nodes.map(node => node.id).join('|')}#${shown.edges.map(edge => edge.id).join('|')}`
+
+  /**
+   * Where every card goes, which focusing works out again rather than keeping.
+   *
+   * Nothing here is a reader's arrangement.
+   * Every position is worked out from the shape of the graph,
+   * so a graph of six read as a graph of six costs nothing,
+   * and hiding alone would leave six cards spread over the room ninety needed.
+   *
+   * Worked out again whenever the canvas gains or loses something,
+   * and not when a node's own contents change,
+   * since a description a reader edited is no reason to move every card.
+   */
+  const placed = useMemo(
+    () => (attention.focused
+      ? laidOut(
+          shown.nodes.filter(node => near.nodes.has(node.id)),
+          shown.edges.filter(edge => near.edges.has(edge.id)),
+        )
+      : laidOut(shown.nodes, shown.edges)),
+    [membership, attention.focused, near],
+  )
+
+  // What the frame is taken of, read off the placement rather than the cards,
+  // since the placement holds exactly the cards that get drawn.
+  const arrangement = useMemo(() => arrangementOf(placed), [placed])
 
   const flowNodes: Node<NodeCardData>[] = useMemo(() => shown.nodes.flatMap((node): Node<NodeCardData>[] => {
     const emphasis = emphasisOf(node.id, near.nodes, attention)
@@ -169,8 +202,19 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
     [shown, near, attention],
   )
 
-  // Fitting before every node has a position frames a canvas at the origin.
-  const placedAll = shown.nodes.length > 0 && shown.nodes.every(node => placed.has(node.id))
+  /**
+   * Focus frames one node's neighbourhood, so it ends when that node does.
+   *
+   * Held together here rather than at each control,
+   * since a selection cleared anywhere else would bring the whole graph back,
+   * with the button still reading as pressed,
+   * claiming a view nobody was looking at.
+   */
+  const select = useCallback((nodeId: string | undefined) => {
+    setSelected(nodeId)
+    if (nodeId === undefined)
+      setFocused(false)
+  }, [])
 
   const only = useCallback((kind: 'nodeTypes' | 'edgeTypes', ids: readonly string[]) => {
     setView(current => current === undefined ? current : { ...current, [kind]: new Set(ids) })
@@ -201,21 +245,26 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
       <header className="flex items-center gap-3 border-b border-line px-6 py-3">
         <p className="font-ui text-sm font-semibold text-ink">Everything you have absorbed</p>
         {/*
-          Offered only once a reader has picked something, since there is
-          nothing to narrow to before that, and a control that does nothing
-          is a question a reader has to answer before they can ignore it.
+          A mode rather than an act, so it stands in the header,
+          and not in the cluster on the canvas,
+          where every control fires once and returns.
+          Always drawn, and disabled without a selection,
+          since one that appears only when there is something to focus,
+          moves whatever stands beside it.
         */}
-        {selected !== undefined && (
-          <button
-            type="button"
-            onClick={() => setFocused(now => !now)}
-            className={`ml-auto rounded-control px-2.5 py-1 font-ui text-label transition-colors ${focused
-              ? 'bg-ink text-surface'
-              : 'text-ink-subtle hover:bg-raised hover:text-ink'}`}
-          >
-            {focused ? 'Show the rest' : 'Only this'}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => setFocused(now => !now)}
+          disabled={selected === undefined}
+          aria-pressed={focused}
+          // What pressing it does, since the word alone says only what it is.
+          title={focused ? 'Show the whole graph' : 'Narrow to what is related'}
+          className={`ml-auto rounded-control px-2.5 py-1 font-ui text-label transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${focused
+            ? 'bg-raised text-ink'
+            : 'text-ink-subtle enabled:hover:bg-raised enabled:hover:text-ink'}`}
+        >
+          Focus
+        </button>
       </header>
 
       <div className="flex min-h-0 flex-1">
@@ -232,9 +281,9 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
         <div className="relative min-w-0 flex-1">
           {/*
             The switch stands on the canvas rather than in the panel it opens,
-            since a panel that is away has nowhere to put the thing that brings
-            it back, and it stays in one place rather than moving with the
-            panel, so a reader closing it does not have to find it again.
+            since a panel that is away has nowhere to put what brings it back.
+            It stays in one place rather than moving with the panel,
+            so a reader closing it does not have to find it again.
           */}
           <button
             type="button"
@@ -253,14 +302,13 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
             edges={flowEdges}
             nodeTypes={NODE_TYPES}
             edgeTypes={EDGE_TYPES}
-            onNodeClick={(_, node) => setSelected(node.id)}
-            onPaneClick={() => { setSelected(undefined); setFocused(false) }}
-            fitView
+            onNodeClick={(_, node) => select(node.id)}
+            onPaneClick={() => select(undefined)}
             minZoom={0.1}
             maxZoom={2}
             proOptions={{ hideAttribution: true }}
           >
-            <FitOnPlacement ready={placedAll} />
+            <FitOnArrangement arrangement={arrangement} />
             <CanvasGrid />
             {/*
               Down the same edge the panel and the switch that opens it are on,

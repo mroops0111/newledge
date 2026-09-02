@@ -4,8 +4,9 @@ import type { OpenAPIHono } from '@hono/zod-openapi'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 import { WorkspaceId as WorkspaceIdSchema } from '@braidhq/schema'
-import { DECK_WORKSPACE } from '@newledge/view-generator-handout/forms'
+import { DECK_FORM, DECK_WORKSPACE } from '@newledge/view-generator-handout/forms'
 import { readBoards } from './boards.js'
+import { materialOf } from './boardViews.js'
 
 const VIEWS_DIR = join('artifacts', 'views')
 
@@ -49,6 +50,15 @@ export interface View {
    * which is what lets a fifth kind arrive without teaching it a name.
    */
   readonly seenAt?: string
+  /**
+   * Whether the board has changed in a way this was not written from.
+   *
+   * A view is derived, so it goes out of date the moment its board does,
+   * and nothing about the file itself says so.
+   * A reader looking at one they wrote last week,
+   * has no way to know it is a reading of a board that has since moved on.
+   */
+  readonly stale?: boolean
 }
 
 /**
@@ -113,7 +123,7 @@ async function decksHeld(deps: AppDependencies, id: WorkspaceId): Promise<readon
     if (stamped === undefined)
       return []
     return [{
-      path: `presentation/${entry.name}/index.tsx`,
+      path: `${DECK_FORM}/${entry.name}/index.tsx`,
       format: 'tsx',
       bytes: stamped.size,
       writtenAt: stamped.mtime.toISOString(),
@@ -121,6 +131,40 @@ async function decksHeld(deps: AppDependencies, id: WorkspaceId): Promise<readon
     }]
   }))
   return found.flat()
+}
+
+/**
+ * Which boards have moved on since a view of them was written.
+ *
+ * The comparison is against the material rather than against the board,
+ * so an edit that changes nothing a reader would read changes nothing here.
+ * Moving a card a few pixels, or resizing the ground under it,
+ * leaves the projection identical and leaves every view of it current.
+ * Putting a node on, taking one off, or reordering what is read first,
+ * do not.
+ *
+ * A board nothing has ever been written from is not stale, it is unwritten,
+ * so it says nothing here and the surface has nothing to draw.
+ */
+async function movedOn(deps: AppDependencies, id: WorkspaceId, root: string): Promise<ReadonlySet<string>> {
+  const { boards } = await readBoards(deps, id)
+  const since = await Promise.all(boards.map(async (board) => {
+    const now = await materialOf(deps, id, board.id).catch(() => undefined)
+    const projected = now?.files[0]
+    if (projected === undefined)
+      return []
+    const written = await readFile(join(root, '..', projected.path), 'utf-8').catch(() => undefined)
+    return written === undefined || written === projected.text ? [] : [board.id]
+  }))
+  return new Set(since.flat())
+}
+
+/** Which board a view is of, which is the segment under the form it is in. */
+function boardOf(path: string): string {
+  const [, under] = path.split('/')
+  const name = under ?? path
+  const dot = name.lastIndexOf('.')
+  return dot === -1 ? name : name.slice(0, dot)
 }
 
 function formatOf(path: string): string {
@@ -162,7 +206,9 @@ export function mountViews(app: OpenAPIHono, deps: AppDependencies): void {
         writtenAt: found.mtime.toISOString(),
       }
     }))
+    const changed = await movedOn(deps, id, root)
     const all = [...items, ...await decksHeld(deps, id)]
+      .map(view => (changed.has(boardOf(view.path)) ? { ...view, stale: true } : view))
     return context.json({ items: all.sort((one, other) => one.path.localeCompare(other.path)) })
   })
 

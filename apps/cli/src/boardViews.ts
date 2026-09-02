@@ -1,4 +1,4 @@
-import type { SkillId, WorkspaceId } from '@braidhq/schema'
+import type { SkillId, ViewArtifact, WorkspaceId } from '@braidhq/schema'
 import { ValidationError } from '@braidhq/core'
 import type { AppDependencies } from '@braidhq/server'
 import type { OpenAPIHono } from '@hono/zod-openapi'
@@ -45,9 +45,7 @@ export async function projectBoard(
   boardId: string,
 ): Promise<string> {
   const workspace = await deps.workspaceService.findById(workspaceId)
-  const generator = deps.pluginRegistry.requireViewGenerator(ViewKind.parse(VIEW_KIND))
-  const model = await deps.modelService.getSnapshot(workspaceId)
-  const artifact = await generator.render({ model, config: { workspaceId, boardId } })
+  const artifact = await materialOf(deps, workspaceId, boardId)
 
   const written = await Promise.all(artifact.files.map(async (file) => {
     const path = join(workspace.rootPath, 'artifacts', file.path)
@@ -62,6 +60,24 @@ export async function projectBoard(
   if (first === undefined)
     throw new Error(`Nothing was projected out of board "${boardId}"`)
   return first
+}
+
+/**
+ * What a board would be projected into now, without writing any of it.
+ *
+ * The projection is a function,
+ * so asking what it would say costs a walk of the graph and nothing else.
+ * That is what lets a view be told it has gone stale,
+ * by comparing this against the material it was actually written from.
+ */
+export async function materialOf(
+  deps: AppDependencies,
+  workspaceId: WorkspaceId,
+  boardId: string,
+): Promise<ViewArtifact> {
+  const generator = deps.pluginRegistry.requireViewGenerator(ViewKind.parse(VIEW_KIND))
+  const model = await deps.modelService.getSnapshot(workspaceId)
+  return generator.render({ model, config: { workspaceId, boardId } })
 }
 
 /** The skill that writes this form, under the namespace the plugin declares. */

@@ -26,6 +26,12 @@ export interface Listed {
    * rather than read as a file and drawn again by this surface.
    */
   readonly seenAt?: string
+  /**
+   * Whether the board has moved on since this was written.
+   * A view is derived, so it goes out of date when its board does,
+   * and nothing about the file itself says so.
+   */
+  readonly stale?: boolean
 }
 
 /** One generated view, with what was written in it. */
@@ -175,7 +181,16 @@ export function subjectOf(path: string): string {
 export interface Made {
   /** What it was written out of, named as a reader would recognise it. */
   readonly name: string
+  /** What it was written out of, as the board itself is asked for. */
+  readonly subject: string
   readonly of: readonly { readonly form: string, readonly view: Listed }[]
+  /**
+   * Whether the board these were written from has moved on since.
+   * Said over the subject rather than over each form,
+   * because one board projects into one material,
+   * so every form of it goes out of date together or not at all.
+   */
+  readonly stale: boolean
 }
 
 /**
@@ -203,8 +218,10 @@ export function madeFrom(
 
   return [...gathered.entries()]
     .map(([subject, of]) => ({
+      subject,
       name: nameOf(subject) ?? subject,
       of: [...of].sort((one, other) => order(one.form) - order(other.form)),
+      stale: of.some(one => one.view.stale === true),
     }))
     .sort((one, other) => latest(other) - latest(one))
 }

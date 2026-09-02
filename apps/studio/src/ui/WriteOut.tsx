@@ -134,12 +134,17 @@ function Panel({ picked, asked, onPick, onAnswer, onWrite }: {
 
   return (
     <div ref={held} className="relative">
+      {/*
+        Named for what a reader leaves with rather than for the act,
+        since a reader pressing this wants one of the four things under it,
+        which are the handouts.
+      */}
       <button type="button" onClick={() => setOpen(one => !one)} className={ACTION} aria-expanded={open}>
-        Write out
+        New Handout
       </button>
 
       {open && (
-        <div className="absolute right-0 z-20 mt-1 w-80 rounded-lg border border-line bg-surface py-2 shadow-lg">
+        <div className="absolute right-0 z-20 mt-1 w-80 rounded-card border border-line bg-surface py-2 shadow-lifted">
           <ul>
             {FORMS.map(form => (
               <li key={form.id}>

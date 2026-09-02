@@ -2,6 +2,14 @@ import dagre from '@dagrejs/dagre'
 import { nodeStyle } from './boardStyle.js'
 import type { GraphEdge, GraphNode } from './graph.js'
 
+/** The room something takes up, in the coordinates a layout works in. */
+export interface Rectangle {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+}
+
 /** Where one node sits, which is all this layout decides about it. */
 export interface Spot {
   readonly x: number
@@ -89,4 +97,44 @@ export function laidOut(
       y: (laid?.y ?? 0) - NODE_HEIGHT / 2,
     }]
   }))
+}
+
+/**
+ * One arrangement, named by what it holds and measured by the room it takes.
+ *
+ * The two travel together because anything framing an arrangement needs both,
+ * and because a name that has drifted from the room it was measured over,
+ * frames the wrong thing without ever looking wrong.
+ */
+export interface Arrangement {
+  /** What it holds, said so that two arrangements can be told apart. */
+  readonly of: string
+  /** The room it takes up, in the coordinates the layout works in. */
+  readonly over: Rectangle
+}
+
+/**
+ * What was arranged and the room it takes, or nothing when nothing was.
+ *
+ * The room is worked out from the placement rather than from the canvas,
+ * since the canvas knows a card's size only once it has drawn it,
+ * and anything framing a fresh arrangement is asking before that.
+ * The sizes here are the ones the placement itself worked with,
+ * so this is the room the layout asked for rather than a guess at it.
+ */
+export function arrangementOf(placed: ReadonlyMap<string, Spot>): Arrangement | undefined {
+  const spots = [...placed.values()]
+  if (spots.length === 0)
+    return undefined
+  const left = Math.min(...spots.map(spot => spot.x))
+  const top = Math.min(...spots.map(spot => spot.y))
+  return {
+    of: [...placed.keys()].sort().join('|'),
+    over: {
+      x: left,
+      y: top,
+      width: Math.max(...spots.map(spot => spot.x + NODE_WIDTH)) - left,
+      height: Math.max(...spots.map(spot => spot.y + NODE_HEIGHT)) - top,
+    },
+  }
 }

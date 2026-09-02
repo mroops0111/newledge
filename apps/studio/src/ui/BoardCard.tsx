@@ -1,4 +1,6 @@
 import { Handle, Position, useStore } from '@xyflow/react'
+import type { CardAct } from './CardMenu.js'
+import { CardMenu } from './CardMenu.js'
 import { useRef } from 'react'
 import type { GraphNode } from '../lib/graph.js'
 import { sourcesOf } from '../lib/graph.js'
@@ -24,6 +26,12 @@ export interface BoardCardData {
    * The word earns its line only where there is another kind to tell it from.
    */
   readonly kind?: string
+  /**
+   * What a reader can do to this card.
+   * Offered on the card rather than beside the board,
+   * since an act on one card is not a thing the rail is for.
+   */
+  readonly acts?: readonly CardAct[]
   [key: string]: unknown
 }
 
@@ -102,7 +110,7 @@ export function BoardCard({ data, selected }: {
   data: BoardCardData
   selected: boolean
 }): React.JSX.Element {
-  const { node, form, colour, says, kind } = data
+  const { node, form, colour, says, kind, acts } = data
   const lift = selected ? 'shadow-lifted ring-1 ring-ink/25' : 'shadow-card'
   const zoom = useStore(state => state.transform[2])
   const far = useFar(zoom)
@@ -121,6 +129,13 @@ export function BoardCard({ data, selected }: {
       style={{ borderLeftColor: colour, borderLeftWidth: FAMILY_BAND * growth }}
     >
       <Handle type="target" position={Position.Top} className="!opacity-0" />
+      {/*
+        Offered once a reader has picked the card, rather than on hover.
+        A board is crossed by a pointer far more often than it is worked on,
+        and a control appearing under one being dragged past,
+        is a control a reader learns to avoid.
+      */}
+      {selected && acts !== undefined && acts.length > 0 && <CardMenu acts={acts} />}
       {far ? nameOnly(node, growth) : body(node, form, colour, says ?? [], kind)}
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />
     </div>

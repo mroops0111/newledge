@@ -5,11 +5,11 @@ import { ReactFlow, ReactFlowProvider, useNodesState } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Box } from '@newledge/board-layout'
 import { orthogonalRouting } from '@newledge/board-layout'
-import { firstArrangement } from '../lib/arrange.js'
+import { alreadyOn, firstArrangement, ofKinds } from '../lib/arrange.js'
 import { DIMMED, emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { elkPlacement } from '../lib/elkPlacement.js'
 import type { BoardClient } from '../lib/boards.js'
-import { newBoard, openingBoards, renameSection, withBoard, withoutCard, withSection } from '../lib/boards.js'
+import { newBoard, openingBoards, renameSection, resizeSection, withBoard, withSection } from '../lib/boards.js'
 import { nodeStyle, STROKE } from '../lib/boardStyle.js'
 import type { GraphClient } from '../lib/client.js'
 import { drawnCards, drawnRelations } from '../lib/drawing.js'
@@ -25,7 +25,10 @@ import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
 import type { BoardCardData } from '../ui/BoardCard.js'
 import { BoardCard } from '../ui/BoardCard.js'
+import { useBoardCards } from '../ui/useBoardCards.js'
 import { CanvasGrid } from '../ui/CanvasGrid.js'
+import { CardDrop } from '../ui/CardDrop.js'
+import { CardPicker } from '../ui/CardPicker.js'
 import { BoardMarkers } from '../ui/BoardMarkers.js'
 import { boardEdges } from '../ui/boardEdges.js'
 import { BoardList } from '../ui/BoardList.js'
@@ -56,7 +59,6 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
   const [graph, setGraph] = useState<{ nodes: readonly GraphNode[], edges: readonly GraphEdge[] }>({ nodes: [], edges: [] })
   const [boards, setBoards] = useState<readonly Board[]>([])
   const [openId, setOpenId] = useState<string | undefined>(undefined)
-  const [focused, setFocused] = useState(false)
   // Laying a board out again gives back the same cards in new places,
   // so what is drawn is rebuilt from a fact other than which cards it holds.
   const [generation, setGeneration] = useState(0)
@@ -92,7 +94,7 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
         const opening = await Promise.all(openingBoards(loaded.nodes).map(async board => ({
           ...board,
           holds: [...board.holds],
-          ...(await firstArrangement(loaded, PLACEMENT, board.holds)).board,
+          ...(await firstArrangement(loaded, PLACEMENT, ofKinds(board.holds))).board,
         })))
         setBoards(opening)
         setOpenId(opening[0]?.id)
@@ -139,7 +141,11 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
         const current = latestBoard.current
         if (current === undefined)
           return
-        const again = await firstArrangement(graph, PLACEMENT, current.holds)
+        // Of what the board holds now, not of the kinds it was seeded from.
+        // A reader who dragged a source onto a board of terms,
+        // and then asked for it to be laid out again,
+        // has not asked for the source to be thrown away.
+        const again = await firstArrangement(graph, PLACEMENT, alreadyOn(current.cards))
         setGeneration(count => count + 1)
         persist({ ...current, ...again.board })
       }
@@ -149,23 +155,21 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
     })()
   }, [graph, persist])
 
-  // A board a reader adds opens on an arrangement of its own,
-  // the way the first ones did,
-  // since a board with nothing on it and no way to put anything on it,
-  // is not a board a reader can do anything with.
+  /**
+   * A board a reader adds opens on nothing, with the panel they fill it from.
+   *
+   * Empty rather than seeded with the widest reading of the graph,
+   * since a board of five things made by dropping forty,
+   * is not a reader choosing a subset.
+   * The panel opens with it, because an empty canvas says what a board is,
+   * only once the thing that fills it is in front of the reader.
+   */
   const addBoard = useCallback(() => {
-    void (async () => {
-      try {
-        const fresh = newBoard({ boards: [...boards] })
-        const arranged = await firstArrangement(graph, PLACEMENT, fresh.holds)
-        persist({ ...fresh, ...arranged.board })
-        setOpenId(fresh.id)
-      }
-      catch (cause) {
-        setError(cause instanceof Error ? cause.message : String(cause))
-      }
-    })()
-  }, [boards, graph, persist])
+    const fresh = newBoard({ boards: [...boards] })
+    persist(fresh)
+    setOpenId(fresh.id)
+    setPutting(true)
+  }, [boards, persist])
 
   const keepLatest = useCallback(() => {
     const current = latestBoard.current
@@ -211,6 +215,11 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
         section,
         onRename: name => rename(section.id, name),
         onRenamed: keepLatest,
+        onResized: (extent) => {
+          const now = latestBoard.current
+          if (now !== undefined)
+            persist(resizeSection(now, section.id, extent))
+        },
         grabbed: false,
       },
       selectable: false,
@@ -241,6 +250,16 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
   )
   const [pickedId] = [...selected]
 
+  // What this board holds.
+  // How it is arranged and how it is drawn are answered elsewhere,
+  // and this is answered where they are not.
+  const { putting, setPutting, actsOn } = useBoardCards({
+    latestBoard,
+    picked: pickedId,
+    persist,
+  })
+
+
   /**
    * The section a reader has taken hold of, which is the only one that moves.
    * Held apart from what the canvas calls selection,
@@ -250,9 +269,11 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
    */
   const [grabbed, setGrabbed] = useState<string | undefined>(undefined)
 
-  // A reader who picked something wants the rest out of the way,
-  // gently while they glance and entirely once they ask to focus.
-  const attention = pickedId === undefined ? IDLE : { selectedId: pickedId, focused }
+  // A reader who picked something wants the rest out of the way, gently.
+  // Only that, since a board is arranged by hand,
+  // and taking the rest away would leave holes a reading cannot close,
+  // without laying out an arrangement that is the reader's and not ours.
+  const attention = pickedId === undefined ? IDLE : { selectedId: pickedId, focused: false }
   const near = useMemo(
     () => neighbourhood(
       attention.selectedId,
@@ -402,12 +423,16 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
           byId,
           parentId => kinColour(familyLed.get(parentId) ?? NO_FAMILY),
         ),
+        // Here rather than where the card is built.
+        // What a card offers reads back what a reader is attending to,
+        // and that is settled here and nowhere earlier.
+        acts: actsOn(node.id),
       },
     }
     return [emphasis === 'dimmed'
       ? { ...picked, style: { ...picked.style, opacity: DIMMED } }
       : picked]
-  }), [drawn, near, attention, grabbed, relations, byId, hangsOff, familyLed, grounds])
+  }), [drawn, near, attention, grabbed, relations, byId, hangsOff, familyLed, grounds, actsOn])
 
   const edges: Edge[] = useMemo(() => boardEdges(relations.lines, {
     boxes,
@@ -423,19 +448,6 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
 
   // Opening a concept is what shows what is asserted about it,
   // and where that came from, since a board draws neither.
-  /**
-   * Take what is selected off this board.
-   * The node stays in the graph and on every other board,
-   * so this narrows one reading rather than losing anything.
-   */
-  const takeOff = useCallback(() => {
-    const current = latestBoard.current
-    if (current === undefined || pickedId === undefined)
-      return
-    persist(withoutCard(current, pickedId))
-    setFocused(false)
-  }, [pickedId, persist])
-
   const opened = pickedId === undefined ? undefined : byId.get(pickedId)
 
   if (error !== undefined)
@@ -447,7 +459,11 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
     <AppShell
       {...nav}
       beneath={<BoardList boards={boards} openId={openId} onOpen={setOpenId} onAdd={addBoard} />}
-      panel={opened === undefined ? undefined : <NodePanel node={opened} held={inside(opened, graph)} />}
+      // Putting things on and reading one of them are different things,
+      // so the panel is whichever the reader last asked for.
+      panel={putting
+        ? <CardPicker nodes={graph.nodes} board={board} />
+        : opened === undefined ? undefined : <NodePanel node={opened} held={inside(opened, graph)} />}
     >
       <div className="flex h-screen flex-col">
         <header className="flex items-center gap-3 border-b border-line px-6 py-3">
@@ -465,8 +481,9 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
             className="rounded-control bg-transparent px-2 py-1 font-ui text-sm font-semibold text-ink outline-none focus:bg-raised"
           />
           {/*
-            Beside the name of the board it writes out, since the board is what
-            every form takes and this is where a reader has finished arranging.
+            Beside the name of the board it writes out,
+            since the board is what every form takes,
+            and this is where a reader has finished arranging.
           */}
           <div className="ml-auto flex items-center gap-1">
             <WriteOut client={views} boardId={board.id} onWritten={() => nav.onSelect('views')} />
@@ -479,7 +496,7 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
           since a child of the canvas is given the store too late to drive it.
         */}
         <ReactFlowProvider>
-          <div className="relative min-h-0 flex-1">
+          <CardDrop board={board} persist={persist} className="relative min-h-0 flex-1">
             <BoardMarkers weight={STROKE} />
             <ReactFlow
               nodes={attended}
@@ -487,7 +504,14 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
               nodeTypes={NODE_TYPES}
               edgeTypes={EDGE_TYPES}
               onNodesChange={drag.onNodesChange}
-              onNodeClick={(_, node) => setGrabbed(node.type === 'section' ? node.id : undefined)}
+              onNodeClick={(_, node) => {
+                setGrabbed(node.type === 'section' ? node.id : undefined)
+                // Picking a card is asking what it is,
+                // and the answer stands where the panel stands,
+                // so asking is what closes it.
+                if (node.type !== 'section')
+                  setPutting(false)
+              }}
               onPaneClick={() => setGrabbed(undefined)}
               onNodeDragStart={drag.onNodeDragStart}
               onNodeDragStop={drag.onNodeDragStop}
@@ -504,13 +528,11 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
               laidOut={laidOut}
               onAddSection={() => persist(withSection(board))}
               onRearrange={rearrange}
-              onFocus={() => setFocused(now => !now)}
-              focused={focused}
-              canFocus={pickedId !== undefined}
-              onTakeOff={takeOff}
+              onPutting={() => setPutting(!putting)}
+              putting={putting}
               zoom={zoom}
             />
-          </div>
+          </CardDrop>
         </ReactFlowProvider>
       </div>
     </AppShell>

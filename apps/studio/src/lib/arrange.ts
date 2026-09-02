@@ -56,22 +56,49 @@ const BLOCKS: readonly { readonly type: string, readonly ownGround: boolean }[] 
 ]
 
 /**
- * What a board opens on before a reader has touched it.
- * Every node of a kind the board holds is placed,
- * filed under the topic it belongs to,
- * and a topic becomes the section rather than a card sitting among its members.
+ * Which nodes an arrangement is of.
+ * One question with two answers, rather than a filter on kinds,
+ * which could only ever answer one of them.
+ */
+export type Chosen = (node: GraphNode) => boolean
+
+/**
+ * The nodes a board of these kinds opens on, which is how a board is seeded.
  * A board that has not said which kinds it holds,
  * takes whatever the drawing rules say is worth placing.
+ */
+export function ofKinds(holds: readonly string[] | undefined): Chosen {
+  return node => (holds === undefined ? nodeStyle(node.type).placed : holds.includes(node.type))
+}
+
+/**
+ * The nodes a board already holds, which is what laying one out again is of.
+ *
+ * A board is seeded from kinds once and is the reader's from then on.
+ * Laying it out again from those kinds drops everything they have put on since,
+ * and brings back everything they took off,
+ * which is rearranging somebody else's board rather than theirs.
+ */
+export function alreadyOn(cards: readonly { readonly nodeId: string }[]): Chosen {
+  const on = new Set(cards.map(card => card.nodeId))
+  return node => on.has(node.id)
+}
+
+/**
+ * What a board opens on before a reader has touched it.
+ * Every chosen node is placed, filed under the topic it belongs to,
+ * and a topic becomes the section rather than a card sitting among its members.
+ * What is chosen is the caller's to say,
+ * because a board being seeded and a board being laid out again,
+ * are asking about different sets, and only the caller knows which.
  */
 export async function firstArrangement(
   graph: { nodes: readonly GraphNode[], edges: readonly GraphEdge[] },
   placement: Placement,
-  holds?: readonly string[],
+  chosen: Chosen = ofKinds(undefined),
 ): Promise<Arrangement> {
   const topics = graph.nodes.filter(node => nodeStyle(node.type).ground)
-  const placeable = graph.nodes.filter(node => (holds === undefined
-    ? nodeStyle(node.type).placed
-    : holds.includes(node.type)))
+  const placeable = graph.nodes.filter(node => chosen(node))
   const filedUnder = filing(graph, new Set(topics.map(topic => topic.id)))
   const named = new Map(topics.map(topic => [sectionOf(topic.id), topic.name]))
 
