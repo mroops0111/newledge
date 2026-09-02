@@ -281,9 +281,9 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
         <div className="relative min-w-0 flex-1">
           {/*
             The switch stands on the canvas rather than in the panel it opens,
-            since a panel that is away has nowhere to put the thing that brings
-            it back, and it stays in one place rather than moving with the
-            panel, so a reader closing it does not have to find it again.
+            since a panel that is away has nowhere to put what brings it back.
+            It stays in one place rather than moving with the panel,
+            so a reader closing it does not have to find it again.
           */}
           <button
             type="button"

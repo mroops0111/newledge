@@ -83,8 +83,8 @@ export function SectionBox({ data }: { data: SectionBoxData }): React.JSX.Elemen
         onResizeEnd={(_, extent) => onResized({ width: extent.width, height: extent.height })}
       />
       {/*
-        A section is a topic, so a relation can run between two of them, and a
-        canvas drops an edge whose end has nowhere to attach.
+        A section is a topic, so a relation can run between two of them,
+        and a canvas drops an edge whose end has nowhere to attach.
       */}
       <Handle type="target" position={Position.Top} className="!opacity-0" />
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />
@@ -94,10 +94,11 @@ export function SectionBox({ data }: { data: SectionBoxData }): React.JSX.Elemen
           : 'border-section-line'}`}
       />
       {/*
-        Sized to its own text, so a click beside the name still lands on the
-        section and not in a text field that reaches across the whole strip.
-        The size is in characters, so the field widens with the name as the
-        name grows, and is held to the strip so a long one cannot run past it.
+        Sized to its own text,
+        so a click beside the name still lands on the section,
+        and not in a text field reaching across the whole strip.
+        The size is in characters, so the field widens as the name grows,
+        and is held to the strip so a long one cannot run past it.
       */}
       <div className="absolute left-3 top-2 max-w-[calc(100%-1.5rem)] font-ui text-label">
         <input

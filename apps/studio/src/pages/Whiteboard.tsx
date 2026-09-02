@@ -481,8 +481,9 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
             className="rounded-control bg-transparent px-2 py-1 font-ui text-sm font-semibold text-ink outline-none focus:bg-raised"
           />
           {/*
-            Beside the name of the board it writes out, since the board is what
-            every form takes and this is where a reader has finished arranging.
+            Beside the name of the board it writes out,
+            since the board is what every form takes,
+            and this is where a reader has finished arranging.
           */}
           <div className="ml-auto flex items-center gap-1">
             <WriteOut client={views} boardId={board.id} onWritten={() => nav.onSelect('views')} />
