@@ -1,5 +1,5 @@
 import type { Node } from '@xyflow/react'
-import { Controls, getViewportForBounds, ReactFlow, ReactFlowProvider, useReactFlow, useStoreApi } from '@xyflow/react'
+import { Controls, getViewportForBounds, ReactFlow, ReactFlowProvider, useReactFlow, useStore, useStoreApi } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { emphasisOf, IDLE, neighbourhood } from '../lib/attention.js'
 import { onSurface, SURVEY_STROKE } from '../lib/boardStyle.js'
@@ -7,7 +7,8 @@ import type { GraphClient } from '../lib/client.js'
 import type { GraphEdge, GraphNode, GraphView, Ontology } from '../lib/graph.js'
 import { openingView, visibleGraph, withType } from '../lib/graph.js'
 import { inside } from '../lib/inside.js'
-import { laidOut } from '../lib/layout.js'
+import type { Rectangle } from '../lib/layout.js'
+import { laidOut, spread } from '../lib/layout.js'
 import type { Nav } from '../ui/AppShell.js'
 import { AppShell } from '../ui/AppShell.js'
 import { BoardMarkers } from '../ui/BoardMarkers.js'
@@ -55,41 +56,40 @@ const EASE = 250
  * and an arrangement of six left in the frame ninety needed is not a reading.
  *
  * The arrival is taken at once and every frame after it is eased.
- * The canvas takes an eased viewport only while nothing else is moving,
- * which on arrival everything is, so easing that one never arrives.
+ * A reader arriving has nothing to follow, since they never saw the viewport
+ * it would be eased from, and one who is already reading has.
  */
-function FitOnWhatIsDrawn({ drawing }: {
+function FitOnWhatIsDrawn({ drawing, over }: {
   /** Which cards are drawn, or nothing while any of them lacks a position. */
   drawing: string | undefined
+  /** The room they were arranged into, which is what the frame is taken of. */
+  over: Rectangle | undefined
 }): null {
   const flow = useReactFlow()
-  // Read when the frame is taken rather than watched,
-  // since watching the canvas is what would reframe on every resize,
-  // and a resize is not a reader asking to be shown everything again.
   const canvas = useStoreApi()
   const framed = useRef<string | undefined>(undefined)
+  /**
+   * How wide the canvas is, watched only so that a frame owed while it had no
+   * size is taken once it has one.
+   *
+   * A resize does not reframe. It brings this effect round again,
+   * and the name of what was last framed is what turns it away,
+   * since a window made narrower is not a reader asking to be shown
+   * everything a second time.
+   */
+  const room = useStore(state => state.width)
 
   useEffect(() => {
-    if (drawing === undefined || drawing === framed.current)
+    if (drawing === undefined || over === undefined || drawing === framed.current || room === 0)
       return
-    // The nodes reach the canvas a tick before their positions do,
-    // so the frame is taken after the browser has drawn them.
-    const timer = setTimeout(() => {
-      const { width, height, minZoom, maxZoom } = canvas.getState()
-      // Nothing has been measured yet, so the frame is left for the next change,
-      // rather than taken against a canvas of no size.
-      if (width === 0)
-        return
-      const arriving = framed.current === undefined
-      framed.current = drawing
-      const bounds = flow.getNodesBounds(flow.getNodes())
-      flow.setViewport(
-        getViewportForBounds(bounds, width, height, minZoom, maxZoom, PADDING),
-        arriving ? undefined : { duration: EASE },
-      )
-    }, 0)
-    return () => clearTimeout(timer)
-  }, [drawing, canvas, flow])
+    const { width, height, minZoom, maxZoom } = canvas.getState()
+    const arriving = framed.current === undefined
+    framed.current = drawing
+    void flow.setViewport(
+      getViewportForBounds(over, width, height, minZoom, maxZoom, PADDING),
+      arriving ? undefined : { duration: EASE },
+    )
+  }, [drawing, over, room, canvas, flow])
   return null
 }
 
@@ -207,10 +207,24 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
   // since fitting before then frames a canvas still at the origin.
   const drawing = useMemo(
     () => (flowNodes.length > 0 && flowNodes.every(node => placed.has(node.id))
-      ? flowNodes.map(node => node.id).join('|')
+      ? flowNodes.map(node => node.id).sort().join('|')
       : undefined),
     [flowNodes, placed],
   )
+  const over = useMemo(() => spread(placed), [placed])
+
+  /**
+   * Focus frames one node's neighbourhood, so it ends when that node does.
+   *
+   * Held together here rather than at each control, since a selection cleared
+   * anywhere else would bring the whole graph back with the button still
+   * reading as pressed, claiming a view nobody was looking at.
+   */
+  const select = useCallback((nodeId: string | undefined) => {
+    setSelected(nodeId)
+    if (nodeId === undefined)
+      setFocused(false)
+  }, [])
 
   const only = useCallback((kind: 'nodeTypes' | 'edgeTypes', ids: readonly string[]) => {
     setView(current => current === undefined ? current : { ...current, [kind]: new Set(ids) })
@@ -241,21 +255,25 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
       <header className="flex items-center gap-3 border-b border-line px-6 py-3">
         <p className="font-ui text-sm font-semibold text-ink">Everything you have absorbed</p>
         {/*
-          Offered only once a reader has picked something, since there is
-          nothing to narrow to before that, and a control that does nothing
-          is a question a reader has to answer before they can ignore it.
+          A mode rather than an act, so it stands in the header rather than
+          in the cluster on the canvas, where every control fires once and
+          returns. Always drawn, and disabled without a selection, since one
+          that appears only when there is something to focus moves whatever
+          stands beside it.
         */}
-        {selected !== undefined && (
-          <button
-            type="button"
-            onClick={() => setFocused(now => !now)}
-            className={`ml-auto rounded-control px-2.5 py-1 font-ui text-label transition-colors ${focused
-              ? 'bg-ink text-surface'
-              : 'text-ink-subtle hover:bg-raised hover:text-ink'}`}
-          >
-            {focused ? 'Show all' : 'Focus'}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => setFocused(now => !now)}
+          disabled={selected === undefined}
+          aria-pressed={focused}
+          // What pressing it does, since the word alone says only what it is.
+          title={focused ? 'Show the whole graph' : 'Narrow to what is related'}
+          className={`ml-auto rounded-control px-2.5 py-1 font-ui text-label transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${focused
+            ? 'bg-raised text-ink'
+            : 'text-ink-subtle enabled:hover:bg-raised enabled:hover:text-ink'}`}
+        >
+          Focus
+        </button>
       </header>
 
       <div className="flex min-h-0 flex-1">
@@ -293,14 +311,13 @@ function GraphSurface({ client, nav }: { client: GraphClient, nav: Nav }): React
             edges={flowEdges}
             nodeTypes={NODE_TYPES}
             edgeTypes={EDGE_TYPES}
-            onNodeClick={(_, node) => setSelected(node.id)}
-            onPaneClick={() => { setSelected(undefined); setFocused(false) }}
-            fitView
+            onNodeClick={(_, node) => select(node.id)}
+            onPaneClick={() => select(undefined)}
             minZoom={0.1}
             maxZoom={2}
             proOptions={{ hideAttribution: true }}
           >
-            <FitOnWhatIsDrawn drawing={drawing} />
+            <FitOnWhatIsDrawn drawing={drawing} over={over} />
             <CanvasGrid />
             {/*
               Down the same edge the panel and the switch that opens it are on,
