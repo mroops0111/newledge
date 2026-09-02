@@ -559,11 +559,11 @@ describe('which nodes an arrangement is of', () => {
     // A reader who dragged a source onto a board of terms,
     // and then asked for it to be laid out again,
     // has not asked for the source to be thrown away.
-    const board = { cards: [{ nodeId: 'retrieval' }, { nodeId: 'paperOne' }] }
-    expect(held.filter(alreadyOn(board)).map(one => one.id)).toEqual(['retrieval', 'paperOne'])
+    const on = [{ nodeId: 'retrieval' }, { nodeId: 'paperOne' }]
+    expect(held.filter(alreadyOn(on)).map(one => one.id)).toEqual(['retrieval', 'paperOne'])
   })
 
   it('takes nothing off a board holding nothing', () => {
-    expect(held.filter(alreadyOn({ cards: [] }))).toEqual([])
+    expect(held.filter(alreadyOn([]))).toEqual([])
   })
 })

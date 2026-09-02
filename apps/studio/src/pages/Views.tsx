@@ -106,8 +106,8 @@ export function Views({ client, boards, nav }: {
             {/*
               Offered over all of them only where more than one has moved on,
               since a single one is rewritten from its own subject,
-              and a control for doing one thing to one thing is a second way
-              to do it.
+              and a control that does one thing to one thing,
+              is a second way to do what is already there.
             */}
             {stale.length > 1 && (
               <button
@@ -201,8 +201,9 @@ function Subject({ made, showing, onShow, rewriting, onRewrite }: {
       <p className="truncate px-4 font-ui text-prose-sm font-semibold text-ink">{made.name}</p>
       {/*
         Said once over the subject rather than on each form under it.
-        One board projects into one material, so every form of it goes out of
-        date together, and saying so four times would read as four problems.
+        One board projects into one material,
+        so every form of it goes out of date together,
+        and saying so four times would read as four problems.
       */}
       {made.stale && (
         <div className="mt-0.5 px-4">

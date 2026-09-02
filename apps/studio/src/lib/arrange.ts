@@ -79,8 +79,8 @@ export function ofKinds(holds: readonly string[] | undefined): Chosen {
  * and brings back everything they took off,
  * which is rearranging somebody else's board rather than theirs.
  */
-export function alreadyOn(board: { readonly cards: readonly { readonly nodeId: string }[] }): Chosen {
-  const on = new Set(board.cards.map(card => card.nodeId))
+export function alreadyOn(cards: readonly { readonly nodeId: string }[]): Chosen {
+  const on = new Set(cards.map(card => card.nodeId))
   return node => on.has(node.id)
 }
 
@@ -95,7 +95,7 @@ export function alreadyOn(board: { readonly cards: readonly { readonly nodeId: s
 export async function firstArrangement(
   graph: { nodes: readonly GraphNode[], edges: readonly GraphEdge[] },
   placement: Placement,
-  chosen: Chosen = node => nodeStyle(node.type).placed,
+  chosen: Chosen = ofKinds(undefined),
 ): Promise<Arrangement> {
   const topics = graph.nodes.filter(node => nodeStyle(node.type).ground)
   const placeable = graph.nodes.filter(node => chosen(node))

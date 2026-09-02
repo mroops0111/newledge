@@ -1,6 +1,6 @@
 import type { Board, BoardState, Placement } from '@newledge/board'
 import type { Extent } from '@newledge/board-layout'
-import { CARD_WIDTH, nodeStyle } from './boardStyle.js'
+import { cardable, CARD_WIDTH, nodeStyle } from './boardStyle.js'
 import type { GraphNode } from './graph.js'
 
 export interface BoardClientOptions {
@@ -57,7 +57,7 @@ export function openingBoards(nodes: readonly GraphNode[]): readonly {
   readonly holds: readonly string[]
 }[] {
   const kinds = [...new Set(nodes.map(node => node.type))]
-    .filter(type => nodeStyle(type).placed && !nodeStyle(type).ground)
+    .filter(cardable)
     .sort((one, other) => nodeStyle(one).band - nodeStyle(other).band || one.localeCompare(other))
 
   // Only the readings that actually differ.
@@ -80,10 +80,9 @@ export function openingBoards(nodes: readonly GraphNode[]): readonly {
 /**
  * A board a reader asked for, empty, because a board is what they put on it.
  *
- * It opens on nothing rather than on the widest reading of the graph.
- * Building a board of five things by dropping forty,
- * is not choosing a subset, it is disagreeing with one,
- * and it was only ever done that way because nothing could be added.
+ * It opens on nothing rather than on the widest reading of the graph,
+ * since building a board of five things by dropping forty,
+ * is not choosing a subset, it is disagreeing with one.
  *
  * The id is the first one nothing has taken,
  * so a board added after another was dropped never lands on its name.
@@ -120,7 +119,7 @@ const SECTION_EXTENT = { width: 576, height: 408 }
  * One that could not hold a single card refuses the first thing dragged in,
  * and a reader would have to resize before they could file anything.
  */
-const LEAST = { width: CARD_WIDTH + 48, height: 160 }
+const LEAST_SECTION_EXTENT = { width: CARD_WIDTH + 48, height: 160 }
 const NEW_SECTION_NAME = 'New section'
 const NEW_BOARD_NAME = 'New board'
 const CLEAR_OF_EVERYTHING = 96
@@ -174,7 +173,11 @@ export function resizeSection(board: Board, sectionId: string, extent: Extent): 
   return {
     ...board,
     sections: board.sections.map(section => (section.id === sectionId
-      ? { ...section, width: Math.max(extent.width, LEAST.width), height: Math.max(extent.height, LEAST.height) }
+      ? {
+          ...section,
+          width: Math.max(extent.width, LEAST_SECTION_EXTENT.width),
+          height: Math.max(extent.height, LEAST_SECTION_EXTENT.height),
+        }
       : section)),
   }
 }
@@ -192,8 +195,7 @@ export function renameSection(board: Board, sectionId: string, name: string): Bo
  *
  * The placement is theirs rather than worked out here.
  * A board arranged by hand means what its arrangement says,
- * so somewhere a reader chose beats anywhere this could pick for them,
- * which is what the old arrival point got wrong.
+ * so somewhere a reader chose beats anywhere this could pick for them.
  *
  * A node already on the board is left where it is rather than moved,
  * because a reader dragging one they already placed,

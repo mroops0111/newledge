@@ -145,7 +145,7 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
         // A reader who dragged a source onto a board of terms,
         // and then asked for it to be laid out again,
         // has not asked for the source to be thrown away.
-        const again = await firstArrangement(graph, PLACEMENT, alreadyOn(current))
+        const again = await firstArrangement(graph, PLACEMENT, alreadyOn(current.cards))
         setGeneration(count => count + 1)
         persist({ ...current, ...again.board })
       }
@@ -158,11 +158,11 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
   /**
    * A board a reader adds opens on nothing, with the panel they fill it from.
    *
-   * It used to open on the widest reading of the graph,
-   * because there was no way to put anything on one,
-   * and an empty board could not be worked with.
-   * There is now, and a board of five things made by dropping forty,
-   * was never a reader choosing a subset.
+   * Empty rather than seeded with the widest reading of the graph,
+   * since a board of five things made by dropping forty,
+   * is not a reader choosing a subset.
+   * The panel opens with it, because an empty canvas says what a board is,
+   * only once the thing that fills it is in front of the reader.
    */
   const addBoard = useCallback(() => {
     const fresh = newBoard({ boards: [...boards] })
@@ -506,7 +506,7 @@ export function Whiteboard({ graphClient, boardClient, views, nav }: {
               onNodeClick={(_, node) => {
                 setGrabbed(node.type === 'section' ? node.id : undefined)
                 // Picking a card is asking what it is,
-                // and the answer takes the place the panel is putting things on in,
+                // and the answer stands where the panel stands,
                 // so asking is what closes it.
                 if (node.type !== 'section')
                   setPutting(false)

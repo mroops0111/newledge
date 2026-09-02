@@ -200,6 +200,20 @@ export function nodeStyle(typeId: string): NodeStyle {
   return NODE_STYLES[typeId] ?? UNKNOWN_NODE
 }
 
+/**
+ * Whether a node of this type is ever drawn as a card a reader can place.
+ *
+ * A claim is drawn on the card of the concept it concerns,
+ * and a topic is drawn as the section rather than as a card standing in one,
+ * so neither is something a reader puts on a board.
+ * Said once here, since a list that offers one and a board that would not,
+ * draw it disagree without either of them looking wrong.
+ */
+export function cardable(typeId: string): boolean {
+  const style = nodeStyle(typeId)
+  return style.placed && !style.ground
+}
+
 export const EDGE_STYLES: Readonly<Record<string, EdgeStyle>> = {
   // A hierarchy. Which of the three it is comes from the end it carries,
   // and from what the card says it hangs off,

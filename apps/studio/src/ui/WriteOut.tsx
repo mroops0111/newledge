@@ -135,9 +135,9 @@ function Panel({ picked, asked, onPick, onAnswer, onWrite }: {
   return (
     <div ref={held} className="relative">
       {/*
-        Named for what a reader leaves with rather than for the act.
-        Write out said what the machinery does, and a reader pressing this
-        wants one of the four things under it, which are the handouts.
+        Named for what a reader leaves with rather than for the act,
+        since a reader pressing this wants one of the four things under it,
+        which are the handouts.
       */}
       <button type="button" onClick={() => setOpen(one => !one)} className={ACTION} aria-expanded={open}>
         New Handout

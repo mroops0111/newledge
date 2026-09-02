@@ -117,16 +117,17 @@ function Draggable({ offer }: { offer: Offer }): React.JSX.Element {
       className="group flex cursor-grab items-center gap-2 px-6 py-1.5 transition-colors hover:bg-raised active:cursor-grabbing"
     >
       {/*
-        Visible before a reader hovers, since the whole trouble with the panel
-        this replaces was that nothing on a row said it could be carried.
+        Visible before a reader hovers,
+        since nothing else on the row says it can be carried onto the board.
       */}
       <span className="shrink-0 text-ink-subtle transition-colors group-hover:text-ink-muted">
         {GLYPHS.grip}
       </span>
       {/*
-        The names are what this panel is, so they are set in the ink the
-        node panel sets its own content in. Everything else here is a label
-        about them and recedes, which is the whole of the hierarchy.
+        The names are what this panel is,
+        so they are set in the ink the node panel sets its own content in.
+        Everything else here is a label about them and recedes,
+        which is the whole of the hierarchy.
       */}
       <span className="line-clamp-2 min-w-0 font-ui text-prose-sm leading-snug text-ink">
         {offer.name}

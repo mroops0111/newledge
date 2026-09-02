@@ -34,11 +34,10 @@ export interface CardAct {
 /**
  * What a reader can do to one card, opened from the card itself.
  *
- * These used to sit in the rail beside the board,
- * disabled until something was picked.
+ * Not in the rail beside the board.
  * A rail is where a reader reaches for what goes on a board,
  * and for how they are looking at it,
- * so an act on one card answered a question nobody had asked yet,
+ * so an act on one card would answer a question nobody had asked yet,
  * in the place they ask a different one.
  *
  * A menu rather than a cross.
